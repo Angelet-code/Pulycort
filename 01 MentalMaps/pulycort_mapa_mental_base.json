@@ -1,0 +1,1074 @@
+{
+  "version": 1,
+  "id": "pulycort-operativo",
+  "title": "Pulycort - Mapa operativo",
+  "updatedAt": "2026-06-09T00:00:00.000Z",
+  "nodes": [
+    {
+      "id": "root",
+      "title": "Pulycort",
+      "notes": "Fabrica de marmol: compra bloques, transforma material, vende producto propio y presta servicios industriales a terceros. Fuente: explicacion directa del usuario, 2026-06-09.",
+      "color": "purple",
+      "width": 380
+    },
+    {
+      "id": "negocio",
+      "title": "Negocio",
+      "notes": "Que es Pulycort y que vende a nivel mas general.",
+      "color": "green",
+      "width": 340
+    },
+    {
+      "id": "produccion",
+      "title": "Produccion",
+      "notes": "Area de fabrica: estados del material, transformaciones, procesos, acabados y salida industrial.",
+      "color": "blue",
+      "width": 340
+    },
+    {
+      "id": "ventas",
+      "title": "Ventas",
+      "notes": "Flujo comercial desde la entrada de una peticion o venta hasta la activacion de produccion.",
+      "color": "red",
+      "width": 340
+    },
+    {
+      "id": "servicios-externos",
+      "title": "Servicios externos",
+      "notes": "Trabajos de fabrica realizados sobre material aportado por terceros, normalmente otros marmolistas.",
+      "color": "teal",
+      "width": 340
+    },
+    {
+      "id": "logistica",
+      "title": "Logistica",
+      "notes": "Preparacion del material final, embalaje y transporte.",
+      "color": "amber",
+      "width": 340
+    },
+    {
+      "id": "documentos",
+      "title": "Documentos",
+      "notes": "Documentacion generada durante venta, produccion, entrega y administracion.",
+      "color": "slate",
+      "width": 340
+    },
+    {
+      "id": "control",
+      "title": "Control",
+      "notes": "Trazabilidad, merma, productividad, reglas de negocio y datos pendientes de definir.",
+      "color": "purple",
+      "width": 340
+    },
+    {
+      "id": "negocio-fabrica",
+      "title": "Fabrica",
+      "notes": "Pulycort es una fabrica de marmol, no solo una comercializadora.",
+      "color": "green"
+    },
+    {
+      "id": "negocio-material-propio",
+      "title": "Material propio",
+      "notes": "Pulycort compra materia prima, la transforma y vende el material resultante.",
+      "color": "green"
+    },
+    {
+      "id": "negocio-servicios",
+      "title": "Servicios",
+      "notes": "Pulycort tambien vende servicios de transformacion industrial a terceros.",
+      "color": "green"
+    },
+    {
+      "id": "negocio-modos",
+      "title": "Modos trabajo",
+      "notes": "La produccion puede hacerse para stock o directamente bajo demanda.",
+      "color": "green"
+    },
+    {
+      "id": "propio-compra",
+      "title": "Compra bloques",
+      "notes": "La materia prima principal son bloques de marmol.",
+      "color": "green"
+    },
+    {
+      "id": "propio-procesa",
+      "title": "Procesa material",
+      "notes": "El material pasa por procesos de fabrica hasta obtener tablas, losas o piezas especiales.",
+      "color": "green"
+    },
+    {
+      "id": "propio-vende",
+      "title": "Vende material",
+      "notes": "La losa suele ser el producto final vendido, aunque tambien puede venderse material en bruto.",
+      "color": "green"
+    },
+    {
+      "id": "servicios-corte",
+      "title": "Corte",
+      "notes": "Servicio de transformar bloques o tablas de terceros.",
+      "color": "green"
+    },
+    {
+      "id": "servicios-acabados",
+      "title": "Acabados",
+      "notes": "Servicio de aplicar acabados sobre material de terceros, por ejemplo pulido.",
+      "color": "green"
+    },
+    {
+      "id": "modos-stock",
+      "title": "Stock",
+      "notes": "Produccion orientada a generar disponibilidad futura.",
+      "color": "green"
+    },
+    {
+      "id": "modos-demanda",
+      "title": "Bajo demanda",
+      "notes": "Produccion orientada a un pedido concreto.",
+      "color": "green"
+    },
+    {
+      "id": "produccion-material",
+      "title": "Material",
+      "notes": "Estados y flujo fisico del marmol dentro de fabrica.",
+      "color": "blue"
+    },
+    {
+      "id": "produccion-procesos",
+      "title": "Procesos",
+      "notes": "Procesos productivos agrupados por el estado del material.",
+      "color": "blue"
+    },
+    {
+      "id": "produccion-acabados",
+      "title": "Acabados",
+      "notes": "Procesos de terminacion aplicables sobre tabla o sobre losa.",
+      "color": "blue"
+    },
+    {
+      "id": "produccion-salida",
+      "title": "Salida fabrica",
+      "notes": "Resultado industrial listo para venta, embalaje o envio.",
+      "color": "blue"
+    },
+    {
+      "id": "material-estados",
+      "title": "Estados",
+      "notes": "Los tres estados principales del material son bloque, tabla y losa.",
+      "color": "blue"
+    },
+    {
+      "id": "material-flujo",
+      "title": "Flujo base",
+      "notes": "Secuencia material principal: bloque -> tabla -> losa.",
+      "color": "blue"
+    },
+    {
+      "id": "estado-bloque",
+      "title": "Bloque",
+      "notes": "Estado inicial del material comprado por Pulycort.",
+      "color": "blue"
+    },
+    {
+      "id": "estado-tabla",
+      "title": "Tabla",
+      "notes": "Estado intermedio obtenido al aserrar un bloque en telar.",
+      "color": "blue"
+    },
+    {
+      "id": "estado-losa",
+      "title": "Losa",
+      "notes": "Estado final habitual y producto que suele venderse.",
+      "color": "blue"
+    },
+    {
+      "id": "flujo-bloque-tabla",
+      "title": "Bloque a tabla",
+      "notes": "Transformacion realizada mediante aserrado en telar.",
+      "color": "blue"
+    },
+    {
+      "id": "flujo-tabla-losa",
+      "title": "Tabla a losa",
+      "notes": "Transformacion realizada mediante corte de tablas.",
+      "color": "blue"
+    },
+    {
+      "id": "procesos-bloque",
+      "title": "Bloque",
+      "notes": "Procesos aplicables cuando el material esta en estado bloque.",
+      "color": "blue"
+    },
+    {
+      "id": "procesos-tabla",
+      "title": "Tabla",
+      "notes": "Procesos aplicables cuando el material esta en estado tabla.",
+      "color": "blue"
+    },
+    {
+      "id": "procesos-losa",
+      "title": "Losa",
+      "notes": "Procesos aplicables cuando el material esta en estado losa.",
+      "color": "blue"
+    },
+    {
+      "id": "procesos-cnc",
+      "title": "CNC",
+      "notes": "Proceso especial sobre bloques adaptados a una medida optima.",
+      "color": "blue"
+    },
+    {
+      "id": "bloque-entrada",
+      "title": "Entrada",
+      "notes": "Primer paso del bloque al llegar a fabrica.",
+      "color": "blue"
+    },
+    {
+      "id": "bloque-preparacion",
+      "title": "Preparacion",
+      "notes": "Procesos para preparar el bloque antes de transformarlo.",
+      "color": "blue"
+    },
+    {
+      "id": "bloque-transformacion",
+      "title": "Transformacion",
+      "notes": "Procesos que convierten el bloque en tablas o piezas especiales.",
+      "color": "blue"
+    },
+    {
+      "id": "bloque-recepcion",
+      "title": "Recepcion",
+      "notes": "Recepcion del bloque comprado.",
+      "color": "blue"
+    },
+    {
+      "id": "bloque-clasificacion",
+      "title": "Clasificacion",
+      "notes": "Clasificacion del bloque tras recepcion. Falta detallar criterios.",
+      "color": "blue"
+    },
+    {
+      "id": "bloque-refuerzo",
+      "title": "Refuerzo",
+      "notes": "Se aplica si el bloque tiene pelos o riesgo de quebrarse al pasar por el telar.",
+      "color": "blue"
+    },
+    {
+      "id": "bloque-despunte",
+      "title": "Despunte",
+      "notes": "Corte de sobrante para cuadrar un bloque irregular.",
+      "color": "blue"
+    },
+    {
+      "id": "bloque-pelo",
+      "title": "Pelo",
+      "notes": "Fisura o indicio de brecha por donde el bloque podria partirse con la manipulacion.",
+      "color": "blue"
+    },
+    {
+      "id": "bloque-rotura",
+      "title": "Evitar rotura",
+      "notes": "Objetivo del refuerzo: reducir riesgo de rotura durante el aserrado.",
+      "color": "blue"
+    },
+    {
+      "id": "bloque-cuadrar",
+      "title": "Cuadrar",
+      "notes": "Objetivo del despunte: dejar el bloque mas regular y comodo para trabajar.",
+      "color": "blue"
+    },
+    {
+      "id": "bloque-aserrado",
+      "title": "Aserrado",
+      "notes": "Proceso que corta el bloque y lo convierte en tablas.",
+      "color": "blue"
+    },
+    {
+      "id": "bloque-telar",
+      "title": "Telar",
+      "notes": "Maquina utilizada para el aserrado de bloques.",
+      "color": "blue"
+    },
+    {
+      "id": "tabla-origen",
+      "title": "Origen",
+      "notes": "La tabla nace del aserrado del bloque en telar.",
+      "color": "blue"
+    },
+    {
+      "id": "tabla-opciones",
+      "title": "Opciones",
+      "notes": "Una tabla puede venderse en bruto, acabarse o cortarse en losas.",
+      "color": "blue"
+    },
+    {
+      "id": "tabla-corte",
+      "title": "Corte tabla",
+      "notes": "Proceso por el cual se pasa de tablas a losas.",
+      "color": "blue"
+    },
+    {
+      "id": "tabla-desde-telar",
+      "title": "Desde telar",
+      "notes": "La tabla procede del bloque aserrado.",
+      "color": "blue"
+    },
+    {
+      "id": "tabla-bruto",
+      "title": "En bruto",
+      "notes": "Si no se ejecuta ningun acabado, la tabla queda en bruto y tambien puede venderse.",
+      "color": "blue"
+    },
+    {
+      "id": "tabla-acabado",
+      "title": "Acabado tabla",
+      "notes": "El acabado puede aplicarse antes de cortar la tabla en losas si conviene.",
+      "color": "blue"
+    },
+    {
+      "id": "tabla-medidas",
+      "title": "Medidas",
+      "notes": "Las losas resultantes pueden responder a stock previsto o a medidas del cliente.",
+      "color": "blue"
+    },
+    {
+      "id": "tabla-desperdicio",
+      "title": "Desperdicio",
+      "notes": "Es muy importante calcular el desperdicio en el corte de tablas.",
+      "color": "blue"
+    },
+    {
+      "id": "tabla-genera-losas",
+      "title": "Genera losas",
+      "notes": "La salida del corte de tablas son losas.",
+      "color": "blue"
+    },
+    {
+      "id": "losa-rol",
+      "title": "Rol",
+      "notes": "La losa suele ser el producto final vendido.",
+      "color": "blue"
+    },
+    {
+      "id": "losa-procesado",
+      "title": "Procesado",
+      "notes": "Procesos que pueden aplicarse cuando el material ya esta en losa.",
+      "color": "blue"
+    },
+    {
+      "id": "losa-final",
+      "title": "Producto final",
+      "notes": "La losa final es la salida comercial mas habitual.",
+      "color": "blue"
+    },
+    {
+      "id": "losa-acabado",
+      "title": "Acabado losa",
+      "notes": "La losa puede recibir acabado si no se hizo sobre tabla.",
+      "color": "blue"
+    },
+    {
+      "id": "cnc-medida",
+      "title": "Medida optima",
+      "notes": "El bloque debe estar cortado a medida adecuada antes de hacer piezas complejas con CNC.",
+      "color": "blue"
+    },
+    {
+      "id": "cnc-piezas",
+      "title": "Piezas especiales",
+      "notes": "El CNC permite fabricar piezas complejas.",
+      "color": "blue"
+    },
+    {
+      "id": "cnc-baneras",
+      "title": "Baneras",
+      "notes": "Ejemplo de pieza especial con CNC.",
+      "color": "blue"
+    },
+    {
+      "id": "cnc-muebles",
+      "title": "Muebles",
+      "notes": "Ejemplo de pieza o mueble especifico fabricable con CNC.",
+      "color": "blue"
+    },
+    {
+      "id": "acabados-donde",
+      "title": "Donde",
+      "notes": "Los acabados pueden aplicarse sobre tabla o sobre losa.",
+      "color": "blue"
+    },
+    {
+      "id": "acabados-regla",
+      "title": "Regla",
+      "notes": "El acabado se realiza una sola vez: en tabla o en losa.",
+      "color": "blue"
+    },
+    {
+      "id": "acabados-tipos",
+      "title": "Tipos",
+      "notes": "Tipos de acabados mencionados por el usuario.",
+      "color": "blue"
+    },
+    {
+      "id": "acabado-sobre-tabla",
+      "title": "Sobre tabla",
+      "notes": "Opcion: aplicar acabado cuando el material aun es tabla.",
+      "color": "blue"
+    },
+    {
+      "id": "acabado-sobre-losa",
+      "title": "Sobre losa",
+      "notes": "Opcion: aplicar acabado cuando el material ya es losa.",
+      "color": "blue"
+    },
+    {
+      "id": "acabado-una-vez",
+      "title": "Una vez",
+      "notes": "No se hace el acabado en tabla y de nuevo en losa; se escoge el momento conveniente.",
+      "color": "blue"
+    },
+    {
+      "id": "acabado-pulido",
+      "title": "Pulido",
+      "notes": "Acabado mencionado. Tambien aparece como ejemplo de servicio a terceros.",
+      "color": "blue"
+    },
+    {
+      "id": "acabado-abujardado",
+      "title": "Abujardado",
+      "notes": "Acabado mencionado por el usuario.",
+      "color": "blue"
+    },
+    {
+      "id": "acabado-arenado",
+      "title": "Arenado",
+      "notes": "Acabado mencionado por el usuario.",
+      "color": "blue"
+    },
+    {
+      "id": "acabado-envejecido",
+      "title": "Envejecido",
+      "notes": "Acabado mencionado por el usuario.",
+      "color": "blue"
+    },
+    {
+      "id": "acabado-acidado",
+      "title": "Acidado",
+      "notes": "Acabado mencionado por el usuario.",
+      "color": "blue"
+    },
+    {
+      "id": "acabado-escarfilado",
+      "title": "Escarfilado",
+      "notes": "Acabado mencionado por el usuario.",
+      "color": "blue"
+    },
+    {
+      "id": "acabado-bruto",
+      "title": "En bruto",
+      "notes": "Si no se ejecuta ningun acabado, se considera acabado en bruto y tambien tiene venta.",
+      "color": "blue"
+    },
+    {
+      "id": "salida-material-final",
+      "title": "Material final",
+      "notes": "Material terminado tras los procesos necesarios.",
+      "color": "blue"
+    },
+    {
+      "id": "salida-losas",
+      "title": "Losas finales",
+      "notes": "Forma final habitual que se vende o prepara para envio.",
+      "color": "blue"
+    },
+    {
+      "id": "ventas-entrada",
+      "title": "Entrada",
+      "notes": "La venta empieza con una peticion de presupuesto o una venta directa.",
+      "color": "red"
+    },
+    {
+      "id": "ventas-presupuesto",
+      "title": "Presupuesto",
+      "notes": "Preparacion, envio y aceptacion del presupuesto.",
+      "color": "red"
+    },
+    {
+      "id": "ventas-confirmacion",
+      "title": "Confirmacion",
+      "notes": "Aceptacion, pago y orden de produccion.",
+      "color": "red"
+    },
+    {
+      "id": "ventas-ejecucion",
+      "title": "Ejecucion",
+      "notes": "Conexion entre venta aceptada, produccion y material final.",
+      "color": "red"
+    },
+    {
+      "id": "entrada-peticion",
+      "title": "Peticion",
+      "notes": "Puede entrar una peticion de presupuesto.",
+      "color": "red"
+    },
+    {
+      "id": "entrada-venta-directa",
+      "title": "Venta directa",
+      "notes": "Tambien puede entrar directamente una venta.",
+      "color": "red"
+    },
+    {
+      "id": "entrada-canales",
+      "title": "Canales",
+      "notes": "Origen de la solicitud o venta.",
+      "color": "red"
+    },
+    {
+      "id": "canal-web",
+      "title": "Web",
+      "notes": "Canal de entrada mencionado.",
+      "color": "red"
+    },
+    {
+      "id": "canal-comercial",
+      "title": "Comercial",
+      "notes": "Canal de entrada mencionado.",
+      "color": "red"
+    },
+    {
+      "id": "canal-boca",
+      "title": "Boca a boca",
+      "notes": "Canal de entrada mencionado.",
+      "color": "red"
+    },
+    {
+      "id": "canal-recurrente",
+      "title": "Cliente vuelve",
+      "notes": "Cliente recurrente que vuelve a comprar.",
+      "color": "red"
+    },
+    {
+      "id": "presupuesto-enviar",
+      "title": "Enviar",
+      "notes": "Se envia presupuesto al cliente cuando aplica.",
+      "color": "red"
+    },
+    {
+      "id": "presupuesto-aceptar",
+      "title": "Aceptar",
+      "notes": "El presupuesto aceptado permite avanzar hacia pago y OP.",
+      "color": "red"
+    },
+    {
+      "id": "confirmacion-pago",
+      "title": "Pago",
+      "notes": "Cuando se recibe el pago, se manda una OP.",
+      "color": "red"
+    },
+    {
+      "id": "confirmacion-op",
+      "title": "OP",
+      "notes": "Orden de produccion que activa o coordina el trabajo de fabrica.",
+      "color": "red"
+    },
+    {
+      "id": "ejecucion-produccion",
+      "title": "Produccion",
+      "notes": "La OP conecta la venta con el proceso productivo necesario.",
+      "color": "red"
+    },
+    {
+      "id": "ejecucion-final",
+      "title": "Material final",
+      "notes": "Una vez terminado, el material pasa a preparacion logistica.",
+      "color": "red"
+    },
+    {
+      "id": "externos-cliente",
+      "title": "Cliente",
+      "notes": "Tercero que contrata un servicio industrial.",
+      "color": "teal"
+    },
+    {
+      "id": "externos-material",
+      "title": "Material externo",
+      "notes": "Material aportado por otro marmolista o cliente industrial.",
+      "color": "teal"
+    },
+    {
+      "id": "externos-trabajos",
+      "title": "Trabajos",
+      "notes": "Procesos que Pulycort puede realizar sobre material externo.",
+      "color": "teal"
+    },
+    {
+      "id": "externos-condiciones",
+      "title": "Condiciones",
+      "notes": "Particularidades del servicio a terceros.",
+      "color": "teal"
+    },
+    {
+      "id": "externos-marmolista",
+      "title": "Marmolista",
+      "notes": "Caso habitual: otro marmolista contrata el servicio.",
+      "color": "teal"
+    },
+    {
+      "id": "externos-camion",
+      "title": "Camion",
+      "notes": "El tercero puede llevar un camion a la fabrica con el material.",
+      "color": "teal"
+    },
+    {
+      "id": "externos-tablas",
+      "title": "Tablas",
+      "notes": "Ejemplo de material externo: tablas para cortar en losas.",
+      "color": "teal"
+    },
+    {
+      "id": "externos-bloques",
+      "title": "Bloques",
+      "notes": "Ejemplo de material externo: bloques para convertir en tablas.",
+      "color": "teal"
+    },
+    {
+      "id": "externos-corte-tablas",
+      "title": "Cortar tablas",
+      "notes": "Servicio: convertir tablas externas en losas.",
+      "color": "teal"
+    },
+    {
+      "id": "externos-corte-bloques",
+      "title": "Cortar bloques",
+      "notes": "Servicio: convertir bloques externos en tablas.",
+      "color": "teal"
+    },
+    {
+      "id": "externos-acabado",
+      "title": "Aplicar acabado",
+      "notes": "Servicio: aplicar acabado, por ejemplo pulido.",
+      "color": "teal"
+    },
+    {
+      "id": "externos-medidas",
+      "title": "A medida",
+      "notes": "El material se procesa a la medida que quiera el tercero.",
+      "color": "teal"
+    },
+    {
+      "id": "externos-servicio",
+      "title": "Venta servicio",
+      "notes": "En este caso Pulycort vende el proceso industrial, no necesariamente el material.",
+      "color": "teal"
+    },
+    {
+      "id": "logistica-preparacion",
+      "title": "Preparacion",
+      "notes": "Material final preparado antes del transporte.",
+      "color": "amber"
+    },
+    {
+      "id": "logistica-embalaje",
+      "title": "Embalaje",
+      "notes": "Proteccion y agrupacion del material para envio.",
+      "color": "amber"
+    },
+    {
+      "id": "logistica-transporte",
+      "title": "Transporte",
+      "notes": "Contratacion del envio con una empresa de transporte.",
+      "color": "amber"
+    },
+    {
+      "id": "logistica-responsable",
+      "title": "Quien contrata",
+      "notes": "El transporte puede contratarlo Pulycort o el cliente.",
+      "color": "amber"
+    },
+    {
+      "id": "preparacion-material",
+      "title": "Material final",
+      "notes": "Material terminado y listo para embalaje o envio.",
+      "color": "amber"
+    },
+    {
+      "id": "preparacion-losas",
+      "title": "Losas listas",
+      "notes": "Las losas finales son preparadas para su posterior envio.",
+      "color": "amber"
+    },
+    {
+      "id": "embalaje-pallets",
+      "title": "Pallets madera",
+      "notes": "Las losas se embalan en pallets de madera.",
+      "color": "amber"
+    },
+    {
+      "id": "transporte-empresa",
+      "title": "Empresa transporte",
+      "notes": "Se contrata el envio a una empresa de transporte.",
+      "color": "amber"
+    },
+    {
+      "id": "transporte-pulycort",
+      "title": "Pulycort",
+      "notes": "Una opcion es que Pulycort contrate el transporte.",
+      "color": "amber"
+    },
+    {
+      "id": "transporte-cliente",
+      "title": "Cliente",
+      "notes": "Otra opcion es que el cliente contrate el transporte.",
+      "color": "amber"
+    },
+    {
+      "id": "docs-comerciales",
+      "title": "Comerciales",
+      "notes": "Documentos ligados a presupuesto, venta y cobro.",
+      "color": "slate"
+    },
+    {
+      "id": "docs-operativos",
+      "title": "Operativos",
+      "notes": "Documentos ligados a produccion y maquinaria.",
+      "color": "slate"
+    },
+    {
+      "id": "docs-logisticos",
+      "title": "Logisticos",
+      "notes": "Documentos ligados a entrega y transporte.",
+      "color": "slate"
+    },
+    {
+      "id": "docs-pendientes",
+      "title": "Por definir",
+      "notes": "Falta detallar que documento se genera, cuando, quien lo genera y como.",
+      "color": "slate"
+    },
+    {
+      "id": "doc-proformas",
+      "title": "Proformas",
+      "notes": "Documento mencionado por el usuario.",
+      "color": "slate"
+    },
+    {
+      "id": "doc-facturas",
+      "title": "Facturas",
+      "notes": "Documento mencionado por el usuario.",
+      "color": "slate"
+    },
+    {
+      "id": "doc-presupuestos",
+      "title": "Presupuestos",
+      "notes": "Documento comercial enviado antes de aceptacion y pago.",
+      "color": "slate"
+    },
+    {
+      "id": "doc-op",
+      "title": "OP",
+      "notes": "Orden de produccion generada tras aceptacion y pago.",
+      "color": "slate"
+    },
+    {
+      "id": "doc-productividad",
+      "title": "Productividad",
+      "notes": "Documentacion o datos de productividad de maquinas.",
+      "color": "slate"
+    },
+    {
+      "id": "doc-albaranes",
+      "title": "Albaranes",
+      "notes": "Documento mencionado por el usuario, ligado a entrega o salida.",
+      "color": "slate"
+    },
+    {
+      "id": "doc-momento",
+      "title": "Momento",
+      "notes": "Pendiente definir en que momento se genera cada documento.",
+      "color": "slate"
+    },
+    {
+      "id": "doc-manera",
+      "title": "Manera",
+      "notes": "Pendiente definir de que manera se genera cada documento y desde que datos.",
+      "color": "slate"
+    },
+    {
+      "id": "doc-responsable",
+      "title": "Responsable",
+      "notes": "Pendiente definir quien genera, valida o envia cada documento.",
+      "color": "slate"
+    },
+    {
+      "id": "control-trazabilidad",
+      "title": "Trazabilidad",
+      "notes": "Relacionar material, proceso, pedido, documentos y envio.",
+      "color": "purple"
+    },
+    {
+      "id": "control-merma",
+      "title": "Merma",
+      "notes": "Control del desperdicio, especialmente en corte de tablas.",
+      "color": "purple"
+    },
+    {
+      "id": "control-productividad",
+      "title": "Productividad",
+      "notes": "Medicion de rendimiento de maquinas y procesos.",
+      "color": "purple"
+    },
+    {
+      "id": "control-reglas",
+      "title": "Reglas",
+      "notes": "Reglas operativas que afectan el flujo real.",
+      "color": "purple"
+    },
+    {
+      "id": "control-pendiente",
+      "title": "Por aclarar",
+      "notes": "Preguntas necesarias para futuras ampliaciones.",
+      "color": "purple"
+    },
+    {
+      "id": "traza-material",
+      "title": "Material",
+      "notes": "Trazar bloque, tabla y losa.",
+      "color": "purple"
+    },
+    {
+      "id": "traza-procesos",
+      "title": "Procesos",
+      "notes": "Trazar refuerzo, despunte, aserrado, corte, acabado, CNC y embalaje.",
+      "color": "purple"
+    },
+    {
+      "id": "traza-pedido",
+      "title": "Pedido",
+      "notes": "Relacionar solicitud, presupuesto, pago y OP.",
+      "color": "purple"
+    },
+    {
+      "id": "traza-propio-tercero",
+      "title": "Propio o externo",
+      "notes": "Distinguir material propio de material aportado por terceros.",
+      "color": "purple"
+    },
+    {
+      "id": "merma-corte",
+      "title": "Corte tablas",
+      "notes": "Punto critico donde debe calcularse el desperdicio.",
+      "color": "purple"
+    },
+    {
+      "id": "merma-margen",
+      "title": "Margen",
+      "notes": "La merma impacta coste, precio y rentabilidad.",
+      "color": "purple"
+    },
+    {
+      "id": "prod-maquinas",
+      "title": "Maquinas",
+      "notes": "Medicion de productividad de las maquinas.",
+      "color": "purple"
+    },
+    {
+      "id": "prod-procesos",
+      "title": "Procesos",
+      "notes": "Relacionar productividad con los procesos ejecutados.",
+      "color": "purple"
+    },
+    {
+      "id": "regla-acabado",
+      "title": "Acabado unico",
+      "notes": "El acabado se hace en tabla o en losa, no en ambos.",
+      "color": "purple"
+    },
+    {
+      "id": "regla-stock-demanda",
+      "title": "Stock o demanda",
+      "notes": "Criterio para decidir si se procesa para stock o para un pedido concreto.",
+      "color": "purple"
+    },
+    {
+      "id": "regla-transporte",
+      "title": "Transporte",
+      "notes": "El envio puede contratarlo Pulycort o el cliente.",
+      "color": "purple"
+    },
+    {
+      "id": "pendiente-datos",
+      "title": "Datos pedido",
+      "notes": "Datos minimos para presupuestar y emitir OP.",
+      "color": "purple"
+    },
+    {
+      "id": "pendiente-criterios",
+      "title": "Criterios",
+      "notes": "Criterios para refuerzo, despunte, acabado en tabla o losa, stock o demanda.",
+      "color": "purple"
+    },
+    {
+      "id": "pendiente-sistemas",
+      "title": "Sistemas",
+      "notes": "Donde se registra cada dato y documento.",
+      "color": "purple"
+    },
+    {
+      "id": "pendiente-documentos",
+      "title": "Fases documento",
+      "notes": "Que documentos se generan en cada fase del proceso.",
+      "color": "purple"
+    }
+  ],
+  "edges": [
+    { "id": "root-negocio", "source": "root", "target": "negocio" },
+    { "id": "root-produccion", "source": "root", "target": "produccion" },
+    { "id": "root-ventas", "source": "root", "target": "ventas" },
+    { "id": "root-servicios-externos", "source": "root", "target": "servicios-externos" },
+    { "id": "root-logistica", "source": "root", "target": "logistica" },
+    { "id": "root-documentos", "source": "root", "target": "documentos" },
+    { "id": "root-control", "source": "root", "target": "control" },
+    { "id": "negocio-negocio-fabrica", "source": "negocio", "target": "negocio-fabrica" },
+    { "id": "negocio-negocio-material-propio", "source": "negocio", "target": "negocio-material-propio" },
+    { "id": "negocio-negocio-servicios", "source": "negocio", "target": "negocio-servicios" },
+    { "id": "negocio-negocio-modos", "source": "negocio", "target": "negocio-modos" },
+    { "id": "negocio-material-propio-propio-compra", "source": "negocio-material-propio", "target": "propio-compra" },
+    { "id": "negocio-material-propio-propio-procesa", "source": "negocio-material-propio", "target": "propio-procesa" },
+    { "id": "negocio-material-propio-propio-vende", "source": "negocio-material-propio", "target": "propio-vende" },
+    { "id": "negocio-servicios-servicios-corte", "source": "negocio-servicios", "target": "servicios-corte" },
+    { "id": "negocio-servicios-servicios-acabados", "source": "negocio-servicios", "target": "servicios-acabados" },
+    { "id": "negocio-modos-modos-stock", "source": "negocio-modos", "target": "modos-stock" },
+    { "id": "negocio-modos-modos-demanda", "source": "negocio-modos", "target": "modos-demanda" },
+    { "id": "produccion-produccion-material", "source": "produccion", "target": "produccion-material" },
+    { "id": "produccion-produccion-procesos", "source": "produccion", "target": "produccion-procesos" },
+    { "id": "produccion-produccion-acabados", "source": "produccion", "target": "produccion-acabados" },
+    { "id": "produccion-produccion-salida", "source": "produccion", "target": "produccion-salida" },
+    { "id": "produccion-material-material-estados", "source": "produccion-material", "target": "material-estados" },
+    { "id": "produccion-material-material-flujo", "source": "produccion-material", "target": "material-flujo" },
+    { "id": "material-estados-estado-bloque", "source": "material-estados", "target": "estado-bloque" },
+    { "id": "material-estados-estado-tabla", "source": "material-estados", "target": "estado-tabla" },
+    { "id": "material-estados-estado-losa", "source": "material-estados", "target": "estado-losa" },
+    { "id": "material-flujo-flujo-bloque-tabla", "source": "material-flujo", "target": "flujo-bloque-tabla" },
+    { "id": "material-flujo-flujo-tabla-losa", "source": "material-flujo", "target": "flujo-tabla-losa" },
+    { "id": "produccion-procesos-procesos-bloque", "source": "produccion-procesos", "target": "procesos-bloque" },
+    { "id": "produccion-procesos-procesos-tabla", "source": "produccion-procesos", "target": "procesos-tabla" },
+    { "id": "produccion-procesos-procesos-losa", "source": "produccion-procesos", "target": "procesos-losa" },
+    { "id": "produccion-procesos-procesos-cnc", "source": "produccion-procesos", "target": "procesos-cnc" },
+    { "id": "procesos-bloque-bloque-entrada", "source": "procesos-bloque", "target": "bloque-entrada" },
+    { "id": "procesos-bloque-bloque-preparacion", "source": "procesos-bloque", "target": "bloque-preparacion" },
+    { "id": "procesos-bloque-bloque-transformacion", "source": "procesos-bloque", "target": "bloque-transformacion" },
+    { "id": "bloque-entrada-bloque-recepcion", "source": "bloque-entrada", "target": "bloque-recepcion" },
+    { "id": "bloque-entrada-bloque-clasificacion", "source": "bloque-entrada", "target": "bloque-clasificacion" },
+    { "id": "bloque-preparacion-bloque-refuerzo", "source": "bloque-preparacion", "target": "bloque-refuerzo" },
+    { "id": "bloque-preparacion-bloque-despunte", "source": "bloque-preparacion", "target": "bloque-despunte" },
+    { "id": "bloque-refuerzo-bloque-pelo", "source": "bloque-refuerzo", "target": "bloque-pelo" },
+    { "id": "bloque-refuerzo-bloque-rotura", "source": "bloque-refuerzo", "target": "bloque-rotura" },
+    { "id": "bloque-despunte-bloque-cuadrar", "source": "bloque-despunte", "target": "bloque-cuadrar" },
+    { "id": "bloque-transformacion-bloque-aserrado", "source": "bloque-transformacion", "target": "bloque-aserrado" },
+    { "id": "bloque-aserrado-bloque-telar", "source": "bloque-aserrado", "target": "bloque-telar" },
+    { "id": "procesos-tabla-tabla-origen", "source": "procesos-tabla", "target": "tabla-origen" },
+    { "id": "procesos-tabla-tabla-opciones", "source": "procesos-tabla", "target": "tabla-opciones" },
+    { "id": "procesos-tabla-tabla-corte", "source": "procesos-tabla", "target": "tabla-corte" },
+    { "id": "tabla-origen-tabla-desde-telar", "source": "tabla-origen", "target": "tabla-desde-telar" },
+    { "id": "tabla-opciones-tabla-bruto", "source": "tabla-opciones", "target": "tabla-bruto" },
+    { "id": "tabla-opciones-tabla-acabado", "source": "tabla-opciones", "target": "tabla-acabado" },
+    { "id": "tabla-corte-tabla-medidas", "source": "tabla-corte", "target": "tabla-medidas" },
+    { "id": "tabla-corte-tabla-desperdicio", "source": "tabla-corte", "target": "tabla-desperdicio" },
+    { "id": "tabla-corte-tabla-genera-losas", "source": "tabla-corte", "target": "tabla-genera-losas" },
+    { "id": "procesos-losa-losa-rol", "source": "procesos-losa", "target": "losa-rol" },
+    { "id": "procesos-losa-losa-procesado", "source": "procesos-losa", "target": "losa-procesado" },
+    { "id": "losa-rol-losa-final", "source": "losa-rol", "target": "losa-final" },
+    { "id": "losa-procesado-losa-acabado", "source": "losa-procesado", "target": "losa-acabado" },
+    { "id": "procesos-cnc-cnc-medida", "source": "procesos-cnc", "target": "cnc-medida" },
+    { "id": "procesos-cnc-cnc-piezas", "source": "procesos-cnc", "target": "cnc-piezas" },
+    { "id": "cnc-piezas-cnc-baneras", "source": "cnc-piezas", "target": "cnc-baneras" },
+    { "id": "cnc-piezas-cnc-muebles", "source": "cnc-piezas", "target": "cnc-muebles" },
+    { "id": "produccion-acabados-acabados-donde", "source": "produccion-acabados", "target": "acabados-donde" },
+    { "id": "produccion-acabados-acabados-regla", "source": "produccion-acabados", "target": "acabados-regla" },
+    { "id": "produccion-acabados-acabados-tipos", "source": "produccion-acabados", "target": "acabados-tipos" },
+    { "id": "acabados-donde-acabado-sobre-tabla", "source": "acabados-donde", "target": "acabado-sobre-tabla" },
+    { "id": "acabados-donde-acabado-sobre-losa", "source": "acabados-donde", "target": "acabado-sobre-losa" },
+    { "id": "acabados-regla-acabado-una-vez", "source": "acabados-regla", "target": "acabado-una-vez" },
+    { "id": "acabados-tipos-acabado-pulido", "source": "acabados-tipos", "target": "acabado-pulido" },
+    { "id": "acabados-tipos-acabado-abujardado", "source": "acabados-tipos", "target": "acabado-abujardado" },
+    { "id": "acabados-tipos-acabado-arenado", "source": "acabados-tipos", "target": "acabado-arenado" },
+    { "id": "acabados-tipos-acabado-envejecido", "source": "acabados-tipos", "target": "acabado-envejecido" },
+    { "id": "acabados-tipos-acabado-acidado", "source": "acabados-tipos", "target": "acabado-acidado" },
+    { "id": "acabados-tipos-acabado-escarfilado", "source": "acabados-tipos", "target": "acabado-escarfilado" },
+    { "id": "acabados-tipos-acabado-bruto", "source": "acabados-tipos", "target": "acabado-bruto" },
+    { "id": "produccion-salida-salida-material-final", "source": "produccion-salida", "target": "salida-material-final" },
+    { "id": "produccion-salida-salida-losas", "source": "produccion-salida", "target": "salida-losas" },
+    { "id": "ventas-ventas-entrada", "source": "ventas", "target": "ventas-entrada" },
+    { "id": "ventas-ventas-presupuesto", "source": "ventas", "target": "ventas-presupuesto" },
+    { "id": "ventas-ventas-confirmacion", "source": "ventas", "target": "ventas-confirmacion" },
+    { "id": "ventas-ventas-ejecucion", "source": "ventas", "target": "ventas-ejecucion" },
+    { "id": "ventas-entrada-entrada-peticion", "source": "ventas-entrada", "target": "entrada-peticion" },
+    { "id": "ventas-entrada-entrada-venta-directa", "source": "ventas-entrada", "target": "entrada-venta-directa" },
+    { "id": "ventas-entrada-entrada-canales", "source": "ventas-entrada", "target": "entrada-canales" },
+    { "id": "entrada-canales-canal-web", "source": "entrada-canales", "target": "canal-web" },
+    { "id": "entrada-canales-canal-comercial", "source": "entrada-canales", "target": "canal-comercial" },
+    { "id": "entrada-canales-canal-boca", "source": "entrada-canales", "target": "canal-boca" },
+    { "id": "entrada-canales-canal-recurrente", "source": "entrada-canales", "target": "canal-recurrente" },
+    { "id": "ventas-presupuesto-presupuesto-enviar", "source": "ventas-presupuesto", "target": "presupuesto-enviar" },
+    { "id": "ventas-presupuesto-presupuesto-aceptar", "source": "ventas-presupuesto", "target": "presupuesto-aceptar" },
+    { "id": "ventas-confirmacion-confirmacion-pago", "source": "ventas-confirmacion", "target": "confirmacion-pago" },
+    { "id": "ventas-confirmacion-confirmacion-op", "source": "ventas-confirmacion", "target": "confirmacion-op" },
+    { "id": "ventas-ejecucion-ejecucion-produccion", "source": "ventas-ejecucion", "target": "ejecucion-produccion" },
+    { "id": "ventas-ejecucion-ejecucion-final", "source": "ventas-ejecucion", "target": "ejecucion-final" },
+    { "id": "servicios-externos-externos-cliente", "source": "servicios-externos", "target": "externos-cliente" },
+    { "id": "servicios-externos-externos-material", "source": "servicios-externos", "target": "externos-material" },
+    { "id": "servicios-externos-externos-trabajos", "source": "servicios-externos", "target": "externos-trabajos" },
+    { "id": "servicios-externos-externos-condiciones", "source": "servicios-externos", "target": "externos-condiciones" },
+    { "id": "externos-cliente-externos-marmolista", "source": "externos-cliente", "target": "externos-marmolista" },
+    { "id": "externos-cliente-externos-camion", "source": "externos-cliente", "target": "externos-camion" },
+    { "id": "externos-material-externos-tablas", "source": "externos-material", "target": "externos-tablas" },
+    { "id": "externos-material-externos-bloques", "source": "externos-material", "target": "externos-bloques" },
+    { "id": "externos-trabajos-externos-corte-tablas", "source": "externos-trabajos", "target": "externos-corte-tablas" },
+    { "id": "externos-trabajos-externos-corte-bloques", "source": "externos-trabajos", "target": "externos-corte-bloques" },
+    { "id": "externos-trabajos-externos-acabado", "source": "externos-trabajos", "target": "externos-acabado" },
+    { "id": "externos-condiciones-externos-medidas", "source": "externos-condiciones", "target": "externos-medidas" },
+    { "id": "externos-condiciones-externos-servicio", "source": "externos-condiciones", "target": "externos-servicio" },
+    { "id": "logistica-logistica-preparacion", "source": "logistica", "target": "logistica-preparacion" },
+    { "id": "logistica-logistica-embalaje", "source": "logistica", "target": "logistica-embalaje" },
+    { "id": "logistica-logistica-transporte", "source": "logistica", "target": "logistica-transporte" },
+    { "id": "logistica-logistica-responsable", "source": "logistica", "target": "logistica-responsable" },
+    { "id": "logistica-preparacion-preparacion-material", "source": "logistica-preparacion", "target": "preparacion-material" },
+    { "id": "logistica-preparacion-preparacion-losas", "source": "logistica-preparacion", "target": "preparacion-losas" },
+    { "id": "logistica-embalaje-embalaje-pallets", "source": "logistica-embalaje", "target": "embalaje-pallets" },
+    { "id": "logistica-transporte-transporte-empresa", "source": "logistica-transporte", "target": "transporte-empresa" },
+    { "id": "logistica-responsable-transporte-pulycort", "source": "logistica-responsable", "target": "transporte-pulycort" },
+    { "id": "logistica-responsable-transporte-cliente", "source": "logistica-responsable", "target": "transporte-cliente" },
+    { "id": "documentos-docs-comerciales", "source": "documentos", "target": "docs-comerciales" },
+    { "id": "documentos-docs-operativos", "source": "documentos", "target": "docs-operativos" },
+    { "id": "documentos-docs-logisticos", "source": "documentos", "target": "docs-logisticos" },
+    { "id": "documentos-docs-pendientes", "source": "documentos", "target": "docs-pendientes" },
+    { "id": "docs-comerciales-doc-proformas", "source": "docs-comerciales", "target": "doc-proformas" },
+    { "id": "docs-comerciales-doc-facturas", "source": "docs-comerciales", "target": "doc-facturas" },
+    { "id": "docs-comerciales-doc-presupuestos", "source": "docs-comerciales", "target": "doc-presupuestos" },
+    { "id": "docs-operativos-doc-op", "source": "docs-operativos", "target": "doc-op" },
+    { "id": "docs-operativos-doc-productividad", "source": "docs-operativos", "target": "doc-productividad" },
+    { "id": "docs-logisticos-doc-albaranes", "source": "docs-logisticos", "target": "doc-albaranes" },
+    { "id": "docs-pendientes-doc-momento", "source": "docs-pendientes", "target": "doc-momento" },
+    { "id": "docs-pendientes-doc-manera", "source": "docs-pendientes", "target": "doc-manera" },
+    { "id": "docs-pendientes-doc-responsable", "source": "docs-pendientes", "target": "doc-responsable" },
+    { "id": "control-control-trazabilidad", "source": "control", "target": "control-trazabilidad" },
+    { "id": "control-control-merma", "source": "control", "target": "control-merma" },
+    { "id": "control-control-productividad", "source": "control", "target": "control-productividad" },
+    { "id": "control-control-reglas", "source": "control", "target": "control-reglas" },
+    { "id": "control-control-pendiente", "source": "control", "target": "control-pendiente" },
+    { "id": "control-trazabilidad-traza-material", "source": "control-trazabilidad", "target": "traza-material" },
+    { "id": "control-trazabilidad-traza-procesos", "source": "control-trazabilidad", "target": "traza-procesos" },
+    { "id": "control-trazabilidad-traza-pedido", "source": "control-trazabilidad", "target": "traza-pedido" },
+    { "id": "control-trazabilidad-traza-propio-tercero", "source": "control-trazabilidad", "target": "traza-propio-tercero" },
+    { "id": "control-merma-merma-corte", "source": "control-merma", "target": "merma-corte" },
+    { "id": "control-merma-merma-margen", "source": "control-merma", "target": "merma-margen" },
+    { "id": "control-productividad-prod-maquinas", "source": "control-productividad", "target": "prod-maquinas" },
+    { "id": "control-productividad-prod-procesos", "source": "control-productividad", "target": "prod-procesos" },
+    { "id": "control-reglas-regla-acabado", "source": "control-reglas", "target": "regla-acabado" },
+    { "id": "control-reglas-regla-stock-demanda", "source": "control-reglas", "target": "regla-stock-demanda" },
+    { "id": "control-reglas-regla-transporte", "source": "control-reglas", "target": "regla-transporte" },
+    { "id": "control-pendiente-pendiente-datos", "source": "control-pendiente", "target": "pendiente-datos" },
+    { "id": "control-pendiente-pendiente-criterios", "source": "control-pendiente", "target": "pendiente-criterios" },
+    { "id": "control-pendiente-pendiente-sistemas", "source": "control-pendiente", "target": "pendiente-sistemas" },
+    { "id": "control-pendiente-pendiente-documentos", "source": "control-pendiente", "target": "pendiente-documentos" }
+  ]
+}

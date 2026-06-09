@@ -1,49 +1,49 @@
-# Pulycort - Analisis inicial para captacion de clientes con IA
+# Pulycort - Análisis inicial para captación de clientes con IA
 
 Fecha: 2026-05-19
 
 ## Objetivo
 
-Convertir los activos actuales de Pulycort en un sistema de captacion comercial mas medible, repetible y apoyado por IA. El foco no deberia ser "hacer mas marketing" de forma generica, sino crear caminos concretos para atraer, cualificar y convertir proyectos de marmol y piedra natural.
+Convertir los activos actuales de Pulycort en un sistema de captación comercial más medible, repetible y apoyado por IA. El foco no debería ser "hacer más marketing" de forma genérica, sino crear caminos concretos para atraer, cualificar y convertir proyectos de mármol y piedra natural.
 
 ## Resumen ejecutivo
 
-Pulycort tiene una base muy buena para escalar captacion: fabrica propia, especializacion en Crema Marfil, mas de 30 anos de trayectoria, web nueva, tienda online, blog, proyectos internacionales, company profile, equipo comercial, contenido tecnico y canales sociales activos.
+Pulycort tiene una base muy buena para escalar captación: fábrica propia, especialización en Crema Marfil, más de 30 años de trayectoria, web nueva, tienda online, blog, proyectos internacionales, company profile, equipo comercial, contenido técnico y canales sociales activos.
 
-La oportunidad principal esta en ordenar esos activos como un embudo:
+La oportunidad principal está en ordenar esos activos como un embudo:
 
-1. Captar demanda existente: personas y empresas que ya buscan marmol, Crema Marfil, encimeras, pavimentos, fachadas, piedra natural o proveedores espanoles.
-2. Crear demanda profesional: arquitectos, interioristas, promotoras, constructoras, marmolistas, hoteles y distribuidores que aun no estan buscando Pulycort, pero si tienen proyectos donde Pulycort encaja.
-3. Cualificar mejor: transformar formularios, WhatsApp, tienda y descargas en leads con datos utiles de proyecto.
-4. Vender con mas contexto: generar propuestas, fotomontajes, fichas, comparativas y argumentos adaptados al tipo de cliente.
-5. Medir: saber que canal trae oportunidades reales, no solo visitas o seguidores.
+1. Captar demanda existente: personas y empresas que ya buscan mármol, Crema Marfil, encimeras, pavimentos, fachadas, piedra natural o proveedores españoles.
+2. Crear demanda profesional: arquitectos, interioristas, promotoras, constructoras, marmolistas, hoteles y distribuidores que aún no están buscando Pulycort, pero sí tienen proyectos donde Pulycort encaja.
+3. Cualificar mejor: transformar formularios, WhatsApp, tienda y descargas en leads con datos útiles de proyecto.
+4. Vender con más contexto: generar propuestas, fotomontajes, fichas, comparativas y argumentos adaptados al tipo de cliente.
+5. Medir: saber qué canal trae oportunidades reales, no solo visitas o seguidores.
 
-La IA puede aportar mucho si se aplica en tres capas: automatizacion comercial, herramientas para el cliente y produccion de contenido/activos de venta.
+La IA puede aportar mucho si se aplica en tres capas: automatización comercial, herramientas para el cliente y producción de contenido/activos de venta.
 
 ## Fuentes revisadas
 
 - Web principal: https://pulycort.com/
-- Pagina de empresa/fabricante: https://pulycort.com/fabricante-de-marmol/
-- Fabricacion espanola: https://pulycort.com/fabricacion-espanola/
+- Página de empresa/fabricante: https://pulycort.com/fabricante-de-mármol/
+- Fabricación española: https://pulycort.com/fabricación-española/
 - Proceso: https://pulycort.com/proceso/
 - Crema Marfil: https://pulycort.com/producto-crema-marfil/
-- Encimeras de marmol: https://pulycort.com/encimeras-marmol/
+- Encimeras de mármol: https://pulycort.com/encimeras-mármol/
 - Blog: https://pulycort.com/blog/
 - Comparativas de materiales: https://pulycort.com/comparativas-de-materiales/
 - Contacto: https://pulycort.com/contacto/
-- Company profile PDF: https://pulycort.com/wp-content/uploads/2026/01/ESPANOL.pdf
+- Company profile PDF: https://pulycort.com/wp-content/uploads/2026/01/ESPAÑOL.pdf
 - LinkedIn: https://www.linkedin.com/company/pulycort/
-- Busquedas publicas indexadas en Google/Bing: paginas historicas en `www.pulycort.com`, tienda online, proyectos, articulos antiguos y fichas de producto.
+- Búsquedas públicas indexadas en Google/Bing: páginas historicas en `www.pulycort.com`, tienda online, proyectos, artículos antiguos y fichas de producto.
 
-## Que es Pulycort segun los activos publicos
+## Que es Pulycort según los activos publicos
 
 ### Posicionamiento actual
 
-Pulycort se presenta como fabricante espanol de marmol natural y piedra natural, con una especializacion clara en Crema Marfil. La narrativa fuerte es:
+Pulycort se presenta como fabricante español de mármol natural y piedra natural, con una especialización clara en Crema Marfil. La narrativa fuerte es:
 
-- Fabricacion espanola.
-- Control del proceso desde cantera/proveedor y seleccion hasta corte, acabados, control de calidad, embalaje y envio.
-- Mas de 30 anos de experiencia.
+- Fabricación española.
+- Control del proceso desde cantera/proveedor y selección hasta corte, acabados, control de calidad, embalaje y envío.
+- Más de 30 años de experiencia.
 - Proyectos internacionales.
 - Stock y formatos disponibles.
 - Servicio para arquitectos, interioristas, promotoras, constructoras, reformistas y distribuidores.
@@ -54,10 +54,10 @@ Pulycort se presenta como fabricante espanol de marmol natural y piedra natural,
 Familias principales:
 
 - Crema Marfil.
-- Marmoles por color: blanco, negro, verde, rojo, gris, beige, marron.
+- Mármoles por color: blanco, negro, verde, rojo, gris, beige, marron.
 - Caliza y arenisca.
 - Travertino.
-- Articulos de tienda: lavabos, baneras, mesas y capsula decorativa.
+- Artículos de tienda: lavabos, baneras, mesas y capsula decorativa.
 
 Aplicaciones:
 
@@ -71,7 +71,7 @@ Aplicaciones:
 Formatos y acabados destacados:
 
 - Tablas de 2 cm, 3 cm y grosores especiales.
-- Losas grandes, medianas y pequenas.
+- Losas grandes, medianas y pequeñas.
 - Jumbo y Jumbo Plus.
 - Pulido, apomazado, leather/cuero, abujardado, arenado, escarfilado, natural, scratch, velora, entre otros.
 
@@ -80,12 +80,12 @@ Formatos y acabados destacados:
 Activos de autoridad detectados:
 
 - Fundacion/origen empresarial desde 1989.
-- Instalaciones en La Romana, Alicante, con oficinas y fabrica.
+- Instalaciones en La Romana, Alicante, con oficinas y fábrica.
 - Company profile con menciones a aserrado de bloques, reforzado, pulido, corte de tablas y personalizacion.
 - Proyectos en Texas, Bilbao, Dinamarca, Miami, Bucarest, Beverly Hills y San Francisco, entre otros.
 - Testimonios incluidos en el company profile.
-- Equipo identificado: produccion/calidad, community manager, ventas, comercio internacional/logistica, finanzas, RRHH e I+D+i.
-- Compromisos de sostenibilidad: placas solares, circuito de agua, gestion de residuos y prevencion de riesgos.
+- Equipo identificado: producción/calidad, community manager, ventas, comercio internacional/logística, finanzas, RRHH e I+D+i.
+- Compromisos de sostenibilidad: placas solares, circuito de agua, gestión de residuos y prevencion de riesgos.
 - LinkedIn con actividad reciente, 323 seguidores y publicaciones frecuentes orientadas a proyectos, materiales y presupuesto.
 
 ## Recursos disponibles
@@ -94,11 +94,11 @@ Activos de autoridad detectados:
 
 - Web nueva en `pulycort.com`.
 - Tienda online con productos comprables por metro cuadrado y acabados.
-- Blog con articulos tecnicos, mantenimiento, instalacion y tendencias.
-- Paginas SEO por aplicacion: encimeras, escaleras, pavimentos, fachadas, revestimientos.
-- Paginas SEO por material y color.
+- Blog con artículos técnicos, mantenimiento, instalación y tendencias.
+- Páginas SEO por aplicación: encimeras, escaleras, pavimentos, fachadas, revestimientos.
+- Páginas SEO por material y color.
 - Comparativas de materiales.
-- Guias tecnicas y PDFs descargables.
+- Guias técnicas y PDFs descargables.
 - Company profile en PDF.
 - Formulario de contacto.
 - Newsletter/suscripcion.
@@ -112,26 +112,26 @@ Activos de autoridad detectados:
 - Experiencia en mercados internacionales.
 - Proyectos ya ejecutados que pueden usarse como casos de estudio.
 - Testimonios y referencias.
-- Capacidad de asesoramiento tecnico.
+- Capacidad de asesoramiento técnico.
 - Capacidad de hacer presupuestos personalizados.
 
 ### Recursos industriales
 
-- Fabrica propia.
+- Fábrica propia.
 - Maquinaria para corte, pulido, reforzado y acabados.
 - Stock permanente de Crema Marfil.
 - Personalizacion en acabados, grosores, formatos, losas, tablas, encimeras, escaleras y piezas especiales.
 - Control de calidad.
-- Logistica nacional e internacional.
+- Logística nacional e internacional.
 
-### Recursos que aun necesitamos pedir
+### Recursos que aún necesitamos pedir
 
 Para tomar mejores decisiones haria falta una segunda capa de datos internos:
 
-- Facturacion por linea de producto y margen aproximado.
-- Tipos de cliente mas rentables.
-- Paises/zonas con mayor conversion.
-- Productos con mas stock o interes estrategico.
+- Facturación por linea de producto y margen aproximado.
+- Tipos de cliente más rentables.
+- Países/zonas con mayor conversión.
+- Productos con más stock o interés estratégico.
 - Historico de leads por canal.
 - Historico de presupuestos aceptados/perdidos.
 - Tiempos medios de respuesta comercial.
@@ -141,7 +141,7 @@ Para tomar mejores decisiones haria falta una segunda capa de datos internos:
 - Acceso a Google Analytics, Search Console, Meta/Google Ads, LinkedIn, tienda y formularios.
 - Calendario de ferias, misiones comerciales y acciones offline.
 - Idiomas comerciales reales del equipo.
-- Politica de muestras, transporte, descuentos y plazos.
+- Política de muestras, transporte, descuentos y plazos.
 
 ## Clientes objetivo prioritarios
 
@@ -149,30 +149,30 @@ Para tomar mejores decisiones haria falta una segunda capa de datos internos:
 
 Perfil:
 
-- Estudios que prescriben materiales en vivienda de alto standing, hospitality, retail, restauracion y oficinas.
-- Buscan materiales diferenciales, fiabilidad tecnica, fichas, muestras, visuales y proveedores que no fallen.
+- Estudios que prescriben materiales en vivienda de alto standing, hospitality, retail, restauración y oficinas.
+- Buscan materiales diferenciales, fiabilidad técnica, fichas, muestras, visuales y proveedores que no fallen.
 
 Dolor:
 
-- Necesitan elegir material rapido, justificarlo al cliente y evitar problemas de instalacion, plazo o mantenimiento.
+- Necesitan elegir material rápido, justificarlo al cliente y evitar problemas de instalación, plazo o mantenimiento.
 
 Oportunidad:
 
-- Pulycort puede convertirse en "socio tecnico de piedra natural" para especificacion de proyectos.
+- Pulycort puede convertirse en "socio técnico de piedra natural" para especificacion de proyectos.
 
 ### 2. Promotoras, constructoras y project managers
 
 Perfil:
 
-- Empresas que compran por volumen o necesitan solucion completa para obra.
+- Empresas que compran por volumen o necesitan solución completa para obra.
 
 Dolor:
 
-- Plazos, homogeneidad, trazabilidad, disponibilidad, precio y respuesta rapida.
+- Plazos, homogeneidad, trazabilidad, disponibilidad, precio y respuesta rápida.
 
 Oportunidad:
 
-- Argumentar stock, capacidad productiva, control de calidad y logistica.
+- Argumentar stock, capacidad productiva, control de calidad y logística.
 
 ### 3. Marmolistas, distribuidores e importadores
 
@@ -182,11 +182,11 @@ Perfil:
 
 Dolor:
 
-- Disponibilidad, formatos, calidad constante, transporte y comunicacion clara.
+- Disponibilidad, formatos, calidad constante, transporte y comunicación clara.
 
 Oportunidad:
 
-- Rutas de venta B2B, catastro de distribuidores por pais y automatizacion de seguimiento.
+- Rutas de venta B2B, catastro de distribuidores por país y automatización de seguimiento.
 
 ### 4. Cliente particular de reforma premium
 
@@ -216,11 +216,11 @@ Oportunidad:
 
 - Casos de estudio y prospeccion activa de nuevos proyectos.
 
-## Diagnostico del embudo actual
+## Diagnóstico del embudo actual
 
 ### Lo que ya funciona o tiene potencial
 
-- La web comunica especializacion y producto.
+- La web comunica especialización y producto.
 - El Crema Marfil esta muy trabajado como producto estrella.
 - Hay mucha superficie SEO: productos, aplicaciones, blog, comparativas, guias.
 - Existe tienda online, lo que no es habitual en todos los fabricantes de piedra natural.
@@ -230,18 +230,18 @@ Oportunidad:
 
 ### Puntos a mejorar
 
-- La informacion potente esta dispersa entre web, PDF, blog, tienda y redes.
+- La información potente esta dispersa entre web, PDF, blog, tienda y redes.
 - Falta una arquitectura clara por tipo de cliente: arquitecto, constructor, distribuidor, particular, hotel/restaurante.
-- Los formularios parecen genericos. No capturan todavia toda la informacion necesaria para cualificar un proyecto.
-- El PDF de empresa tiene informacion comercial valiosa, pero probablemente no esta convertido en piezas accionables: landing, casos de estudio, secuencias de email, presentaciones por segmento.
-- Hay paginas historicas en `www.pulycort.com` y paginas nuevas en `pulycort.com`; conviene auditar redirecciones, canibalizacion y trafico SEO antes de tocar fuerte.
-- LinkedIn tiene actividad, pero pocos seguidores para la autoridad industrial que aparenta la empresa. Hay margen para una estrategia B2B mas deliberada.
-- La tienda online puede captar demanda transaccional, pero deberia convivir con un flujo B2B de presupuesto, muestras y asesoramiento.
+- Los formularios parecen genericos. No capturan todavía toda la información necesaria para cualificar un proyecto.
+- El PDF de empresa tiene información comercial valiosa, pero probablemente no esta convertido en piezas accionables: landing, casos de estudio, secuencias de email, presentaciones por segmento.
+- Hay páginas historicas en `www.pulycort.com` y páginas nuevas en `pulycort.com`; conviene auditar redirecciones, canibalizacion y tráfico SEO antes de tocar fuerte.
+- LinkedIn tiene actividad, pero pocos seguidores para la autoridad industrial que aparenta la empresa. Hay margen para una estrategia B2B más deliberada.
+- La tienda online puede captar demanda transaccional, pero debería convivir con un flujo B2B de presupuesto, muestras y asesoramiento.
 - No se aprecia publicamente un sistema fuerte de lead nurturing: descarga, seguimiento, emails, scoring, CRM, recordatorios y recuperacion de presupuestos.
 
 ## Rutas estrategicas posibles
 
-### Ruta A - Maquina B2B para arquitectos e interioristas
+### Ruta A - Máquina B2B para arquitectos e interioristas
 
 Objetivo:
 
@@ -252,18 +252,18 @@ Acciones:
 - Crear landing "Piedra natural para arquitectos e interioristas".
 - Convertir el company profile en un kit descargable para prescriptores.
 - Crear fichas por material con: usos recomendados, formatos, acabados, mantenimiento, fotos, renders, casos reales y errores a evitar.
-- Crear un formulario de "solicitar muestra / asesoramiento tecnico".
-- Montar una base de datos de estudios objetivo por pais/ciudad/segmento.
+- Crear un formulario de "solicitar muestra / asesoramiento técnico".
+- Montar una base de datos de estudios objetivo por país/ciudad/segmento.
 - Lanzar secuencias de email y LinkedIn personalizadas.
-- Publicar casos de estudio orientados a decision tecnica, no solo inspiracional.
+- Publicar casos de estudio orientados a decisión técnica, no solo inspiracional.
 
 IA aplicable:
 
 - Enriquecimiento y scoring de estudios.
 - Redaccion personalizada de emails.
-- Generacion de fichas y comparativas por segmento.
-- Asistente tecnico entrenado con catalogo, FAQs y fichas.
-- Generacion de presentaciones por proyecto.
+- Generación de fichas y comparativas por segmento.
+- Asistente técnico entrenado con catálogo, FAQs y fichas.
+- Generación de presentaciones por proyecto.
 
 Prioridad: muy alta.
 
@@ -271,33 +271,33 @@ Motivo:
 
 Encaja con el ticket alto y con el posicionamiento de fabricante/experto.
 
-### Ruta B - Captacion SEO + conversion para reformas premium
+### Ruta B - Captación SEO + conversión para reformas premium
 
 Objetivo:
 
-Capturar particulares y reformistas que ya buscan soluciones concretas: encimeras de marmol, pavimento exterior, revestimiento, banos, escaleras.
+Capturar particulares y reformistas que ya buscan soluciones concretas: encimeras de mármol, pavimento exterior, revestimiento, banos, escaleras.
 
 Acciones:
 
-- Mejorar paginas de aplicacion con formularios guiados por proyecto.
+- Mejorar páginas de aplicación con formularios guiados por proyecto.
 - Crear calculadoras de orientacion: m2, formatos, acabados, uso interior/exterior, provincia y plazo.
-- Crear comparativas honestas: marmol vs porcelanico, marmol vs granito, Crema Marfil vs marmol blanco.
-- Crear llamadas a la accion mas especificas: "Recibe recomendacion de material", "Sube foto de tu espacio", "Pide presupuesto con medidas".
+- Crear comparativas honestas: mármol vs porcelanico, mármol vs granito, Crema Marfil vs mármol blanco.
+- Crear llamadas a la acción más especificas: "Recibe recomendación de material", "Sube foto de tu espacio", "Pide presupuesto con medidas".
 - Conectar formularios a CRM.
-- Automatizar respuesta inicial por email/WhatsApp con informacion util y peticion de datos faltantes.
+- Automatizar respuesta inicial por email/WhatsApp con información útil y peticion de datos faltantes.
 
 IA aplicable:
 
 - Brief guiado.
 - Asistente que recomienda material y acabado.
 - Fotomontaje de materiales en imagen del cliente.
-- Respuesta automatica inicial con resumen del proyecto.
+- Respuesta automática inicial con resumen del proyecto.
 
 Prioridad: alta.
 
 Motivo:
 
-Puede generar volumen de leads, aunque habra que controlar calidad y coste de gestion.
+Puede generar volumen de leads, aunque habrá que controlar calidad y coste de gestión.
 
 ### Ruta C - Motor de prospeccion internacional
 
@@ -309,41 +309,41 @@ Acciones:
 
 - Seleccionar 3-5 mercados prioritarios.
 - Crear listas de empresas objetivo.
-- Enriquecer datos: web, email, LinkedIn, pais, tipo de proyecto, materiales que usan.
+- Enriquecer datos: web, email, LinkedIn, país, tipo de proyecto, materiales que usan.
 - Crear secuencias multidioma.
-- Preparar landing por mercado/idioma con prueba internacional y logistica.
+- Preparar landing por mercado/idioma con prueba internacional y logística.
 - Hacer seguimiento en CRM.
 
 IA aplicable:
 
-- Busqueda y clasificacion de cuentas.
-- Traduccion/adaptacion comercial.
+- Búsqueda y clasificacion de cuentas.
+- Traducción/adaptacion comercial.
 - Personalizacion de mensajes.
-- Resumen automatico de cada empresa antes de contactar.
+- Resumen automático de cada empresa antes de contactar.
 - Alertas de proyectos/hoteles/promociones nuevas.
 
 Prioridad: media-alta.
 
 Motivo:
 
-Pulycort ya tiene ADN internacional, pero necesita foco para no dispersar energia comercial.
+Pulycort ya tiene ADN internacional, pero necesita foco para no dispersar energía comercial.
 
-### Ruta D - Herramientas visuales para acelerar decision
+### Ruta D - Herramientas visuales para acelerar decisión
 
 Objetivo:
 
-Reducir friccion en la eleccion del material y aumentar la calidad del lead.
+Reducir fricción en la eleccion del material y aumentar la calidad del lead.
 
 Acciones:
 
 - Crear un visualizador: subir foto de cocina/bano/salon/fachada y aplicar materiales Pulycort.
-- Crear galerias por estilo: calido, minimalista, lujo clasico, hotel, exterior mediterraneo, alto contraste.
+- Crear galerias por estilo: calido, minimalista, lujo clásico, hotel, exterior mediterraneo, alto contraste.
 - Crear comparador visual de acabados.
 - Generar PDFs de propuesta visual para enviar al cliente final o al arquitecto.
 
 IA aplicable:
 
-- Generacion o edicion de imagenes.
+- Generación o edicion de imagenes.
 - Recomendador de materiales.
 - Generador de moodboards y propuestas.
 
@@ -351,50 +351,50 @@ Prioridad: media.
 
 Motivo:
 
-Es muy vendible y diferencial, pero conviene conectarlo a captacion real para que no se quede en "demo bonita".
+Es muy vendible y diferencial, pero conviene conectarlo a captación real para que no se quede en "demo bonita".
 
 ### Ruta E - Sistema de contenidos y autoridad
 
 Objetivo:
 
-Transformar el conocimiento tecnico en autoridad, trafico cualificado y confianza comercial.
+Transformar el conocimiento técnico en autoridad, tráfico cualificado y confianza comercial.
 
 Acciones:
 
 - Hacer un mapa SEO por intencion: comprar, comparar, mantener, instalar, elegir, especificar.
-- Reutilizar cada proyecto en varios formatos: caso de estudio, post LinkedIn, ficha PDF, email, articulo SEO, reel.
-- Publicar contenido para profesionales: errores de especificacion, acabados por uso, resistencia, mantenimiento, logistica, como calcular m2, como elegir veta.
-- Crear lead magnets: guia de acabados, guia de Crema Marfil, checklist para elegir marmol en proyectos hoteleros.
-- Medir conversion por articulo, no solo visitas.
+- Reutilizar cada proyecto en varios formatos: caso de estudio, post LinkedIn, ficha PDF, email, artículo SEO, reel.
+- Publicar contenido para profesionales: errores de especificacion, acabados por uso, resistencia, mantenimiento, logística, como calcular m2, como elegir veta.
+- Crear lead magnets: guia de acabados, guia de Crema Marfil, checklist para elegir mármol en proyectos hoteleros.
+- Medir conversión por artículo, no solo visitas.
 
 IA aplicable:
 
 - Clusterizacion de keywords.
 - Briefs de contenido.
 - Reescritura multiformato.
-- Generacion de posts y emails.
+- Generación de posts y emails.
 - Extraccion de contenido desde PDFs, fotos y fichas.
 
 Prioridad: alta.
 
 Motivo:
 
-Ya existe base de contenido; se puede ordenar y conectar a conversion.
+Ya existe base de contenido; se puede ordenar y conectar a conversión.
 
 ## Acciones recomendadas por horizonte
 
-### Primeros 7 dias
+### Primeros 7 días
 
-1. Crear inventario interno de activos: PDFs, fotos de proyectos, fichas tecnicas, presupuestos tipo, listas de clientes, materiales con stock.
+1. Crear inventario interno de activos: PDFs, fotos de proyectos, fichas técnicas, presupuestos tipo, listas de clientes, materiales con stock.
 2. Pedir accesos: Analytics, Search Console, WordPress/WooCommerce, CRM si existe, redes, formularios y newsletter.
 3. Auditar formularios actuales: que datos piden, donde llegan, quien responde y cuanto tarda.
-4. Revisar Search Console para detectar que paginas traen leads o trafico cualificado.
-5. Elegir 2 segmentos iniciales: recomendacion inicial, arquitectos/interioristas y reformas premium/encimeras.
+4. Revisar Search Console para detectar que páginas traen leads o tráfico cualificado.
+5. Elegir 2 segmentos iniciales: recomendación inicial, arquitectos/interioristas y reformas premium/encimeras.
 6. Definir una metrica principal: oportunidades cualificadas al mes, no visitas.
 
-### Primeros 30 dias
+### Primeros 30 días
 
-1. Montar CRM minimo si no existe.
+1. Montar CRM mínimo si no existe.
 2. Crear formularios segmentados:
    - Proyecto profesional.
    - Solicitud de muestras.
@@ -406,19 +406,19 @@ Ya existe base de contenido; se puede ordenar y conectar a conversion.
    - Presentacion de ventas.
    - Casos de estudio individuales.
 5. Crear primer lead magnet: "Guia de acabados de piedra natural para proyectos".
-6. Montar secuencia de seguimiento automatica para nuevos leads.
+6. Montar secuencia de seguimiento automática para nuevos leads.
 7. Lanzar una prueba de prospeccion con 100 cuentas B2B bien elegidas.
 8. Crear dashboard basico: leads por canal, tiempo de respuesta, presupuestos enviados, presupuestos ganados.
 
-### Primeros 90 dias
+### Primeros 90 días
 
-1. Lanzar asistente tecnico en la web entrenado con catalogo, FAQs, fichas y criterios de recomendacion.
+1. Lanzar asistente técnico en la web entrenado con catálogo, FAQs, fichas y criterios de recomendación.
 2. Lanzar visualizador/fotomontaje beta para 3-5 materiales estrella.
 3. Crear biblioteca de casos de estudio orientados a segmentos.
 4. Crear motor de prospeccion internacional para 3 mercados.
-5. Crear automatizacion de recuperacion de presupuestos no cerrados.
+5. Crear automatización de recuperacion de presupuestos no cerrados.
 6. Crear calendario editorial trimestral basado en datos SEO y preguntas reales de ventas.
-7. Medir conversion por canal y reasignar esfuerzo.
+7. Medir conversión por canal y reasignar esfuerzo.
 
 ## Ideas concretas de apps/procesos con IA
 
@@ -441,23 +441,23 @@ Salida:
 - Acabados recomendados.
 - Datos faltantes para presupuesto.
 - Lead cualificado en CRM.
-- Email automatico para el comercial.
+- Email automático para el comercial.
 
 Valor:
 
 Reduce ida y vuelta, mejora calidad del lead y acelera presupuestos.
 
-### 2. Visualizador de marmol con IA
+### 2. Visualizador de mármol con IA
 
 Entrada:
 
 - Foto del espacio.
-- Seleccion de material/acabado.
+- Selección de material/acabado.
 
 Salida:
 
-- Imagen conceptual antes/despues.
-- PDF con recomendacion.
+- Imagen conceptual antes/después.
+- PDF con recomendación.
 - CTA a muestra o presupuesto.
 
 Valor:
@@ -485,7 +485,7 @@ Uniformiza calidad comercial y ahorra tiempo al equipo.
 
 Entrada:
 
-- Pais/ciudad.
+- País/ciudad.
 - Segmento: arquitectos, hoteles, distribuidores, marmolistas, promotoras.
 - Criterios de calidad.
 
@@ -499,7 +499,7 @@ Salida:
 
 Valor:
 
-Convierte la captacion en proceso semanal, no en esfuerzo puntual.
+Convierte la captación en proceso semanal, no en esfuerzo puntual.
 
 ### 5. Asistente interno de ventas
 
@@ -509,15 +509,15 @@ Entrada:
 
 Salida:
 
-- Respuesta basada en catalogo y documentos.
-- Ficha tecnica.
+- Respuesta basada en catálogo y documentos.
+- Ficha técnica.
 - Comparativa.
 - Argumentos de objeciones.
 - Plantilla de email.
 
 Valor:
 
-Ayuda a responder mejor y mas rapido, especialmente en mercados o idiomas distintos.
+Ayuda a responder mejor y más rápido, especialmente en mercados o idiomas distintos.
 
 ### 6. Sistema de contenido inteligente
 
@@ -527,7 +527,7 @@ Entrada:
 
 Salida:
 
-- Articulo SEO.
+- Artículo SEO.
 - Post de LinkedIn.
 - Guion de reel.
 - Email para arquitectos.
@@ -540,22 +540,22 @@ Aumenta autoridad sin duplicar trabajo creativo.
 
 ## Priorizacion inicial
 
-| Prioridad | Accion | Impacto esperado | Complejidad | Por que ahora |
+| Prioridad | Acción | Impacto esperado | Complejidad | Por qué ahora |
 |---|---|---:|---:|---|
 | Alta | CRM + formularios segmentados | Alto | Media | Sin trazabilidad, no sabemos que funciona |
 | Alta | Landing para arquitectos/interioristas | Alto | Baja-media | Segmento de alto valor y encaje natural |
-| Alta | Secuencia automatica de respuesta y seguimiento | Alto | Media | Reduce perdida de leads por tiempos o falta de datos |
+| Alta | Secuencia automática de respuesta y seguimiento | Alto | Media | Reduce pérdida de leads por tiempos o falta de datos |
 | Alta | Reutilizar company profile en casos/activos comerciales | Alto | Baja | Ya existe el contenido |
-| Alta | Auditoria SEO/redirecciones `www` vs dominio nuevo | Medio-alto | Media | Hay muchas paginas historicas indexadas |
-| Media-alta | Prospeccion B2B con IA | Alto | Media | Puede abrir pipeline nuevo rapido |
+| Alta | Auditoría SEO/redirecciones `www` vs dominio nuevo | Medio-alto | Media | Hay muchas páginas historicas indexadas |
+| Media-alta | Prospeccion B2B con IA | Alto | Media | Puede abrir pipeline nuevo rápido |
 | Media | Visualizador/fotomontaje | Medio-alto | Media-alta | Diferencial, pero debe conectarse a lead |
-| Media | Asistente tecnico web | Medio-alto | Media | Buen uso de todo el conocimiento existente |
-| Media | Lead magnets tecnicos | Medio | Baja | Facil de lanzar y medir |
-| Baja-media | Ads directos a tienda | Variable | Media | Mejor despues de medir conversion y margenes |
+| Media | Asistente técnico web | Medio-alto | Media | Buen uso de todo el conocimiento existente |
+| Media | Lead magnets técnicos | Medio | Baja | Fácil de lanzar y medir |
+| Baja-media | Ads directos a tienda | Variable | Media | Mejor después de medir conversión y márgenes |
 
 ## Primer plan de trabajo propuesto
 
-### Fase 1 - Ordenar captacion y datos
+### Fase 1 - Ordenar captación y datos
 
 Duracion: 2-3 semanas.
 
@@ -563,9 +563,9 @@ Entregables:
 
 - Mapa de embudo actual.
 - Inventario de activos.
-- Definicion de segmentos.
+- Definición de segmentos.
 - Formularios mejorados.
-- CRM minimo.
+- CRM mínimo.
 - Dashboard inicial.
 - Checklist de datos que debe capturar cada lead.
 
@@ -576,10 +576,10 @@ Duracion: 3-5 semanas.
 Entregables:
 
 - Landing B2B para arquitectos/interioristas.
-- Lead magnet tecnico.
+- Lead magnet técnico.
 - Secuencia email/LinkedIn.
 - Base de 100-300 cuentas objetivo.
-- Generador semiautomatico de mensajes.
+- Generador semiautomático de mensajes.
 - Seguimiento en CRM.
 
 ### Fase 3 - Herramienta diferencial
@@ -589,50 +589,50 @@ Duracion: 4-8 semanas.
 Elegir una:
 
 - Asistente de proyecto.
-- Visualizador de marmol.
+- Visualizador de mármol.
 - Generador de propuestas.
 
-Recomendacion:
+Recomendación:
 
-Empezar por el asistente de proyecto, porque resuelve captacion y cualificacion a la vez. El visualizador es mas llamativo, pero el asistente probablemente aporta antes a ventas.
+Empezar por el asistente de proyecto, porque resuelve captación y cualificación a la vez. El visualizador es más llamativo, pero el asistente probablemente aporta antes a ventas.
 
-## Preguntas para la reunion con el dueno
+## Preguntas para la reunión con el dueño
 
-1. Que tipo de cliente quiere conseguir mas: arquitectos, particulares, promotoras, distribuidores, hoteles o marmolistas?
-2. Que productos tienen mas margen o mas interes estrategico?
+1. Que tipo de cliente quiere conseguir más: arquitectos, particulares, promotoras, distribuidores, hoteles o marmolistas?
+2. Que productos tienen más margen o más interés estratégico?
 3. Que materiales tienen stock y conviene mover?
 4. Cuantos leads llegan ahora al mes y por donde?
-5. Cuantos presupuestos se envian y que porcentaje se gana?
+5. Cuantos presupuestos se envían y que porcentaje se gana?
 6. Cuanto tarda el equipo en responder a un lead?
-7. En que paises o zonas quieren crecer?
+7. En que países o zonas quieren crecer?
 8. Tienen CRM? Si no, donde quedan los contactos?
 9. Que pasa con un presupuesto no aceptado?
 10. Hay fotos profesionales, planos, fichas y proyectos suficientes para alimentar una biblioteca comercial?
-11. Que idioma o mercado internacional seria prioritario?
-12. Que accion comercial offline ya funciona y podemos digitalizar?
+11. Que idioma o mercado internacional sería prioritario?
+12. Que acción comercial offline ya funciona y podemos digitalizar?
 
-## Hipotesis inicial
+## Hipótesis inicial
 
-El camino mas adecuado no es crear una unica app grande desde el principio. Lo mejor es montar primero una "maquina comercial pequena" que conecte web, formularios, CRM, contenido y seguimiento. Una vez que sepamos que segmento responde mejor, entonces construimos la app diferencial: asistente de proyecto, visualizador o generador de propuestas.
+El camino más adecuado no es crear una única app grande desde el principio. Lo mejor es montar primero una "máquina comercial pequeña" que conecte web, formularios, CRM, contenido y seguimiento. Una vez que sepamos que segmento responde mejor, entonces construimos la app diferencial: asistente de proyecto, visualizador o generador de propuestas.
 
-Mi recomendacion inicial:
+Mi recomendación inicial:
 
 1. Ruta A: arquitectos e interioristas.
-2. Ruta B: captacion SEO + formularios guiados para aplicaciones concretas.
+2. Ruta B: captación SEO + formularios guiados para aplicaciones concretas.
 3. Crear CRM y trazabilidad desde el dia uno.
 4. Usar IA para acelerar prospeccion, contenido y respuestas comerciales.
 5. Dejar el visualizador como segundo golpe, cuando ya tengamos claro donde captura valor.
 
-## Restriccion estrategica nueva: proyecto paralelo sin comerciales de Pulycort
+## Restriccion estratégica nueva: proyecto paralelo sin comerciales de Pulycort
 
 La necesidad real no es depender del equipo comercial actual de Pulycort. El proyecto debe funcionar en paralelo, con autonomia comercial y usando principalmente las capacidades internas de la empresa:
 
-- Produccion.
+- Producción.
 - Stock.
-- Conocimiento tecnico.
-- Gestion administrativa.
-- Logistica.
-- Presupuestacion o validacion tecnica puntual.
+- Conocimiento técnico.
+- Gestión administrativa.
+- Logística.
+- Presupuestacion o validación técnica puntual.
 - Capacidad de fabricar piezas, acabados y formatos.
 
 Esto cambia el enfoque. Ya no conviene plantear solo una mejora del embudo actual de Pulycort, sino crear una unidad digital paralela que pueda vender, captar o prescribir con sus propios procesos.
@@ -647,32 +647,32 @@ Por tanto, hay que favorecer:
 - Presupuestos guiados.
 - Solicitudes muy estructuradas.
 - Precios orientativos o rangos.
-- Catalogo acotado.
-- Automatizacion de respuesta.
-- Derivacion a produccion solo cuando el lead ya venga claro.
+- Catálogo acotado.
+- Automatización de respuesta.
+- Derivacion a producción solo cuando el lead ya venga claro.
 - Operaciones repetibles.
 
 ## Modelos de proyecto paralelo posibles
 
-### Modelo 1 - Marca digital de piezas de marmol a medida
+### Modelo 1 - Marca digital de piezas de mármol a medida
 
 Idea:
 
-Crear una marca o microsite separado de Pulycort para vender piezas de marmol a medida con configurador: mesas, lavabos, encimeras pequenas, platos, baldas, sobres, revestimientos decorativos y piezas para interiorismo.
+Crear una marca o microsite separado de Pulycort para vender piezas de mármol a medida con configurador: mesas, lavabos, encimeras pequeñas, platos, baldas, sobres, revestimientos decorativos y piezas para interiorismo.
 
 Cliente:
 
 - Particular premium.
-- Interiorista pequeno.
+- Interiorista pequeño.
 - Reformista.
 - Tiendas de decoracion.
 - Restaurantes, hoteles boutique y estudios.
 
-Por que encaja:
+Por qué encaja:
 
-- Usa produccion y stock.
+- Usa producción y stock.
 - Permite paquetizar.
-- No requiere explicar todo el universo del marmol.
+- No requiere explicar todo el universo del mármol.
 - Puede operar con formularios, pagos, senales y presupuestos semiautomaticos.
 
 Riesgo:
@@ -681,13 +681,13 @@ Riesgo:
 
 Nivel de autonomia:
 
-Alto si el catalogo esta bien acotado.
+Alto si el catálogo esta bien acotado.
 
-### Modelo 2 - Configurador de encimeras y banos en marmol
+### Modelo 2 - Configurador de encimeras y banos en mármol
 
 Idea:
 
-Un asistente online donde el usuario sube medidas/fotos, elige material/acabado y recibe una propuesta orientativa. Si avanza, se pide senal o se deriva a medicion/instalador colaborador.
+Un asistente online donde el usuario sube medidas/fotos, elige material/acabado y recibe una propuesta orientativa. Si avanza, se pide señal o se deriva a medición/instalador colaborador.
 
 Cliente:
 
@@ -695,7 +695,7 @@ Cliente:
 - Interioristas.
 - Reformistas.
 
-Por que encaja:
+Por qué encaja:
 
 - Ticket interesante.
 - Producto muy visual.
@@ -703,7 +703,7 @@ Por que encaja:
 
 Riesgo:
 
-- La instalacion puede complicar mucho la operacion si no hay red de instaladores.
+- La instalación puede complicar mucho la operación si no hay red de instaladores.
 
 Nivel de autonomia:
 
@@ -721,9 +721,9 @@ Cliente:
 - Interioristas.
 - Estudios de hospitality.
 
-Por que encaja:
+Por qué encaja:
 
-- Usa conocimiento tecnico y material real.
+- Usa conocimiento técnico y material real.
 - Puede generar oportunidades grandes.
 - No necesita venta agresiva si el portal resuelve trabajo del prescriptor.
 
@@ -734,13 +734,13 @@ Riesgo:
 
 Nivel de autonomia:
 
-Medio-alto para captacion y prescripcion; medio para cierre.
+Medio-alto para captación y prescripcion; medio para cierre.
 
 ### Modelo 4 - Marketplace B2B de stock de piedra natural
 
 Idea:
 
-Una plataforma privada o semipublica donde marmolistas, distribuidores e interioristas ven stock disponible, formatos, acabados, precios/rangos y pueden reservar o pedir cotizacion inmediata.
+Una plataforma privada o semipública donde marmolistas, distribuidores e interioristas ven stock disponible, formatos, acabados, precios/rangos y pueden reservar o pedir cotización inmediata.
 
 Cliente:
 
@@ -749,17 +749,17 @@ Cliente:
 - Distribuidores.
 - Reformistas profesionales.
 
-Por que encaja:
+Por qué encaja:
 
-- Usa stock y gestion.
+- Usa stock y gestión.
 - Reduce conversaciones repetitivas.
 - Puede mover material disponible.
-- La relacion es mas transaccional.
+- La relación es más transaccional.
 
 Riesgo:
 
 - Hay que decidir cuanto precio mostrar.
-- Puede generar conflicto si Pulycort ya tiene distribuidores o politica comercial sensible.
+- Puede generar conflicto si Pulycort ya tiene distribuidores o política comercial sensible.
 
 Nivel de autonomia:
 
@@ -775,11 +775,11 @@ Cliente:
 
 - Interioristas.
 - Reformistas.
-- Estudios pequenos.
+- Estudios pequeños.
 
-Por que encaja:
+Por qué encaja:
 
-- Atrae leads con una herramienta util.
+- Atrae leads con una herramienta útil.
 - Usa IA de forma clara.
 - Puede alimentar otros modelos.
 
@@ -791,19 +791,19 @@ Nivel de autonomia:
 
 Medio.
 
-## Recomendacion con la nueva restriccion
+## Recomendación con la nueva restriccion
 
-La ruta mas fuerte parece una combinacion de:
+La ruta más fuerte parece una combinación de:
 
-1. Marca digital paralela de productos de marmol paquetizados.
+1. Marca digital paralela de productos de mármol paquetizados.
 2. Configurador/asistente de proyecto.
 3. Marketplace privado de stock para profesionales.
 
-No empezaria por un proyecto puramente de "captacion de grandes obras", porque eso vuelve a necesitar comerciales. Tampoco empezaria por un visualizador generico si no hay producto cerrable detras.
+No empezaria por un proyecto puramente de "captación de grandes obras", porque eso vuelve a necesitar comerciales. Tampoco empezaria por un visualizador genérico si no hay producto cerrable detrás.
 
-La mejor primera version deberia vender algo concreto.
+La mejor primera version debería vender algo concreto.
 
-## Proyecto recomendado: estudio digital de marmol a medida
+## Proyecto recomendado: estudio digital de mármol a medida
 
 Nombre provisional:
 
@@ -811,60 +811,60 @@ Nombre provisional:
 - Pulycort Studio.
 - StoneLab.
 - The Marble Atelier.
-- Marmol a Medida.
+- Mármol a Medida.
 
 Concepto:
 
-Una marca digital paralela que permite configurar y pedir piezas de marmol natural fabricadas por Pulycort, con una experiencia mas simple, visual y automatizada que la web corporativa.
+Una marca digital paralela que permite configurar y pedir piezas de mármol natural fabricadas por Pulycort, con una experiencia más simple, visual y automatizada que la web corporativa.
 
 Productos iniciales:
 
 - Sobres de mesa.
 - Lavabos.
-- Encimeras pequenas.
+- Encimeras pequeñas.
 - Baldas y repisas.
 - Platos y piezas decorativas.
 - Paneles/revestimientos decorativos.
 - Piezas para banos.
 
-Por que estos productos:
+Por qué estos productos:
 
 - Son visuales.
 - Se pueden paquetizar.
 - Pueden usar retales o stock.
 - No dependen tanto de grandes obras.
 - Pueden tener margen.
-- Permiten envio o gestion logistica controlable.
+- Permiten envío o gestión logística controlable.
 
 Funcionamiento:
 
 1. El usuario elige tipo de pieza.
-2. Elige material/acabado entre una seleccion limitada.
+2. Elige material/acabado entre una selección limitada.
 3. Introduce medidas.
 4. Sube foto o referencia.
-5. El sistema da precio orientativo o solicita validacion.
-6. La IA genera una propuesta visual y tecnica.
-7. El usuario paga una senal o solicita fabricacion.
-8. Produccion valida viabilidad y plazo.
-9. Se fabrica y envia.
+5. El sistema da precio orientativo o solicita validación.
+6. La IA genera una propuesta visual y técnica.
+7. El usuario paga una señal o solicita fabricación.
+8. Producción valida viabilidad y plazo.
+9. Se fábrica y envía.
 
-IA util:
+IA útil:
 
 - Recomendador de material y acabado.
 - Generador de propuesta visual.
 - Detector de datos faltantes.
-- Generador de ficha de pedido para produccion.
-- Respuesta automatica al cliente.
+- Generador de ficha de pedido para producción.
+- Respuesta automática al cliente.
 - Generador de imagenes/moodboards.
 
 Operativa minima:
 
-- Catalogo acotado.
+- Catálogo acotado.
 - Tabla de precios por material, grosor, acabado y complejidad.
 - Reglas de viabilidad.
 - Plantillas de pedido.
-- Flujo de pago/senal.
-- Revision humana solo en pedidos que superen umbral o tengan geometria compleja.
+- Flujo de pago/señal.
+- Revisión humana solo en pedidos que superen umbral o tengan geometría compleja.
 
 ## MVP recomendado
 
@@ -879,21 +879,21 @@ Duracion:
 Alcance:
 
 - Microsite de marca paralela.
-- 3 categorias de producto.
+- 3 categorías de producto.
 - 5-8 materiales/acabados.
 - Formulario/configurador.
-- Propuesta PDF automatica.
+- Propuesta PDF automática.
 - Bandeja interna de pedidos.
-- Validacion manual de produccion.
-- Pago de senal opcional.
+- Validación manual de producción.
+- Pago de señal opcional.
 
-Categorias iniciales recomendadas:
+Categorías iniciales recomendadas:
 
 1. Sobres de mesa.
 2. Lavabos/bano.
 3. Baldas/repisas/revestimiento decorativo.
 
-Metricas:
+Métricas:
 
 - Visitas al configurador.
 - Configuraciones completas.
@@ -902,46 +902,46 @@ Metricas:
 - Senales pagadas.
 - Pedidos fabricables.
 - Margen estimado por pedido.
-- Tiempo de gestion por pedido.
+- Tiempo de gestión por pedido.
 
 Canales iniciales:
 
-- SEO long tail: "sobre de mesa de marmol a medida", "lavabo de marmol a medida", "baldas de marmol".
+- SEO long tail: "sobre de mesa de mármol a medida", "lavabo de mármol a medida", "baldas de mármol".
 - Instagram/Pinterest/TikTok visual.
 - Google Ads muy controlado por producto.
-- Colaboraciones con interioristas pequenos.
-- Etsy/marketplaces solo como test si los margenes y logistica lo permiten.
+- Colaboraciones con interioristas pequeños.
+- Etsy/marketplaces solo como test si los márgenes y logística lo permiten.
 
 ## Riesgos a resolver antes de construir
 
 - Quien atiende incidencias y cambios.
 - Como se gestionan medidas erroneas.
 - Que productos se pueden enviar sin riesgo excesivo.
-- Politica de devoluciones en producto a medida.
-- Margenes reales por tipo de pieza.
-- Capacidad de produccion para pedidos pequenos.
+- Política de devoluciones en producto a medida.
+- Márgenes reales por tipo de pieza.
+- Capacidad de producción para pedidos pequeños.
 - Coste y embalaje.
 - Si conviene marca separada o submarca de Pulycort.
 - Si usar retales/stock como ventaja o evitar comunicarlo.
 
-## Decision pendiente
+## Decisión pendiente
 
-Hay que decidir si el proyecto paralelo sera:
+Hay que decidir si el proyecto paralelo será:
 
 1. Transaccional: vender productos paquetizados.
 2. Profesional: portal de stock/prescripcion para B2B.
 3. Inspiracional: visualizador y propuestas para generar leads.
 
-Con la restriccion de no usar comerciales, la opcion mas sana para empezar es la transaccional: productos paquetizados y configurables.
+Con la restriccion de no usar comerciales, la opcion más sana para empezar es la transaccional: productos paquetizados y configurables.
 
-## Siguiente paso practico
+## Siguiente paso práctico
 
-Preparar una reunion de 60-90 minutos con el dueno y, si puede ser, alguien de ventas y alguien de marketing/comunicacion. Objetivo de la reunion: escoger segmento prioritario, obtener datos internos y decidir el primer piloto de 30 dias.
+Preparar una reunión de 60-90 minutos con el dueño y, si puede ser, alguien de ventas y alguien de marketing/comunicación. Objetivo de la reunión: escoger segmento prioritario, obtener datos internos y decidir el primer piloto de 30 días.
 
 Propuesta de piloto:
 
-- Segmento: arquitectos e interioristas en Espana, Francia, Reino Unido o EE.UU.
-- Oferta: guia tecnica + asesoramiento + muestras + casos de estudio.
+- Segmento: arquitectos e interioristas en España, Francia, Reino Unido o EE.UU.
+- Oferta: guia técnica + asesoramiento + muestras + casos de estudio.
 - Canal: landing + LinkedIn/email outbound + posts de autoridad.
-- Herramienta IA: generador de mensajes y asistente de cualificacion.
-- Medicion: leads cualificados, reuniones, muestras solicitadas, presupuestos enviados y oportunidades ganadas.
+- Herramienta IA: generador de mensajes y asistente de cualificación.
+- Medición: leads cualificados, reuniones, muestras solicitadas, presupuestos enviados y oportunidades ganadas.
