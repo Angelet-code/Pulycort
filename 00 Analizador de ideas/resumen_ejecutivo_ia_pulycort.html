@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pulycort - Resumen ejecutivo IA</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5a6678;
+      --blue: #1f4d78;
+      --mid-blue: #2e74b5;
+      --line: #d7dee8;
+      --soft-blue: #e8eef5;
+      --soft: #f4f6f9;
+      --gold: #7a5a00;
+      --soft-gold: #fff4dd;
+      --green: #1f6b4d;
+      --paper: #ffffff;
+      --bg: #eef2f6;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.48;
+    }
+
+    main {
+      width: min(980px, 100%);
+      margin: 0 auto;
+      background: var(--paper);
+      min-height: 100vh;
+      padding: 32px 28px 56px;
+    }
+
+    header {
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 18px;
+      margin-bottom: 28px;
+    }
+
+    .eyebrow {
+      color: var(--muted);
+      font-weight: 700;
+      margin: 0 0 14px;
+    }
+
+    h1 {
+      color: var(--blue);
+      font-size: clamp(2.2rem, 9vw, 4rem);
+      line-height: 0.98;
+      margin: 0 0 10px;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      font-size: clamp(1.05rem, 4vw, 1.55rem);
+      margin: 0;
+    }
+
+    h2 {
+      color: var(--mid-blue);
+      font-size: clamp(1.35rem, 5vw, 2rem);
+      line-height: 1.12;
+      margin: 36px 0 14px;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 0 0 14px;
+    }
+
+    ul {
+      padding-left: 1.15rem;
+      margin: 0 0 18px;
+    }
+
+    li {
+      margin: 0 0 8px;
+    }
+
+    .callout {
+      border: 1px solid var(--line);
+      background: var(--soft);
+      margin: 20px 0;
+      padding: 16px;
+      border-radius: 8px;
+    }
+
+    .callout.blue {
+      background: var(--soft-blue);
+    }
+
+    .callout.gold {
+      background: var(--soft-gold);
+    }
+
+    .callout strong {
+      display: block;
+      color: var(--blue);
+      margin-bottom: 6px;
+    }
+
+    .callout.gold strong {
+      color: var(--gold);
+    }
+
+    .callout.green strong {
+      color: var(--green);
+    }
+
+    .meta-grid,
+    .table-grid {
+      display: grid;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      margin: 18px 0 24px;
+    }
+
+    .meta-row,
+    .table-row {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      border-top: 1px solid var(--line);
+    }
+
+    .meta-row:first-child,
+    .table-row:first-child {
+      border-top: 0;
+    }
+
+    .label,
+    .cell {
+      padding: 12px 14px;
+    }
+
+    .label {
+      background: var(--soft-blue);
+      color: var(--blue);
+      font-weight: 700;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      margin: 18px 0 24px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 760px;
+    }
+
+    th,
+    td {
+      border: 1px solid var(--line);
+      padding: 11px 12px;
+      vertical-align: top;
+      text-align: left;
+    }
+
+    th {
+      background: var(--soft-blue);
+      color: var(--blue);
+      text-align: center;
+      font-weight: 700;
+    }
+
+    td.center {
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .next-steps {
+      counter-reset: step;
+      list-style: none;
+      padding-left: 0;
+    }
+
+    .next-steps li {
+      counter-increment: step;
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      gap: 10px;
+      align-items: start;
+    }
+
+    .next-steps li::before {
+      content: counter(step);
+      display: inline-grid;
+      place-items: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      background: var(--soft-blue);
+      color: var(--blue);
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+
+    .sources {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .mobile-note {
+      margin-top: 28px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    @media (max-width: 720px) {
+      main {
+        padding: 24px 16px 42px;
+      }
+
+      header {
+        margin-bottom: 22px;
+      }
+
+      .meta-row,
+      .table-row {
+        grid-template-columns: 1fr;
+      }
+
+      .label {
+        padding-bottom: 8px;
+      }
+
+      .cell {
+        padding-top: 10px;
+      }
+
+      table {
+        min-width: 680px;
+      }
+
+      .callout {
+        padding: 14px;
+      }
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      main {
+        width: 100%;
+        padding: 20mm;
+      }
+
+      .table-wrap {
+        overflow: visible;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">Pulycort</p>
+      <h1>Resumen ejecutivo</h1>
+      <p class="subtitle">Pre-auditoría de procesos internos e integración de IA</p>
+    </header>
+
+    <section class="callout blue">
+      <strong>Idea central</strong>
+      La oportunidad no está en crear una IA aislada, sino en ordenar el flujo solicitud → presupuesto → pedido → producción → albarán → factura, usando Odoo como columna vertebral y la IA como capa de asistencia.
+    </section>
+
+    <section class="meta-grid" aria-label="Resumen">
+      <div class="meta-row">
+        <div class="label">Objetivo</div>
+        <div class="cell">Reducir trabajo manual, errores, tiempos de respuesta y dependencia de conocimiento informal.</div>
+      </div>
+      <div class="meta-row">
+        <div class="label">Enfoque inicial</div>
+        <div class="cell">Automatizaciones de baja fricción: email, documentos, facturación asistida, reporting y asistente interno.</div>
+      </div>
+      <div class="meta-row">
+        <div class="label">Enfoque estratégico</div>
+        <div class="cell">Datos industriales: producción, SIMEC, trazabilidad de bloques/tablas, stock, energía, calidad y rendimiento.</div>
+      </div>
+      <div class="meta-row">
+        <div class="label">Fecha</div>
+        <div class="cell">8 de junio de 2026.</div>
+      </div>
+    </section>
+
+    <h2>Decisiones que conviene tomar primero</h2>
+    <ul>
+      <li>Confirmar qué modalidad de Odoo han contratado y qué integraciones permite.</li>
+      <li>Elegir un primer piloto visible en 30-60 días, sin tocar todavía sistemas industriales críticos.</li>
+      <li>Definir una fuente de verdad para clientes, pedidos, stock, producción, facturas y albaranes.</li>
+      <li>Presentar la IA al equipo como ayuda para quitar trabajo repetitivo, no como vigilancia.</li>
+    </ul>
+
+    <h2>1. Dónde poner el foco</h2>
+    <p>El mayor retorno inicial está en administración comercial y documentación. El mayor retorno estratégico está en producción, trazabilidad, rendimiento de material y máquina. La vía prudente es empezar por tareas con mucho volumen y poca fricción, y escalar después hacia IA industrial.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Área</th>
+            <th>Impacto</th>
+            <th>Fricción</th>
+            <th>Por qué importa</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Entrada de solicitudes y email</td>
+            <td class="center">Alto</td>
+            <td class="center">Baja</td>
+            <td>Ordena pedidos que llegan por varias vías y reduce tiempo de primera respuesta.</td>
+          </tr>
+          <tr>
+            <td>Presupuesto → pedido → producción → factura</td>
+            <td class="center">Muy alto</td>
+            <td class="center">Media</td>
+            <td>Evita doble entrada de datos y errores entre documentos.</td>
+          </tr>
+          <tr>
+            <td>Facturación y albaranes</td>
+            <td class="center">Alto</td>
+            <td class="center">Media</td>
+            <td>Trabajo manual claro y dependencia operativa.</td>
+          </tr>
+          <tr>
+            <td>Odoo como fuente de verdad</td>
+            <td class="center">Muy alto</td>
+            <td class="center">Media</td>
+            <td>Debe centralizar CRM, ventas, compras, inventario, producción y facturación.</td>
+          </tr>
+          <tr>
+            <td>SIMEC y datos de producción</td>
+            <td class="center">Alto</td>
+            <td class="center">Media-alta</td>
+            <td>Permite medir m², paradas, rendimiento, merma y productividad real.</td>
+          </tr>
+          <tr>
+            <td>Compras, stock y trazabilidad</td>
+            <td class="center">Alto</td>
+            <td class="center">Media</td>
+            <td>Afecta margen, plazos, disponibilidad y calidad.</td>
+          </tr>
+          <tr>
+            <td>Placas solares y energía</td>
+            <td class="center">Medio</td>
+            <td class="center">Baja</td>
+            <td>Quick win: informe automático y detección de anomalías.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <section class="callout green">
+      <strong>Recomendación</strong>
+      No empezar por una app grande ni por visión artificial. Primero hay que asegurar datos fiables, documentos normalizados y un Odoo bien modelado.
+    </section>
+
+    <h2>2. Primeros pilotos recomendados</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Piloto</th>
+            <th>Qué resuelve</th>
+            <th>Duración</th>
+            <th>Resultado esperado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Bandeja inteligente</td>
+            <td>Clasifica emails/formularios, extrae datos, detecta faltantes y prepara respuesta.</td>
+            <td class="center">4-6 semanas</td>
+            <td>Menos tiempo administrativo y solicitudes mejor estructuradas.</td>
+          </tr>
+          <tr>
+            <td>Generación documental</td>
+            <td>Crea borradores de presupuesto, pedido, orden, albarán y factura desde datos comunes.</td>
+            <td class="center">4-8 semanas</td>
+            <td>Menos errores, menos copia manual y mejor trazabilidad.</td>
+          </tr>
+          <tr>
+            <td>Informe solar automático</td>
+            <td>Lee informes o API de placas solares y genera resumen de rendimiento.</td>
+            <td class="center">1-2 semanas</td>
+            <td>Demostración rápida de valor con baja fricción.</td>
+          </tr>
+          <tr>
+            <td>Diagnóstico SIMEC</td>
+            <td>Identifica qué datos genera la máquina y cómo capturarlos.</td>
+            <td class="center">2-4 semanas</td>
+            <td>Base técnica para dashboard de producción.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>3. Odoo: punto crítico</h2>
+    <p>Odoo no debe tratarse solo como CRM. Si el plan contratado lo permite, debe ser la columna vertebral del flujo operativo. Antes de construir herramientas externas hay que confirmar límites de API, módulos, personalización y entorno técnico.</p>
+
+    <section class="meta-grid" aria-label="Preguntas Odoo">
+      <div class="meta-row">
+        <div class="label">Pregunta 1</div>
+        <div class="cell">¿Tienen Odoo Online Standard, Odoo Online Custom, Odoo.sh u on-premise?</div>
+      </div>
+      <div class="meta-row">
+        <div class="label">Pregunta 2</div>
+        <div class="cell">¿Hay acceso a API externa y módulos personalizados?</div>
+      </div>
+      <div class="meta-row">
+        <div class="label">Pregunta 3</div>
+        <div class="cell">¿Cómo se modelarán bloques, tablas, lotes, acabados, stock reservado y producción?</div>
+      </div>
+      <div class="meta-row">
+        <div class="label">Pregunta 4</div>
+        <div class="cell">¿Cómo se generarán factura y albarán, y cómo encaja con VERI*FACTU/factura electrónica?</div>
+      </div>
+      <div class="meta-row">
+        <div class="label">Decisión</div>
+        <div class="cell">Integrar la IA con Odoo siempre que sea viable; evitar otro silo operativo.</div>
+      </div>
+    </section>
+
+    <h2>4. Datos industriales</h2>
+    <p>El potencial industrial está en conectar pedido, lote, material, máquina, merma, tiempos, incidencias y calidad. Pero este bloque requiere más cuidado técnico: primero captura y visualización; después predicción y optimización.</p>
+    <ul>
+      <li>SIMEC: identificar modelo, software, servidor interno, logs, protocolos, credenciales y formato de datos.</li>
+      <li>Producción: medir m², tiempos, paradas, causas, turnos, rendimiento por material/acabado y retrasos.</li>
+      <li>Trazabilidad: vincular proveedor, bloque, tabla, lote, pedido, cliente, fotos, defectos y reclamaciones.</li>
+      <li>Calidad: registrar defectos con fotos y causa probable antes de plantear visión artificial.</li>
+    </ul>
+
+    <section class="callout gold">
+      <strong>Precaución técnica</strong>
+      No conectar maquinaria industrial directamente a internet. Si hay datos de máquina, conviene capturarlos en red local con un colector edge y enviar solo datos normalizados al sistema central.
+    </section>
+
+    <h2>5. Roadmap propuesto</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Horizonte</th>
+            <th>Objetivo</th>
+            <th>Entregables</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>0-30 días</td>
+            <td>Auditar procesos y lanzar quick wins.</td>
+            <td>Mapa de procesos, inventario de sistemas, 5 pedidos reales analizados, prototipo de bandeja inteligente e informe solar.</td>
+          </tr>
+          <tr>
+            <td>30-90 días</td>
+            <td>Automatizar flujo documental y Odoo.</td>
+            <td>Presupuesto → pedido → orden → albarán/factura con validación humana y dashboard operativo básico.</td>
+          </tr>
+          <tr>
+            <td>3-6 meses</td>
+            <td>Capturar datos industriales.</td>
+            <td>Colector SIMEC, partes de producción normalizados, stock/lotes trazables y reportes de rendimiento.</td>
+          </tr>
+          <tr>
+            <td>6-12 meses</td>
+            <td>Optimizar decisiones.</td>
+            <td>Predicción de retrasos, mantenimiento preventivo, recomendación de compras, análisis de margen real y visión artificial si hay datos suficientes.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>6. Preguntas imprescindibles</h2>
+    <ul>
+      <li>¿Dónde se pierde más tiempo hoy: emails, presupuestos, facturas, producción, stock o incidencias?</li>
+      <li>¿Qué documentos se generan manualmente y quién los genera?</li>
+      <li>¿Cuántos presupuestos, pedidos, facturas y albaranes se emiten al mes?</li>
+      <li>¿Qué información se copia entre sistemas o documentos?</li>
+      <li>¿El stock real coincide con el stock en sistema?</li>
+      <li>¿Qué datos recibe o debería recibir el servidor de SIMEC?</li>
+      <li>¿De dónde salen los informes de placas solares: PDF, email, portal o API?</li>
+      <li>¿Qué persona o proceso no puede fallar porque concentra demasiado conocimiento?</li>
+    </ul>
+
+    <h2>7. Dónde no conviene empezar</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Evitar al principio</th>
+            <th>Motivo</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Visión artificial de calidad</td>
+            <td>Puede ser potente, pero necesita imágenes, etiquetas y criterios consistentes.</td>
+          </tr>
+          <tr>
+            <td>Mantenimiento predictivo avanzado</td>
+            <td>Sin histórico fiable de averías y paradas, sería más promesa que herramienta.</td>
+          </tr>
+          <tr>
+            <td>Sistema paralelo a Odoo</td>
+            <td>Aumentaría silos y doble entrada de datos.</td>
+          </tr>
+          <tr>
+            <td>Marketing como primer eje</td>
+            <td>Útil, pero el problema principal parece operativo y documental.</td>
+          </tr>
+          <tr>
+            <td>Automatizar decisiones sin revisión</td>
+            <td>Al inicio la IA debe preparar y validar, no enviar ni decidir sola.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>8. Mensaje interno recomendado</h2>
+    <section class="callout blue">
+      <strong>Para explicar el proyecto al equipo</strong>
+      Queremos entender qué tareas os hacen perder más tiempo, dónde se repiten errores y qué información os falta para trabajar más cómodos. La tecnología preparará borradores, ordenará datos y quitará trabajo repetitivo; las decisiones importantes seguirán pasando por personas.
+    </section>
+
+    <h2>9. Siguiente paso</h2>
+    <p>Organizar una reunión o visita de auditoría de 2-4 horas con dirección, administración, ventas, producción, compras/almacén e IT/mantenimiento.</p>
+    <ol class="next-steps">
+      <li>Ver 5 pedidos reales completos de punta a punta.</li>
+      <li>Confirmar plan y alcance real de Odoo.</li>
+      <li>Localizar servidor SIMEC y plataforma solar.</li>
+      <li>Elegir un piloto de 30-60 días.</li>
+      <li>Definir métricas: horas ahorradas, errores evitados, tiempo de respuesta y visibilidad operativa.</li>
+    </ol>
+
+    <h2>Fuentes base</h2>
+    <ul class="sources">
+      <li>Web y proceso de Pulycort: pulycort.com.</li>
+      <li>Documentación oficial de Odoo sobre API externa y Odoo.sh.</li>
+      <li>Información oficial de AEAT sobre VERI*FACTU y facturación electrónica.</li>
+      <li>Información pública de SIMEC como fabricante de maquinaria para piedra natural.</li>
+    </ul>
+
+    <p class="mobile-note">Archivo HTML autónomo. Se puede abrir en navegador móvil o compartir como adjunto.</p>
+  </main>
+</body>
+</html>
