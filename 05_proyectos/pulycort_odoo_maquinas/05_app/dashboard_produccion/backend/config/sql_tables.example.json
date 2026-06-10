@@ -1,0 +1,137 @@
+{
+  "notes": "Ejemplo de mapeo. Sustituir table/columnas cuando TotWare o Indasel entregue el esquema real. Los campos order_* son opcionales: pueden venir de una vista SQL que cruce maquinas con Odoo/pedidos.",
+  "machines": [
+    {
+      "machine_id": "telar_1",
+      "machine_name": "Telar 1",
+      "unit": "M3",
+      "table": "registro_telar_1",
+      "timestamp": {
+        "date": "fecha",
+        "time": "hora"
+      },
+      "columns": {
+        "operator_1": "operario_1",
+        "operator_2": "operario_2",
+        "commercial_order_id": "pedido_comercial_id",
+        "order_id": "pedido_id",
+        "order_title": "pedido_titulo",
+        "order_description": "pedido_descripcion",
+        "client_name": "cliente",
+        "order_planned_quantity": "pedido_cantidad_prevista",
+        "order_unit": "pedido_unidad",
+        "order_sale_price_eur_m2": "precio_venta_eur_m2",
+        "order_cost_price_eur_m2": "precio_coste_eur_m2",
+        "lot_id": "n_bloque",
+        "material_code": "material",
+        "length_mm": "largo",
+        "height_mm": "alto",
+        "thickness_mm": "grueso",
+        "quantity": "n_tablas",
+        "operation_code": "operacion",
+        "consumption_kwh_total": "consumo",
+        "incidence_code": "incidencia"
+      }
+    },
+    {
+      "machine_id": "reforzadora_tablas",
+      "machine_name": "Reforzadora tablas",
+      "unit": "M2",
+      "table": "registro_reforzadora_tablas",
+      "timestamp": {
+        "date": "fecha",
+        "time": "hora"
+      },
+      "columns": {
+        "operator_1": "operario_1",
+        "operator_2": "operario_2",
+        "commercial_order_id": "pedido_comercial_id",
+        "order_id": "pedido_id",
+        "order_title": "pedido_titulo",
+        "order_description": "pedido_descripcion",
+        "client_name": "cliente",
+        "order_planned_quantity": "pedido_cantidad_prevista",
+        "order_unit": "pedido_unidad",
+        "order_sale_price_eur_m2": "precio_venta_eur_m2",
+        "order_cost_price_eur_m2": "precio_coste_eur_m2",
+        "lot_id": "n_bloque",
+        "material_code": "material",
+        "length_mm": "largo",
+        "height_mm": "alto",
+        "thickness_mm": "grueso",
+        "quantity": "n_tablas",
+        "finish_code": "acabado",
+        "consumption_kwh_total": "consumo",
+        "event_code": "eventos",
+        "malla_m2": "malla",
+        "chemicals_l": "poliester"
+      }
+    },
+    {
+      "machine_id": "disco_puente_gomez",
+      "machine_name": "Disco Puente Gomez",
+      "unit": "M2",
+      "table": "registro_disco_puente_gomez",
+      "timestamp": {
+        "date": "fecha",
+        "time": "hora"
+      },
+      "columns": {
+        "operator_1": "operario_1",
+        "operator_2": "operario_2",
+        "commercial_order_id": "pedido_comercial_id",
+        "order_id": "pedido_id",
+        "order_title": "pedido_titulo",
+        "order_description": "pedido_descripcion",
+        "client_name": "cliente",
+        "order_planned_quantity": "pedido_cantidad_prevista",
+        "order_unit": "pedido_unidad",
+        "order_sale_price_eur_m2": "precio_venta_eur_m2",
+        "order_cost_price_eur_m2": "precio_coste_eur_m2",
+        "lot_id": "n_bloque",
+        "pallet_out": "pm_losa",
+        "material_code": "material",
+        "length_mm": "largo_tablas_1",
+        "height_mm": "alto_tablas_1",
+        "thickness_mm": "grueso_tablas",
+        "quantity": "n_tablas",
+        "operation_code": "operacion",
+        "consumption_kwh_total": "consumo",
+        "incidence_code": "incidencia"
+      }
+    },
+    {
+      "machine_id": "pulidora_losas",
+      "machine_name": "Pulidora losas",
+      "unit": "M2",
+      "table": "registro_pulidora_losas",
+      "timestamp": {
+        "date": "fecha",
+        "time": "hora"
+      },
+      "columns": {
+        "operator_1": "operario_1",
+        "operator_2": "operario_2",
+        "commercial_order_id": "pedido_comercial_id",
+        "order_id": "pedido_id",
+        "order_title": "pedido_titulo",
+        "order_description": "pedido_descripcion",
+        "client_name": "cliente",
+        "order_planned_quantity": "pedido_cantidad_prevista",
+        "order_unit": "pedido_unidad",
+        "order_sale_price_eur_m2": "precio_venta_eur_m2",
+        "order_cost_price_eur_m2": "precio_coste_eur_m2",
+        "pallet_in": "ref_cajon",
+        "pallet_out": "cajon_salida",
+        "material_code": "material",
+        "length_mm": "largo",
+        "height_mm": "alto",
+        "thickness_mm": "grueso",
+        "quantity": "n_losas",
+        "finish_code": "acabado",
+        "consumption_kwh_total": "consumo",
+        "event_code": "eventos"
+      }
+    }
+  ]
+}

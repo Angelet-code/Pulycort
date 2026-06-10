@@ -1,0 +1,17 @@
+{
+  "name": "pulycort-visor-mapa-3d-instalaciones",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "serve": "node scripts/serve-dist.cjs"
+  },
+  "dependencies": {
+    "three": "^0.164.1",
+    "vite": "^5.2.0"
+  },
+  "devDependencies": {}
+}

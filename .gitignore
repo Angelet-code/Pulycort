@@ -19,3 +19,9 @@ outputs/**/*.ffmpeg.log
 .env
 .env.*
 !.env.example
+
+05_proyectos/**/node_modules/
+05_proyectos/**/dist/
+05_proyectos/**/.venv/
+05_proyectos/**/*.sqlite
+05_proyectos/**/*.sqlite3

@@ -1,0 +1,85 @@
+# Transcripción
+
+**00:00:02.190 - 00:00:17.290**  
+Hola, buenos días. Voy a hablar un poquito de Pulycort, diferenciar entre producción, comercialización y administración en principio, luego iremos añadiendo datos.
+
+**00:00:17.290 - 00:00:33.440**  
+Bien, en producción hay que tener en cuenta que Pulycort no tiene canteras, con lo cual todos los bloques de mármol que consume para su elaboración y posterior venta
+
+**00:00:33.440 - 00:00:36.440**  
+son bloques que compra en el exterior.
+
+**00:00:36.440 - 00:00:47.050**  
+Bien, Pulycort cuenta, salvo que la memoria me falle, con cuatro telares y un cuarto de bloques, ¿vale?
+
+**00:00:47.050 - 00:01:01.560**  
+Los bloques que se utilizan para los telares son bloques normalmente más grandes, más hermosos, consecuentemente más caros, de los que se obtienen tablas.
+
+**00:01:01.560 - 00:01:12.750**  
+Tablas normalmente en dos centímetros de espesor, o tres, o tal vez otros espesores, si es que hay pedidos que requieran de otros espesores.
+
+**00:01:12.750 - 00:01:28.820**  
+Y tienen un cortablo que es que esto se come los bloques, digamos, más de segundas, más, como se suele decir, con pelos, que pelos traducido al lenguaje marmoreo
+
+**00:01:28.820 - 00:01:36.820**  
+son como microfisuras que hacen que el bloque esté más roto, aunque no se vea, ¿vale?
+
+**00:01:36.820 - 00:01:50.260**  
+Entonces, de los telares obtienen tablas que se venden con sus acabados correspondientes, es decir, que se pasan por la pulidora de tabla posteriormente
+
+**00:01:50.260 - 00:02:03.680**  
+y obtenemos tablas pulidas o apomazadas, apomazado quiere decir que es un pulido mate, vamos, sin brillo, o u otros acabados, como puede ser abujardado o envejecido, ¿vale?
+
+**00:02:03.680 - 00:02:15.480**  
+Las tablas se pueden vender directamente como tal, con lo cual se ponen a la venta, una vez tratadas con sus acabados, que acabo de decir
+
+**00:02:15.480 - 00:02:28.610**  
+y bueno, pues los clientes se las llevan pulidas normalmente o con otros acabados, o se destinan a partir de las tablas, se meten en un discopuente
+
+**00:02:28.610 - 00:02:41.610**  
+y se trocean, se trocean obteniendo losas de diversos tamaños o chapados, ¿no? Chapados, cuando hablamos de chapados son
+
+**00:02:42.610 - 00:02:53.670**  
+material, las tablas cortadas en distintos tamaños, un poco corta a medida, ¿no? Es decir, de cada tabla pueden salir varios formatos distintos
+
+**00:02:53.670 - 00:03:04.670**  
+para un chapado, que son fachadas, por ejemplo, que se utilizan con medidas variopintas, cada una es un tamaño distinto o no, o grandes medidas, ¿vale?
+
+**00:03:05.670 - 00:03:17.500**  
+En fin, entonces tenemos la tabla para la venta o la tabla para la losa, en la que se ha utilizado un discopuente que ha cortado todo el material.
+
+**00:03:17.500 - 00:03:44.480**  
+Bien, las tablas, una vez obtenidas después del lab de pulir, se ponen al mercado, a la venta, vienen en tabla o si se elaboran en el discopuente
+
+**00:03:44.480 - 00:03:55.480**  
+pues ya directamente se trocean y se venden según los pedidos que se requieran. Del corta a bloques se obtiene, es otro proceso totalmente distinto,
+
+**00:03:55.480 - 00:04:09.480**  
+en el cual un bloque normalmente inferior se mete al corta a bloques y se obtienen bandas de un ancho específico, digamos 40 centímetros de ancho,
+
+**00:04:09.480 - 00:04:18.480**  
+de 2 centímetros de espesor, se van sacando las bandas que se meten en una troceadora, que se llama, una tronzadora, exactamente,
+
+**00:04:18.480 - 00:04:27.480**  
+y de ahí, sobre una banda de 40 de ancho, por ejemplo, se van partiendo a 40 por 40 y se obtiene losa de 40 por 40.
+
+**00:04:27.480 - 00:04:34.480**  
+Es importante señalar que el rendimiento de un telar es infinitamente superior al del corta a bloques.
+
+**00:04:34.480 - 00:04:41.610**  
+Normalmente un telar puedes obtener 38 a 40 metros cuadrados por metro cúbico, en 2 centímetros de espesor,
+
+**00:04:41.610 - 00:04:50.700**  
+y de un corta a bloques, como mucho, puedes obtener 24, 25 o 26 metros cuadrados por metro cúbico, por muchas razones,
+
+**00:04:50.700 - 00:04:57.700**  
+porque el bloque es inferior, porque al final te queda una solera que nunca se corta, que es el final del bloque,
+
+**00:04:57.700 - 00:05:07.700**  
+digamos que te queda y sobre un desperdicio puro y duro, o incluso el ancho del corte del disco es superior,
+
+**00:05:07.700 - 00:05:10.700**  
+con lo cual tienes un rendimiento inferior, ¿vale?
+
+**00:05:10.700 - 00:05:14.700**  
+Bueno, sigo en otro vídeo, en otro de esto, chao.

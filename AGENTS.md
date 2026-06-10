@@ -21,9 +21,17 @@ Si dos fuentes discrepan, conserva la discrepancia y anade una tarea o pregunta 
 - Cuando generes un informe, explica sus fuentes y dejalo en `04_analisis_y_entregables/informes/`.
 - Cuando incorpores documentacion nueva, actualiza `03_documentacion_curada/INDICE.md` o crea una nota pendiente si falta revisar.
 
+## Apps y proyectos de software
+
+- Antes de crear o arrancar una app, revisar que puertos locales estan ocupados para no pisar servicios, prototipos o herramientas ya activos.
+- Cada app debe documentar en su README el puerto local sugerido, comandos de arranque, dependencias y cualquier variable de entorno necesaria.
+- Si una funcionalidad puede servir a varias apps, extraerla a un modulo, paquete o carpeta compartida dentro de `05_proyectos/` antes de duplicarla.
+- Mantener separadas las apps, las librerias compartidas y las pruebas o prototipos temporales para que el repositorio pueda crecer sin mezclas dificiles de mantener.
+- Al iniciar una app nueva, revisar si existen utilidades, conectores, modelos de datos, componentes UI o scripts reutilizables en otros proyectos del repositorio.
+- Reestructurar `05_proyectos/` de forma incremental conforme crezca el numero de apps, priorizando nombres claros, README propios y limites explicitos entre proyectos.
+
 ## Contexto de negocio
 
 Pulycort trabaja piedra natural/marmol y necesita ordenar datos maestros, operaciones de produccion, trazabilidad de bloque-tabla-losa, acabados, tarifas, clientes/proveedores y su relacion con Odoo.
 
 Una linea importante de trabajo sera conectar datos del software de maquinas de produccion con Odoo para saber que bloque, tabla o losa esta asociado a cada pedido, lote, operacion y estado.
-

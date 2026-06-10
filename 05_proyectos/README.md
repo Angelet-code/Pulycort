@@ -12,4 +12,4 @@ Cada proyecto deberia tener:
 Proyecto activo inicial:
 
 - `pulycort_odoo_maquinas/`: integracion entre software de maquinas de produccion y Odoo.
-
+- `visor_mapa_3d_instalaciones/`: MVP editable para ubicar zonas, maquinaria y personal sobre un mapa 3D de las instalaciones.
