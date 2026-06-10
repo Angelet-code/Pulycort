@@ -5,15 +5,15 @@ function U($value) {
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 
 $TextFiles = @(
-  "00 Analizador de ideas\analisis_pulycort_captacion_clientes.md",
-  "00 Analizador de ideas\pre_auditoria_ia_procesos_internos_pulycort.md",
-  "00 Analizador de ideas\analisis_metodologia_alvaro_spacex.md",
-  "00 Analizador de ideas\resumen_ejecutivo_ia_pulycort.html",
-  "outputs\tmc-hardcore-2026-06-09\informe_jerarquizado.md"
+  "04_analisis_y_entregables\informes\analisis_pulycort_captacion_clientes.md",
+  "04_analisis_y_entregables\informes\pre_auditoria_ia_procesos_internos_pulycort.md",
+  "04_analisis_y_entregables\informes\analisis_metodologia_alvaro_spacex.md",
+  "04_analisis_y_entregables\informes\resumen_ejecutivo_ia_pulycort.html",
+  "04_analisis_y_entregables\outputs\pulycort-odoo-adaptacion-software-2026-06-09\informe_jerarquizado.md"
 )
 
 $DocxFiles = @(
-  "00 Analizador de ideas\resumen_ejecutivo_ia_pulycort.docx"
+  "04_analisis_y_entregables\informes\resumen_ejecutivo_ia_pulycort.docx"
 )
 
 $Replacements = [ordered]@{

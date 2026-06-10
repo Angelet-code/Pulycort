@@ -1,0 +1,151 @@
+---
+tags: [pulycort, tarifas, costes, precios]
+generated: 2026-06-10
+source: "relaciones de trabajos 81-84"
+---
+# Tarifas costes y precios
+
+Las tarifas relacionan grupo de trabajo, operación, máquina, unidad, precio de venta y precio de máquina. El precio cambia por familia de material.
+
+## Grupos principales
+
+- 81: trabajos sobre bloques, como reforzado, aserrado, cortabloques y corte de hilo.
+- 82: trabajos sobre tablas, como refuerzo, filtrado, masillado, pulido, apomazado, arenado, abujardado y embalado.
+- 83: trabajos sobre losas y corte, como disco puente, recuperadora, pulidora de losa, biselado, corte, refuerzo, escarfilado y embalado.
+- 84: otros trabajos de taller, especialmente cantos, aristas, entrecalles, goterones, taladros, pegados, senos y detalles.
+
+## Operaciones 81-83 con precios de ejemplo familia 801
+
+| Grupo | Operación | Máquina | Ud. | PV 801 | Precio máquina 801 |
+| --- | --- | --- | --- | --- | --- |
+| 81 | M3 REFORZADO BLOQUE | REFORZADORA BLOQUE | M3 | 70 | 23.93 |
+| 81 | M3 ASERRADO 1.5 CMS | TELAR | M3 | 130 | 99.77 |
+| 81 | M3 ASERRADO 2 CMS | TELAR | M3 | 110 | 86.8 |
+| 81 | M3 ASERRADO 3 CMS | TELAR | M3 | 120 | 86.8 |
+| 81 | M3 CORTA BLOQUES 1.5 CMS | TRABAJOS EXTERNOS | M3 | 146 | 130 |
+| 81 | M3 CORTA BLOQUES 2 CMS | TRABAJOS EXTERNOS | M3 | 141 | 123.2 |
+| 81 | M3 CORTA BLOQUES 3 CMS | TRABAJOS EXTERNOS | M3 | 136 | 120 |
+| 81 | UD DESPUNTAR EN CORTABLOQUES | TRABAJOS EXTERNOS | UD | 130 | 123.2 |
+| 81 | UD CORTE DE HILO | MONOHILO | UD | 90 | 56 |
+| 81 | M3 ASERRADO 1 CMS | TELAR | M3 | 208 | 157.91 |
+| 81 | M3 ASERRADO OTROS PROVEEDORES | TRABAJOS EXTERNOS | M3 |  | 90 |
+| 82 | M2 REFORZADO POLIESTER TABLA | REFORZADORA TABLA | M2 | 4 | 2.02 |
+| 82 | M2 REFORZADO EPOXI TABLA | REFORZADORA TABLA | M2 | 5 | 2.9 |
+| 82 | M2 FILTRADO POLIESTER TABLA | REFORZADORA TABLA | M2 | 3.6 | 1.59 |
+| 82 | M2 FILTRADO EPOXI TABLA | REFORZADORA TABLA | M2 | 4.6 | 2.47 |
+| 82 | M2 RESINADO POLIESTER TABLA | REFORZADORA TABLA | M2 |  |  |
+| 82 | M2 RESINADO EPOXI TABLA | REFORZADORA TABLA | M2 |  |  |
+| 82 | M2 MASILLADO TABLA | PULIDORA TABLA | M2 |  |  |
+| 82 | M2 APOMAZADO TABLA | PULIDORA TABLA | M2 | 4.5 | 2.01 |
+| 82 | M2 PULIDO TABLA | PULIDORA TABLA | M2 | 4.5 | 2.01 |
+| 82 | M2 ENVEJECIDO TABLA | PULIDORA TABLA | M2 | 5.5 | 2.28 |
+| 82 | M2 EMBALADO TABLAS 2 CM | TALLER | M2 | 1.5 |  |
+| 82 | M2 EMBALADO TABLAS 3 CM | TALLER | M2 | 2.25 |  |
+| 82 | M2 EMBALADO TABLAS 4 CM | TALLER | M2 | 3 |  |
+| 82 | M2 EMBALADO TABLAS 5 CM | TALLER | M2 | 3.75 |  |
+| 82 | M2 ARENAR TABLA | PULIDORA TABLA | M2 | 7 | 1.51 |
+| 82 | M2 ABUJARDAR TABLA | PULIDORA TABLA | M2 | 7.7 | 2.57 |
+| 82 | ABUJARDAR TABLA GONZALEZ Y MESTRE | TRABAJOS EXTERNOS |  |  | 7.5 |
+| 82 | M2 ABUJARDADO + CEPILLADO TABLA | PULIDORA TABLA | M2 | 9 | 4.69 |
+| 82 | M2 PULIDO P/A TABLA TIPO 6 | PULIDORA TABLA | M2 |  |  |
+| 82 | M2 PULIDO S/C TABLA TIPO 6 | PULIDORA TABLA | M2 |  |  |
+| 82 | M2 PULIDO TRANS TABLA TIPO 6 | PULIDORA TABLA | M2 |  |  |
+| 82 | M2 APOM P/A TABLA TIPO 6 | PULIDORA TABLA | M2 |  |  |
+| 82 | M2 APOM S/C TABLA TIPO 6 | PULIDORA TABLA | M2 |  |  |
+| 82 | M2 APOM TRANS TABLA TIPO 6 | PULIDORA TABLA | M2 |  |  |
+| 82 | M2 ARENADO Y CEPILLADO DE TABLA | PULIDORA TABLA | M2 | 10.3 | 7.5 |
+| 82 | M2 RAYADO | DISCO PUENTE | M2 | 40 | 32 |
+| 83 | M2 CORTE DISCO PUENTE 1 CMS | DISCO PUENTE | M2 | 3.6 | 1.76 |
+| 83 | M2 CORTE DISCO PUENTE 1.5 CMS | DISCO PUENTE | M2 | 3.6 | 1.76 |
+| 83 | M2 CORTE DISCO PUENTE 2 CMS | DISCO PUENTE | M2 | 6 | 1.76 |
+| 83 | M2 CORTE DISCO PUENTE 3 CMS | DISCO PUENTE | M2 | 9 | 2.77 |
+| 83 | M2 CORTE RECUPUERADORA | RECUPERADORA LOSAS | M2 | 2.8 | 1.48 |
+| 83 | M2 APOMAZADO LOSA | PULIDORA LOSA | M2 | 6.1 | 1.98 |
+| 83 | M2 PULIDO LOSA | PULIDORA LOSA | M2 | 6.1 | 5.17 |
+| 83 | M2 ENVEJECIDO LOSA | PULIDORA LOSA | M2 | 5.25 | 3.93 |
+| 83 | M2 PULIDO P/A LOSA | PULIDORA LOSA | M2 |  |  |
+| 83 | M2 PULIDO S/C LOSA | PULIDORA LOSA | M2 |  |  |
+| 83 | M2 APOM P/A LOSA | PULIDORA LOSA | M2 |  |  |
+| 83 | M2 BISELADO LOSA | BISELADORA LOSAS | M2 | 0.75 | 0.4 |
+| 83 | BIELADO LOSAS MANUAL | TALLER |  | 1.2 | 0.79 |
+| 83 | M2 QUITAR MALLA LOSA | PULIDORA LOSA | M2 | 2.4 | 1.32 |
+| 83 | M2 ARENAR LOSA | PULIDORA LOSA | M2 | 9 | 6.5 |
+| 83 | ML CORTAR LOSA | TALLER | ML | 0.7 | 0.37 |
+| 83 | M2 REFORZADO LOSA EPOXI | PULIDORA LOSA | M2 | 6 | 5.14 |
+| 83 | M2 DESDOBLAR LOSA | TRABAJOS EXTERNOS | M2 | 2.66 | 2.22 |
+| 83 | M2 ENVEJECIDO P/A LOSA | PULIDORA LOSA | M2 |  |  |
+| 83 | M2 ESCARFILAR LOSA | TALLER | M2 | 10.75 | 8.25 |
+| 83 | UD EMBALADO LOSA | TALLER | UD | 0 | 0 |
+| 83 | M2 CORTE DISCO PUENTE 0,6 CMS | DISCO PUENTE | M2 | 10 | 6.5 |
+| 83 | M2 CORTE DISCO PUENTE S/ GROSOR | DISCO PUENTE | M2 |  |  |
+
+## Grupo 84 - categorías detectadas
+
+- CANTO PULIDO
+- CANTO ENVEJECIDO
+- CANTO ACIDADO
+- CANTOARENADO
+- CANTO PILASTRA
+- CANTO ROMO
+- CANTO REDONDO
+- ENTRECALLE
+- ARISTAS
+- BISEL
+- INGLETE
+- TALADROS
+- CORTE DE CAJA
+- CABEZA HUELLA
+- CABEZA TABICA
+- DISCADA ANTIDESLIZANTES
+- FALSA ESCUADRA
+- GOTERON
+- RETORNO
+- OTRO TIPO DE TRABAJOS
+
+## Grupo 84 - ejemplos
+
+| Categoría | Operación | Tipo 1 | Ref 1 | Precio 1 | Tipo 6 | Ref 6 | Precio 6 | Tipo 9 | Ref 9 | Precio 9 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| CANTO PULIDO | ML CANTO PULIDO 2 CMS | 801 | 00001 | 3 | 806 | 00001 | 4.35 | 809 | 00001 | 4.35 |
+| CANTO PULIDO | ML CANTO PULIDO 2 CMS S/C |  |  |  | 806 | 00002 | 3.9 |  |  |  |
+| CANTO PULIDO | ML CANTO PULIDO 3 CMS | 801 | 00003 | 4 | 806 | 00003 | 5.8 | 809 | 00003 | 5.8 |
+| CANTO PULIDO | ML CANTO PULIDO 3 CMS S/C |  |  |  | 806 | 00004 | 5.2 |  |  |  |
+| CANTO ENVEJECIDO | ML CANTO ENVEJECIDO 2 CMS | 801 | 00011 | 3.45 | 806 | 00011 | 5.0025 | 809 | 00011 | 5.0025 |
+| CANTO ENVEJECIDO | ML CANTO ENVEJECIDO 3 CMS | 801 | 00012 | 4.6 | 806 | 00012 | 6.67 | 809 | 00012 | 6.67 |
+| CANTO ENVEJECIDO | ML CANTO ENVEJECIDO 2 CMS S/C |  |  |  | 806 | 00013 | 4.485 |  |  |  |
+| CANTO ENVEJECIDO | ML CANTO ENVEJECIDO 3 CMS S/C |  |  |  | 806 | 00014 | 5.9799999999999995 |  |  |  |
+| CANTO ACIDADO | ML CANTO ACIDADO | 801 | 00013 | 10 |  |  |  |  |  |  |
+| CANTOARENADO | ML CANTO ARENADO | 801 | 00030 | 6 |  |  |  |  |  |  |
+| CANTO PILASTRA | ML CANTO PILASTRA BRUTO <26 PCS | 801 | 00051 | 3.5 | 806 | 00051 | 3.5 | 809 | 00051 | 5.075 |
+| CANTO PILASTRA | ML CANTO PILASTRA BRUTO >25 PCS | 801 | 00052 | 3 | 806 | 00052 | 3 | 809 | 00052 | 4.35 |
+| CANTO PILASTRA | ML CANTO PILASTRA PULIDO <26 PCS | 801 | 00053 | 5 | 806 | 00053 | 7.25 | 809 | 00053 | 7.25 |
+| CANTO PILASTRA | ML CANTO PILASTRA PULIDO <26 PCS S/C |  |  |  | 806 | 00054 | 6.5 |  |  |  |
+| CANTO PILASTRA | ML CANTO PILASTRA PULIDO >25 PCS | 801 | 00055 | 4.5 | 806 | 00055 | 6.525 | 809 | 00055 | 6.525 |
+| CANTO PILASTRA | ML CANTO PILASTRA PULIDO >25 PCS S/C |  |  |  | 806 | 00056 | 5.85 |  |  |  |
+| CANTO ROMO | ML CANTO ROMO Ó 1/2 CAÑA <26 PCS | 801 | 00101 | 13.65 | 806 | 00101 | 19.7925 | 809 | 00101 | 19.7925 |
+| CANTO ROMO | ML CANTO ROMO Ó 1/2 CAÑA <26 PCS S/C |  |  |  | 806 | 00102 | 17.745 |  |  |  |
+| CANTO ROMO | ML CANTO ROMO Ó 1/2 CAÑA >25 PCS | 801 | 00103 | 10.5 | 806 | 00103 | 15.225000000000001 | 809 | 00103 | 15.225000000000001 |
+| CANTO ROMO | ML CANTO ROMO O 1/2 CAÑA > 25 PCS S/C |  |  |  | 806 | 00104 | 13.65 |  |  |  |
+| CANTO REDONDO | ML CANTO REDONDO PULIDO <26 PCS | 801 | 00151 | 22.2 | 806 | 00151 | 32.19 | 809 | 00151 | 32.19 |
+| CANTO REDONDO | ML CANTO REDONDO PULIDO <26 PCS S/C |  |  |  | 806 | 00152 | 28.86 |  |  |  |
+| CANTO REDONDO | ML CANTO REDONDO PULIDO >25 PCS | 801 | 00153 | 18.5 | 806 | 00153 | 26.825000000000003 | 809 | 00153 | 26.825000000000003 |
+| CANTO REDONDO | ML CANTO REDONDO PULIDO >25 PCS S/C |  |  |  | 806 | 00154 | 24.05 |  |  |  |
+| ENTRECALLE | ML ENTRECALLE PULIDA<26 PCS | 801 | 00201 | 5.7 | 806 | 00201 | 8.265 | 809 | 00201 | 8.265 |
+| ENTRECALLE | ML ENTRECALLE PULIDA <26 PCS S/C |  |  |  | 806 | 00202 | 7.41 |  |  |  |
+| ENTRECALLE | ML ENTRECALLE PULIDA >25 PCS | 801 | 00203 | 5.2 | 806 | 00203 | 7.540000000000001 | 809 | 00203 | 5.27 |
+| ENTRECALLE | ML ENTRECALLE PULIDA >25 PCS S/C |  |  |  | 806 | 00204 | 6.76 |  |  |  |
+| ARISTAS | ML ARISTA MATADA <26 ML | 801 | 00251 | 1.53 | 806 | 00251 | 2.2185 | 809 | 00251 | 2.2185 |
+| ARISTAS | ML ARISTA MATADA <26 ML S/C |  |  |  | 806 | 00252 | 1.9889999999999999 |  |  |  |
+| ARISTAS | ML ARISTA MATADA >25 ML | 801 | 00253 | 1 | 806 | 00253 | 1.45 | 809 | 00253 | 1.45 |
+| ARISTAS | ML ARISTA MATADA >25 ML S/C |  |  |  | 806 | 00254 | 1.3 |  |  |  |
+| ARISTAS | M2 ARISTA MATADA <26 M2 60X60/60X30/60X40/40X40 | 801 | 00255 | 4.26 | 806 | 00255 | 6.177 | 809 | 00255 | 6.177 |
+| ARISTAS | M2 ARISTA MATADA <26 M2 S/C  60X60/ 60X30/60X40/40X40 |  |  |  | 806 | 00256 | 5.537999999999999 |  |  |  |
+| ARISTAS | M2 ARISTA MATADA >25 M2 60X60/ 60X30/60X40/40X40 | 801 | 00257 | 3.55 | 806 | 00257 | 5.1475 | 809 | 00257 | 5.1475 |
+
+## Reglas de coste
+
+- El precio de máquina documentado incluye costes directos: mano de obra, consumibles y similares.
+- Faltan costes indirectos de empresa.
+- Las tarifas se actualizan anualmente.
+- Una misma operación puede tener precio distinto según familia.
+- El coste se acumula conforme el material pasa por trabajos sucesivos.

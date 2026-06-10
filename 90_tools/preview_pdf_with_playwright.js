@@ -5,12 +5,14 @@ async function main() {
   const root = path.resolve(__dirname, "..");
   const pdfPath = path.join(
     root,
-    "00 Analizador de ideas",
+    "04_analisis_y_entregables",
+    "informes",
     "resumen_ejecutivo_ia_pulycort.pdf"
   );
   const outPath = path.join(
     root,
-    "00 Analizador de ideas",
+    "04_analisis_y_entregables",
+    "informes",
     "_preview_resumen_ejecutivo_ia_pulycort_playwright.png"
   );
 
@@ -32,7 +34,8 @@ async function main() {
         ? outPath
         : path.join(
             root,
-            "00 Analizador de ideas",
+            "04_analisis_y_entregables",
+            "informes",
             `_preview_resumen_ejecutivo_ia_pulycort_playwright_page_${pageNum}.png`
           );
     await page.screenshot({ path: target, fullPage: true });

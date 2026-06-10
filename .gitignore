@@ -9,6 +9,9 @@ __pycache__/
 *.pid
 last_cmdline.txt
 
+04_analisis_y_entregables/outputs/**/audio_track_*.wav
+04_analisis_y_entregables/outputs/**/*.ffmpeg.txt
+04_analisis_y_entregables/outputs/**/*.ffmpeg.log
 outputs/**/audio_track_*.wav
 outputs/**/*.ffmpeg.txt
 outputs/**/*.ffmpeg.log

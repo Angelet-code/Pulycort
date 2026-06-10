@@ -10,7 +10,7 @@ from docx.shared import Inches, Pt, RGBColor
 
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT_DIR = ROOT / "00 Analizador de ideas"
+OUT_DIR = ROOT / "04_analisis_y_entregables" / "informes"
 DOCX_PATH = OUT_DIR / "resumen_ejecutivo_ia_pulycort.docx"
 
 

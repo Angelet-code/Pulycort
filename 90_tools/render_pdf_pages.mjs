@@ -15,12 +15,14 @@ const pdfjsLib = await import(pathToFileURL(pdfjsPath).href);
 const workspaceRoot = process.cwd();
 const pdfPath = path.join(
   workspaceRoot,
-  "00 Analizador de ideas",
+  "04_analisis_y_entregables",
+  "informes",
   "resumen_ejecutivo_ia_pulycort.pdf"
 );
 const outDir = path.join(
   workspaceRoot,
-  "00 Analizador de ideas",
+  "04_analisis_y_entregables",
+  "informes",
   "_pages_resumen_ejecutivo_ia_pulycort"
 );
 fs.mkdirSync(outDir, { recursive: true });

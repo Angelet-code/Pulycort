@@ -1,0 +1,13 @@
+{
+  "source": "A:\\TMC CLASES\\TMC HARDCORE\\2026-06-09 10-01-56.mkv",
+  "out_dir": "A:\\PROYECTOS\\OPENCODE\\Pulycort\\outputs\\pulycort-odoo-adaptacion-software-2026-06-09",
+  "segment_count": 1208,
+  "screenshot_count": 52,
+  "transcription": {
+    "language": "es",
+    "language_probability": 1,
+    "duration": 4969.9413125,
+    "duration_after_vad": 3102.608,
+    "model": "small"
+  }
+}
