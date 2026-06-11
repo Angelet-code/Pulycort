@@ -1,5 +1,18 @@
 .cache/
 .vendor/
+No Tocar/
+
+# Credenciales y secretos (nunca versionar)
+*.pem
+*.key
+*.ovpn
+*.p12
+*.pfx
+
+# Datos reales de cliente / fuentes brutas con PII (nunca versionar en repo publico)
+01_entrada/Caso de pedido 01/
+04_analisis_y_entregables/outputs/odoo_actual_scraping_2026-06-11/
+04_analisis_y_entregables/informes/caso_pedido_01_flujo_comercial_real_2026-06-11.md
 
 __pycache__/
 *.py[cod]
@@ -25,3 +38,4 @@ outputs/**/*.ffmpeg.log
 05_proyectos/**/.venv/
 05_proyectos/**/*.sqlite
 05_proyectos/**/*.sqlite3
+05_proyectos/**/backend/local_state/
