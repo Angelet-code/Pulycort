@@ -248,7 +248,7 @@ source: "TRABAJOS POR MAQUINAS y cuestionario Indasel"
 | 1 | La referencia 'PM' | es lo que llamamos actualmente nº de Lote |
 | 2 | Enlazar las máquinas | el nº de lote |
 | 3 | Del disco puente a la pulidora | Del Disco Puente salen las losas a los palet (con un nº de palet) y se llevan a la Pulidora de losas, donde entra el palet y se transformar las losas con un acabado (pulido, envejecido, etc...). Al final de la linea de Pulidora, se depositan en otro nº de palet |
-| 4 | Códigos de material | si , coresponde al listado de material enviado en su día. |
+| 4 | Códigos de material | si, corresponde al listado de material enviado en su día. |
 | 5 | Códigos de acabado / aserrado | Tabla comentada esta mañana 9-6-26 |
 | 6 | Unidades de los consumibles | Malla (m2), productos quimicos (litros) |
 | 7 | Consumo de KW | Depende de cada maquina lo calcula de una manera |
