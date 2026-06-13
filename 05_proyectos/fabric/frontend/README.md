@@ -1,5 +1,7 @@
 # Fabric — visor de producción de telares
 
+> 📁 Parte **frontend** del proyecto [`fabric/`](../) · backend en [`../backend`](../backend) · portada y control de entrega en [`../README.md`](../README.md) y [`../VERIFICACION.md`](../VERIFICACION.md).
+
 Visor **de solo lectura** de los 4 telares de Pulycort/INDASEL: qué corta cada máquina,
 cuánto le queda, cuánto se ha producido y qué lecturas llegan corruptas del sistema antiguo.
 Es la "sala de máquinas" que complementa a PulyTrack (pedidos/trazabilidad): aquí lo que
@@ -116,7 +118,7 @@ con su motivo. Nunca se ocultan ni rompen una vista.
 
 ## La API real (fabric-backend)
 
-El backend vive en `../fabric-backend` (NestJS + Prisma 7, puerto **3000**). El módulo
+El backend (**fabric-backend**) vive en `../backend` (NestJS + Prisma 7, puerto **3000**). El módulo
 `fabric` expone los mismos 5 endpoints que la fachada (`/api/planta/snapshot`,
 `/api/telares/:id`, `/api/estadisticas?rango=`, `/api/salud-datos`, `/api/partes`) más
 `/produccion-mapeada` (lecturas crudas paginadas), `/partes-trabajo` (partes de operario)
@@ -127,7 +129,7 @@ y validador de calidad portado del frontend. Respuestas cacheadas 20–60 s para
 polling de la UI no castigue el Postgres del cliente.
 
 ```powershell
-# desde 05_proyectos/pulycort_odoo_maquinas/05_app/fabric-backend
+# desde 05_proyectos/fabric/backend
 npm run start:dev    # http://127.0.0.1:3000 (necesita .env con DATABASE_URL)
 ```
 
@@ -136,6 +138,6 @@ npm run start:dev    # http://127.0.0.1:3000 (necesita .env con DATABASE_URL)
 Antes de entregar la app a la empresa, **ningún valor puede ser estimado o supuesto**: en
 modo real lo no calculable se muestra como "—". La lista de control completa —cada cifra
 que muestra Fabric, de dónde sale y qué falta confirmar— está en
-[`VERIFICACION.md`](./VERIFICACION.md), y las inferencias aplicadas al modo real (códigos
+[`VERIFICACION.md`](../VERIFICACION.md), y las inferencias aplicadas al modo real (códigos
 de incidencia, `consumo` = amperios, unidades) están pendientes de confirmación en
 `00_gestion/TAREAS.md`. No se entrega hasta que ninguna fila quede pendiente.

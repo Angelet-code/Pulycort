@@ -75,7 +75,7 @@ y hay que confirmarlas con TotWare/produccion antes de dar las cifras por defini
 - [ ] PulyTrack: validar la equivalencia 39 m2/m3 usada en el grafico de produccion por hora (cifras de audio: 38-40 m2/m3 telar, 24-26 m2/m3 cortabloques a 2 cm).
 - [ ] PulyTrack: pedir a INDASEL la lista de codigos de evento que implican parada real frente a eventos rutinarios, para afinar pausas y riesgos.
 - [ ] PulyTrack: definir de donde saldra la fecha comprometida de entrega por pedido (`committed_date`) cuando se conecte la vista SQL/Odoo real.
-- [ ] **Fabric: VERIFICACIÓN PREVIA A ENTREGA** — antes de entregar a la empresa, ningún dato puede ser estimado/supuesto. Lista de control maestra (cada valor, su origen y qué falta confirmar) en `05_proyectos/pulycort_odoo_maquinas/05_app/fabric/VERIFICACION.md`. No se entrega hasta que ninguna fila quede en ⚠️ ni ⛔. Resumen de lo más crítico a confirmar/aportar:
+- [ ] **Fabric: VERIFICACIÓN PREVIA A ENTREGA** — antes de entregar a la empresa, ningún dato puede ser estimado/supuesto. Lista de control maestra (cada valor, su origen y qué falta confirmar) en `05_proyectos/fabric/VERIFICACION.md`. No se entrega hasta que ninguna fila quede en ⚠️ ni ⛔. Resumen de lo más crítico a confirmar/aportar:
   - [ ] Cadencia real de emisión de cada telar (condiciona TODA métrica de tiempo; hoy se asume 1 lectura/10 min). Recalcular duraciones por diferencia de marcas de tiempo, no por conteo.
   - [ ] Marca de tiempo fiable de recepción en servidor (distinta de la fecha que declara la máquina) para poder detectar fechas corruptas.
   - [ ] Mapeo de columnas: cuáles son medida del proveedor y cuáles de fábrica.
