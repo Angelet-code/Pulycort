@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -9,8 +10,11 @@ from typing import Any, Protocol
 from app.metrics import with_consumption_deltas
 from app.mock_data import make_demo_order_plans, make_demo_records
 from app.models import Dimensions, ProductionOrderPlan, ProductionRecord
-from app.sql_guard import assert_safe_identifier, assert_select_only
+from app.sql_guard import assert_safe_identifier, assert_safe_table_name, assert_select_only
 from app.timeutils import parse_compact_date_time
+
+
+logger = logging.getLogger("pulytrack")
 
 
 @dataclass(frozen=True)
@@ -45,7 +49,7 @@ class MockProductionRepository:
         return True
 
     def list_records(self, filters: RecordFilters) -> list[ProductionRecord]:
-        return _filter_records(self._records, filters)
+        return filter_records(self._records, filters)
 
     def list_order_plans(self) -> list[ProductionOrderPlan]:
         return make_demo_order_plans()
@@ -69,6 +73,7 @@ class SqlProductionRepository:
                 connection.exec_driver_sql("SELECT 1")
             return True
         except Exception:
+            logger.warning("Fallo de conexion con la base SQL", exc_info=True)
             return False
 
     def list_records(self, filters: RecordFilters) -> list[ProductionRecord]:
@@ -79,16 +84,22 @@ class SqlProductionRepository:
                 if filters.machine_id and machine_config["machine_id"] != filters.machine_id:
                     continue
                 query = _build_machine_query(machine_config, dialect, min(filters.limit, self.row_limit))
-                rows = connection.exec_driver_sql(query).mappings().all()
-                for row in rows:
-                    raw_records.append(_row_to_record(machine_config, dict(row)))
-        return _filter_records(with_consumption_deltas(raw_records), filters)
+                try:
+                    rows = connection.exec_driver_sql(query).mappings().all()
+                except Exception:
+                    # Una tabla mal mapeada no debe tumbar la lectura del resto
+                    # de maquinas; queda registrado para revisar el mapping.
+                    logger.exception("Error consultando la tabla de %s", machine_config.get("machine_id"))
+                    continue
+                for idx, row in enumerate(rows):
+                    raw_records.append(_row_to_record(machine_config, dict(row), idx))
+        return filter_records(with_consumption_deltas(raw_records), filters)
 
     def list_order_plans(self) -> list[ProductionOrderPlan]:
         return []
 
 
-def _filter_records(records: list[ProductionRecord], filters: RecordFilters) -> list[ProductionRecord]:
+def filter_records(records: list[ProductionRecord], filters: RecordFilters) -> list[ProductionRecord]:
     output: list[ProductionRecord] = []
     lot_text = (filters.lot_id or "").lower()
     pallet_text = (filters.pallet or "").lower()
@@ -121,7 +132,7 @@ def _load_table_config(path: Path) -> dict[str, Any]:
 
 
 def _build_machine_query(machine_config: dict[str, Any], dialect: str, limit: int) -> str:
-    table = assert_safe_identifier(machine_config["table"])
+    table = assert_safe_table_name(machine_config["table"])
     columns = _configured_columns(machine_config)
     safe_columns = [assert_safe_identifier(column) for column in columns]
     order_columns = [column for column in _timestamp_columns(machine_config) if column]
@@ -150,7 +161,7 @@ def _timestamp_columns(machine_config: dict[str, Any]) -> list[str]:
     return [timestamp.get("date"), timestamp.get("time")]
 
 
-def _row_to_record(machine_config: dict[str, Any], row: dict[str, Any]) -> ProductionRecord:
+def _row_to_record(machine_config: dict[str, Any], row: dict[str, Any], row_index: int = 0) -> ProductionRecord:
     columns = machine_config.get("columns", {})
     timestamp_config = machine_config.get("timestamp", {})
     if timestamp_config.get("column"):
@@ -166,7 +177,8 @@ def _row_to_record(machine_config: dict[str, Any], row: dict[str, Any]) -> Produ
     operators = [str(item) for item in [value("operator_1"), value("operator_2"), value("operator_3")] if item not in (None, "")]
     raw_payload = {key: _json_safe(item) for key, item in row.items()}
     return ProductionRecord(
-        id=f"{machine_config['machine_id']}-{timestamp.isoformat()}-{value('lot_id') or value('pallet_in') or value('pallet_out') or 'row'}",
+        # row_index desempata partes del mismo lote en el mismo minuto.
+        id=f"{machine_config['machine_id']}-{timestamp.isoformat()}-{value('lot_id') or value('pallet_in') or value('pallet_out') or 'row'}-{row_index}",
         commercial_order_id=_to_str(value("commercial_order_id")),
         order_id=_to_str(value("order_id")),
         order_title=_to_str(value("order_title")),
@@ -176,6 +188,10 @@ def _row_to_record(machine_config: dict[str, Any], row: dict[str, Any]) -> Produ
         order_unit=_to_str(value("order_unit")),
         order_sale_price_eur_m2=_to_float(value("order_sale_price_eur_m2")),
         order_cost_price_eur_m2=_to_float(value("order_cost_price_eur_m2")),
+        order_currency_code=_to_str(value("order_currency_code")),
+        order_incoterm=_to_str(value("order_incoterm")),
+        order_destination=_to_str(value("order_destination")),
+        order_committed_date=_to_datetime(value("order_committed_date")),
         machine_id=machine_config["machine_id"],
         machine_name=machine_config["machine_name"],
         timestamp=timestamp,
@@ -222,6 +238,17 @@ def _to_float(value: Any) -> float | None:
     try:
         return float(value)
     except (TypeError, ValueError):
+        return None
+
+
+def _to_datetime(value: Any) -> datetime | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, datetime):
+        return value
+    try:
+        return datetime.fromisoformat(str(value))
+    except ValueError:
         return None
 
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from functools import lru_cache
 from typing import Literal
 
@@ -21,6 +22,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=list(settings.cors_origins),
     allow_credentials=True,
+    # API de solo lectura: el tracker observa, no ejecuta.
     allow_methods=["GET"],
     allow_headers=["*"],
 )
@@ -70,8 +72,6 @@ def records(
 ) -> list[ProductionRecord]:
     start = end = None
     if window != "all":
-        from datetime import datetime
-
         start, end = resolve_window(window, datetime.now(), current_settings.shift_schedule)
     return service.records(
         RecordFilters(

@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "fabric",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["start", "--prefix", "05_proyectos/pulycort_odoo_maquinas/05_app/fabric"],
+      "port": 4200
+    },
+    {
+      "name": "pulytrack-frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "05_proyectos/pulycort_odoo_maquinas/05_app/dashboard_produccion/frontend"],
+      "port": 5174
+    }
+  ]
+}

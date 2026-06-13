@@ -7,8 +7,13 @@ from app.models import Kpi, MachineSummary, ProductionRecord, TimeBucket
 
 
 def area_m2(record: ProductionRecord) -> float:
-    if record.unit.upper() == "M2":
+    unit = record.unit.upper()
+    if unit == "M2":
         return round(record.quantity, 3)
+    if unit == "M3":
+        # En aserrado las dimensiones son del bloque, no de la pieza producida:
+        # derivar area de ahi multiplicaria por el numero de tablas un area falsa.
+        return 0.0
     length = record.dimensions.length_mm
     height = record.dimensions.height_mm
     if not length or not height:
@@ -34,17 +39,20 @@ def with_consumption_deltas(records: list[ProductionRecord]) -> list[ProductionR
     updated: list[ProductionRecord] = []
     for machine_records in by_machine.values():
         previous_total: float | None = None
-        for record in sorted(machine_records, key=lambda item: item.timestamp):
+        for record in sorted(machine_records, key=lambda item: (item.timestamp, item.id)):
             delta = record.consumption_kwh_delta
             if delta is None and record.consumption_kwh_total is not None:
-                if previous_total is None:
-                    delta = 0.0
-                elif record.consumption_kwh_total >= previous_total:
-                    delta = record.consumption_kwh_total - previous_total
-                else:
-                    delta = record.consumption_kwh_total
+                if previous_total is not None:
+                    if record.consumption_kwh_total >= previous_total:
+                        delta = record.consumption_kwh_total - previous_total
+                    else:
+                        # Contador reiniciado: el total actual es el minimo gastado.
+                        delta = record.consumption_kwh_total
+                # Sin lectura previa el delta es desconocido, no cero.
                 previous_total = record.consumption_kwh_total
-            updated.append(record.model_copy(update={"consumption_kwh_delta": round(delta or 0.0, 3)}))
+            updated.append(
+                record.model_copy(update={"consumption_kwh_delta": round(delta, 3) if delta is not None else None})
+            )
     return sorted(updated, key=lambda item: item.timestamp, reverse=True)
 
 
@@ -94,13 +102,14 @@ def build_hour_buckets(records: list[ProductionRecord]) -> list[TimeBucket]:
 
 
 def build_kpis(records: list[ProductionRecord], generated_at: datetime) -> list[Kpi]:
-    active_machines = len({record.machine_id for record in records})
+    machines_with_records = len({record.machine_id for record in records})
     incidents = sum(1 for record in records if record.incidence_code or record.event_code)
+    sawn_volume = sum(volume_m3(record) for record in records if record.unit.upper() == "M3")
     return [
-        Kpi(label="Maquinas activas", value=active_machines, unit="", help="Maquinas con registros en la ventana seleccionada."),
+        Kpi(label="Maquinas con registros", value=machines_with_records, unit="", help="Maquinas con al menos un registro en la ventana seleccionada."),
         Kpi(label="Registros", value=len(records), unit="", help="Partes o eventos recibidos desde las tablas SQL."),
-        Kpi(label="Produccion", value=round(sum(area_m2(record) for record in records), 2), unit="m2", help="Area estimada desde largo x alto x cantidad."),
-        Kpi(label="Volumen", value=round(sum(volume_m3(record) for record in records), 2), unit="m3", help="Volumen estimado cuando hay grueso disponible."),
-        Kpi(label="Consumo", value=round(sum(record.consumption_kwh_delta or 0 for record in records), 2), unit="kWh", help="Diferencia entre contador inicial y final por maquina."),
+        Kpi(label="Area procesada", value=round(sum(area_m2(record) for record in records), 2), unit="m2", help="Suma del area registrada en todas las maquinas; una misma pieza cuenta en cada fase que atraviesa."),
+        Kpi(label="Volumen aserrado", value=round(sawn_volume, 2), unit="m3", help="M3 registrados en maquinas de aserrado (telares y cortabloques)."),
+        Kpi(label="Consumo", value=round(sum(record.consumption_kwh_delta or 0 for record in records), 2), unit="kWh", help="Suma de incrementos del contador por maquina; el primer parte de la ventana no aporta delta."),
         Kpi(label="Eventos", value=incidents, unit="", help="Eventos o incidencias registrados en la ventana."),
     ]

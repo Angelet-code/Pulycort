@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: pulycort-backend
+    runtime: docker
+    plan: free
+    region: frankfurt
+    autoDeployTrigger: commit
+    healthCheckPath: /
+    envVars:
+      # La demo del backend se retiró: configura la conexión real en el panel
+      # de Render (Environment → DATABASE_URL). El servicio no arranca sin ella.
+      - key: DATABASE_URL
+        sync: false

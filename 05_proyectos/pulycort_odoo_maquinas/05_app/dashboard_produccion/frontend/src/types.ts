@@ -6,6 +6,7 @@ export interface HealthResponse {
   read_only: boolean;
   database_connected: boolean;
   refresh_seconds: number;
+  shift_schedule_configured: boolean;
   message: string;
 }
 
@@ -26,6 +27,10 @@ export interface ProductionRecord {
   order_unit: string | null;
   order_sale_price_eur_m2: number | null;
   order_cost_price_eur_m2: number | null;
+  order_currency_code: string | null;
+  order_incoterm: string | null;
+  order_destination: string | null;
+  order_committed_date: string | null;
   machine_id: string;
   machine_name: string;
   timestamp: string;
@@ -120,6 +125,44 @@ export interface OrderStage {
   last_record_at: string | null;
 }
 
+export type ActionPriority = "alta" | "media" | "baja" | "ninguna";
+
+export interface NextAction {
+  priority: ActionPriority;
+  text: string;
+  reason: string | null;
+  owner: string | null;
+  machine_name: string | null;
+  operation: string | null;
+  lot_id: string | null;
+  pallet_id: string | null;
+  incidence_code: string | null;
+  incidence_label: string | null;
+  last_signal_at: string | null;
+}
+
+export interface ProductionOrderLine {
+  id: string;
+  title: string;
+  description: string;
+  planned_quantity: number;
+  produced_quantity: number;
+  unit: string;
+  percent_produced: number;
+  sale_price_eur_m2: number | null;
+  cost_price_eur_m2: number | null;
+  sale_amount_eur: number | null;
+  cost_amount_eur: number | null;
+  margin_amount_eur: number | null;
+  margin_percent: number | null;
+  currency_code: string;
+  material_code: string | null;
+  material_name: string | null;
+  material_family: string | null;
+  linked_lot_ids: string[];
+  linked_pallet_ids: string[];
+}
+
 export interface ProductionOrder {
   id: string;
   commercial_order_id: string | null;
@@ -137,18 +180,31 @@ export interface ProductionOrder {
   cost_amount_eur: number | null;
   margin_amount_eur: number | null;
   margin_percent: number | null;
+  currency_code: string;
+  incoterm: string | null;
+  destination: string | null;
+  material_code: string | null;
+  material_name: string | null;
+  material_family: string | null;
+  committed_date: string | null;
   estimated_completion_at: string | null;
   last_activity_at: string | null;
   active_machine: string | null;
+  last_machine_name: string | null;
   current_operation: string | null;
   incidence_count: number;
+  pause_reason: string | null;
+  pause_owner: string | null;
+  next_action: NextAction | null;
   linked_lot_ids: string[];
   linked_pallet_ids: string[];
   stages: OrderStage[];
+  lines: ProductionOrderLine[];
 }
 
 export interface TraceResponse {
   query: string;
+  match_mode: "exact" | "partial" | "none";
   steps: ProductionRecord[];
 }
 
@@ -160,7 +216,13 @@ export interface UnknownMapping {
   count: number;
   first_seen: string;
   last_seen: string;
+  action: MappingAction;
+  note: string | null;
+  mapped_label: string | null;
+  updated_at: string | null;
 }
+
+export type MappingAction = "pendiente" | "mapear" | "ignorar" | "preguntar_a_indasel";
 
 export interface RecordFilters {
   machine_id: string;

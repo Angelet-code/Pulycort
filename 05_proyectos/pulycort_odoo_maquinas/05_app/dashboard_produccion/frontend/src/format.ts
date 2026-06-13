@@ -1,26 +1,38 @@
-export const numberFmt = new Intl.NumberFormat("es-ES", {
-  maximumFractionDigits: 2
-});
+export const numberFmt = {
+  format: (value: number) => formatDecimal(value)
+};
+
+function formatDecimal(value: number): string {
+  const fixed = value.toFixed(2).replace(/\.?0+$/, "");
+  const [integerPart, decimalPart] = fixed.split(".");
+  const sign = integerPart.startsWith("-") ? "-" : "";
+  const integer = sign ? integerPart.slice(1) : integerPart;
+  const grouped = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `${sign}${grouped}${decimalPart ? `,${decimalPart}` : ""}`;
+}
 
 export function formatNumber(value: number | null | undefined, unit = ""): string {
   if (value === null || value === undefined || Number.isNaN(value)) {
     return "-";
   }
-  return `${numberFmt.format(value)}${unit ? ` ${unit}` : ""}`;
+  const formattedUnit = formatUnit(unit);
+  return `${numberFmt.format(value)}${formattedUnit ? ` ${formattedUnit}` : ""}`;
 }
 
-export function formatCurrency(value: number | null | undefined): string {
+export function formatCurrency(value: number | null | undefined, currencyCode = "EUR"): string {
   if (value === null || value === undefined || Number.isNaN(value)) {
     return "-";
   }
-  return `${numberFmt.format(value)} EUR`;
+  const symbol = currencySymbol(currencyCode);
+  return symbol ? `${numberFmt.format(value)} ${symbol}` : numberFmt.format(value);
 }
 
-export function formatCurrencyPerM2(value: number | null | undefined): string {
+export function formatCurrencyPerM2(value: number | null | undefined, currencyCode = "EUR", unit = "M2"): string {
   if (value === null || value === undefined || Number.isNaN(value)) {
     return "-";
   }
-  return `${numberFmt.format(value)} EUR/m2`;
+  const symbol = currencySymbol(currencyCode);
+  return symbol ? `${numberFmt.format(value)} ${symbol}/${formatUnit(unit) || "m²"}` : `${numberFmt.format(value)}/${formatUnit(unit) || "m²"}`;
 }
 
 export function formatPercent(value: number | null | undefined): string {
@@ -42,6 +54,21 @@ export function formatDateTime(value: string | null | undefined): string {
   }).format(new Date(value));
 }
 
+export function formatLongDateTime(value: string | null | undefined): string {
+  if (!value) {
+    return "-";
+  }
+  const date = new Date(value);
+  const weekday = capitalize(new Intl.DateTimeFormat("es-ES", { weekday: "long" }).format(date));
+  const day = new Intl.DateTimeFormat("es-ES", { day: "numeric" }).format(date);
+  const month = capitalize(new Intl.DateTimeFormat("es-ES", { month: "long" }).format(date));
+  const time = new Intl.DateTimeFormat("es-ES", {
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(date);
+  return `${weekday} ${day} de ${month}, ${time}`;
+}
+
 export function formatTime(value: string | null | undefined): string {
   if (!value) {
     return "-";
@@ -58,4 +85,33 @@ export function formatDimensions(length?: number | null, height?: number | null,
     return "-";
   }
   return parts.map((item) => numberFmt.format(item as number)).join(" x ");
+}
+
+export function formatUnit(unit = ""): string {
+  const normalized = unit.trim().toLowerCase();
+  if (normalized === "m2" || normalized === "m²") {
+    return "m²";
+  }
+  if (normalized === "m3" || normalized === "m³") {
+    return "m³";
+  }
+  return unit;
+}
+
+function currencySymbol(currencyCode = "EUR"): string {
+  const normalized = currencyCode.trim().toUpperCase();
+  if (normalized === "EUR") {
+    return "€";
+  }
+  if (normalized === "USD") {
+    return "US$";
+  }
+  if (normalized === "MIX") {
+    return "";
+  }
+  return normalized;
+}
+
+function capitalize(value: string): string {
+  return value ? `${value.charAt(0).toUpperCase()}${value.slice(1)}` : value;
 }

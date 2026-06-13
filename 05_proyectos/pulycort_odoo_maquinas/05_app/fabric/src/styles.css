@@ -1,0 +1,500 @@
+/* ============================================================
+   Fabric — sistema de diseño global
+   Familia visual de PulyTrack (dark glassmorphism) con identidad
+   propia: acento cálido "piedra" (--stone) y motivo de veta en
+   las cabeceras de panel. Todos los números tabulares.
+   ============================================================ */
+
+:root {
+  color-scheme: dark;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI",
+    Arial, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+
+  --bg-0: #04070f;
+  --bg-1: #0a1120;
+  --bg-2: #141d31;
+  --surface: rgba(255, 255, 255, 0.07);
+  --surface-strong: rgba(255, 255, 255, 0.12);
+  --surface-soft: rgba(255, 255, 255, 0.045);
+  --line: rgba(255, 255, 255, 0.13);
+  --line-strong: rgba(255, 255, 255, 0.25);
+  --text: #f2f6fd;
+  --text-muted: rgba(242, 246, 253, 0.66);
+  --text-soft: rgba(242, 246, 253, 0.56);
+
+  --green: #35d99d;
+  --teal: #4fc9de;
+  --blue: #4b9fff;
+  --violet: #98a8ff;
+  --amber: #f3c86a;
+  --red: #ff5f7d;
+  --stone: #d8c8a8;
+
+  /* Color de acento fijo por telar (gráficos, gantt, leyendas). */
+  --t1: var(--blue);
+  --t2: var(--green);
+  --t3: var(--violet);
+  --t4: var(--teal);
+
+  --radius-panel: 24px;
+  --radius-row: 16px;
+  --radius-chip: 10px;
+  --radius-pill: 999px;
+  --shadow: 0 22px 70px rgba(0, 0, 0, 0.38);
+  --shadow-soft: 0 10px 32px rgba(0, 0, 0, 0.25);
+
+  --app-background:
+    radial-gradient(110% 70% at 85% -12%, rgba(216, 200, 168, 0.16), rgba(216, 200, 168, 0) 55%),
+    radial-gradient(90% 60% at 0% 0%, rgba(75, 159, 255, 0.13), rgba(75, 159, 255, 0) 52%),
+    linear-gradient(168deg, #0c1526 0%, #070d1a 38%, #04070f 100%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: var(--app-background);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  color: var(--text);
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: 30px;
+  line-height: 1.04;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+h2 {
+  font-size: 17px;
+  line-height: 1.2;
+  font-weight: 750;
+}
+
+h3 {
+  font-size: 14px;
+  line-height: 1.25;
+  font-weight: 700;
+}
+
+/* Números siempre tabulares: nada baila al refrescar. */
+.num,
+.tabla td,
+.kpi-valor {
+  font-variant-numeric: tabular-nums;
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.soft {
+  color: var(--text-soft);
+}
+
+/* ── Cabecera de vista ───────────────────────────────────── */
+
+.cabecera-vista {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.subtitulo {
+  margin-top: 4px;
+  font-size: 13.5px;
+}
+
+.subtitulo code {
+  font-size: 12px;
+  background: var(--surface-soft);
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+
+/* ── Paneles ─────────────────────────────────────────────── */
+
+.panel {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(14px);
+  padding: 18px 20px;
+}
+
+.panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  /* Motivo "veta": una línea diagonal de piedra bajo la cabecera. */
+  background:
+    linear-gradient(100deg, rgba(216, 200, 168, 0.5), rgba(216, 200, 168, 0.06) 60%, transparent)
+      left bottom / 100% 1px no-repeat;
+}
+
+.panel-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ── Valor + unidad ──────────────────────────────────────── */
+
+.metrica {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.metrica .valor {
+  font-weight: 760;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.3s ease;
+}
+
+.metrica .unidad {
+  font-size: 0.62em;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* ── KPI tiles ───────────────────────────────────────────── */
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.kpi-tile {
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-row);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.kpi-tile .kpi-etiqueta {
+  font-size: 11.5px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.kpi-tile .metrica {
+  font-size: 26px;
+}
+
+.kpi-tile .kpi-nota {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.kpi-tile.tono-ok .valor {
+  color: var(--green);
+}
+
+.kpi-tile.tono-aviso .valor {
+  color: var(--amber);
+}
+
+.kpi-tile.tono-mal .valor {
+  color: var(--red);
+}
+
+/* ── Chips ───────────────────────────────────────────────── */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 11px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+  font-size: 12.5px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.chip .punto {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.chip--marcha {
+  border-color: rgba(53, 217, 157, 0.45);
+  background: rgba(53, 217, 157, 0.13);
+  color: #8df0c9;
+}
+
+.chip--marcha .punto {
+  background: var(--green);
+  animation: latido 1.8s ease-in-out infinite;
+}
+
+.chip--paro {
+  border-color: rgba(243, 200, 106, 0.45);
+  background: rgba(243, 200, 106, 0.12);
+  color: #f7dca0;
+}
+
+.chip--paro .punto {
+  background: var(--amber);
+}
+
+.chip--incidencia {
+  border-color: rgba(255, 95, 125, 0.5);
+  background: rgba(255, 95, 125, 0.14);
+  color: #ffb1c0;
+}
+
+.chip--incidencia .punto {
+  background: var(--red);
+  animation: latido 0.9s ease-in-out infinite;
+}
+
+.chip--cambio {
+  border-color: rgba(79, 201, 222, 0.4);
+  background: rgba(79, 201, 222, 0.1);
+  color: #a8e4ef;
+}
+
+.chip--cambio .punto {
+  background: var(--teal);
+}
+
+.chip--sindatos {
+  border-style: dashed;
+  color: var(--text-muted);
+}
+
+.chip--sindatos .punto {
+  background: var(--text-soft);
+}
+
+/* Fuente de datos activa en las vistas de tablas en crudo. */
+.chip-fuente {
+  font-size: 11px;
+  padding: 4px 10px;
+}
+
+.chip-fuente .punto {
+  width: 7px;
+  height: 7px;
+}
+
+.chip-real {
+  color: var(--green);
+  border-color: color-mix(in srgb, var(--green) 40%, transparent);
+}
+
+.chip-real .punto {
+  background: var(--green);
+}
+
+.chip-demo {
+  color: var(--amber);
+  border-color: color-mix(in srgb, var(--amber) 40%, transparent);
+}
+
+.chip-demo .punto {
+  background: var(--amber);
+}
+
+@keyframes latido {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.78);
+  }
+}
+
+/* ── Tablas de datos ─────────────────────────────────────── */
+
+.tabla-scroll {
+  overflow-x: auto;
+  border-radius: var(--radius-row);
+  border: 1px solid var(--line);
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 560px;
+}
+
+.tabla th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--line-strong);
+  background: var(--surface-soft);
+  white-space: nowrap;
+}
+
+.tabla td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.tabla tr:last-child td {
+  border-bottom: none;
+}
+
+.tabla td.derecha,
+.tabla th.derecha {
+  text-align: right;
+}
+
+.tabla tr.sospechosa td {
+  color: var(--text-soft);
+  text-decoration: line-through;
+  text-decoration-color: rgba(255, 95, 125, 0.55);
+  text-decoration-thickness: 1px;
+}
+
+.tabla tr.sospechosa td.sin-tachar {
+  text-decoration: none;
+}
+
+/* ── Pills de control ────────────────────────────────────── */
+
+.pills {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+}
+
+.pills button {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 650;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.pills button.activa {
+  background: var(--stone);
+  color: #221c10;
+}
+
+/* ── Estado vacío / aviso ────────────────────────────────── */
+
+.estado-vacio {
+  padding: 28px 20px;
+  text-align: center;
+  color: var(--text-soft);
+  font-size: 14px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-row);
+}
+
+.nota-metodo {
+  font-size: 12px;
+  color: var(--text-soft);
+  line-height: 1.5;
+}
+
+/* ── Esqueleto de carga ──────────────────────────────────── */
+
+.cargando {
+  height: 120px;
+  border-radius: var(--radius-row);
+  background: linear-gradient(100deg, var(--surface-soft) 30%, var(--surface) 50%, var(--surface-soft) 70%);
+  background-size: 200% 100%;
+  animation: brillo 1.4s ease-in-out infinite;
+}
+
+@keyframes brillo {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ── Scrollbars discretos ────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 99px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}

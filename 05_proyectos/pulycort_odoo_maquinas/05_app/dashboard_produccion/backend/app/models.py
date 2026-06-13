@@ -31,6 +31,10 @@ class ProductionRecord(BaseModel):
     order_unit: str | None = None
     order_sale_price_eur_m2: float | None = None
     order_cost_price_eur_m2: float | None = None
+    order_currency_code: str | None = None
+    order_incoterm: str | None = None
+    order_destination: str | None = None
+    order_committed_date: datetime | None = None
     machine_id: str
     machine_name: str
     timestamp: datetime
@@ -64,6 +68,7 @@ class HealthResponse(BaseModel):
     read_only: bool
     database_connected: bool
     refresh_seconds: int
+    shift_schedule_configured: bool
     message: str
 
 
@@ -129,8 +134,15 @@ class ProductionOrderPlan(BaseModel):
     client: str
     planned_quantity: float
     unit: str
+    committed_date: datetime | None = None
     sale_price_eur_m2: float | None = None
     cost_price_eur_m2: float | None = None
+    currency_code: str = "EUR"
+    incoterm: str | None = None
+    destination: str | None = None
+    material_code: str | None = None
+    material_name: str | None = None
+    material_family: str | None = None
     linked_lot_ids: list[str] = Field(default_factory=list)
     linked_pallet_ids: list[str] = Field(default_factory=list)
 
@@ -142,6 +154,42 @@ class OrderStage(BaseModel):
     unit: str
     machine_names: list[str] = Field(default_factory=list)
     last_record_at: datetime | None = None
+
+
+class NextAction(BaseModel):
+    priority: Literal["alta", "media", "baja", "ninguna"]
+    text: str
+    reason: str | None = None
+    owner: str | None = None
+    machine_name: str | None = None
+    operation: str | None = None
+    lot_id: str | None = None
+    pallet_id: str | None = None
+    incidence_code: str | None = None
+    incidence_label: str | None = None
+    last_signal_at: datetime | None = None
+
+
+class ProductionOrderLine(BaseModel):
+    id: str
+    title: str
+    description: str = ""
+    planned_quantity: float
+    produced_quantity: float
+    unit: str
+    percent_produced: float
+    sale_price_eur_m2: float | None = None
+    cost_price_eur_m2: float | None = None
+    sale_amount_eur: float | None = None
+    cost_amount_eur: float | None = None
+    margin_amount_eur: float | None = None
+    margin_percent: float | None = None
+    currency_code: str = "EUR"
+    material_code: str | None = None
+    material_name: str | None = None
+    material_family: str | None = None
+    linked_lot_ids: list[str] = Field(default_factory=list)
+    linked_pallet_ids: list[str] = Field(default_factory=list)
 
 
 class ProductionOrder(BaseModel):
@@ -161,18 +209,32 @@ class ProductionOrder(BaseModel):
     cost_amount_eur: float | None = None
     margin_amount_eur: float | None = None
     margin_percent: float | None = None
+    currency_code: str = "EUR"
+    incoterm: str | None = None
+    destination: str | None = None
+    material_code: str | None = None
+    material_name: str | None = None
+    material_family: str | None = None
+    committed_date: datetime | None = None
     estimated_completion_at: datetime | None = None
     last_activity_at: datetime | None = None
     active_machine: str | None = None
+    last_machine_name: str | None = None
     current_operation: str | None = None
     incidence_count: int = 0
+    pause_reason: str | None = None
+    pause_owner: str | None = None
+    next_action: NextAction | None = None
     linked_lot_ids: list[str] = Field(default_factory=list)
     linked_pallet_ids: list[str] = Field(default_factory=list)
     stages: list[OrderStage] = Field(default_factory=list)
+    lines: list[ProductionOrderLine] = Field(default_factory=list)
 
 
 class TraceResponse(BaseModel):
     query: str
+    # exact: el identificador coincide entero; partial: solo por subcadena.
+    match_mode: Literal["exact", "partial", "none"] = "none"
     steps: list[ProductionRecord]
 
 
@@ -184,3 +246,16 @@ class UnknownMapping(BaseModel):
     count: int
     first_seen: datetime
     last_seen: datetime
+    action: Literal["pendiente", "mapear", "ignorar", "preguntar_a_indasel"] = "pendiente"
+    note: str | None = None
+    mapped_label: str | None = None
+    updated_at: datetime | None = None
+
+
+class UnknownMappingActionUpdate(BaseModel):
+    kind: Literal["operation", "finish", "event", "incidence"]
+    code: str
+    machine_id: str
+    action: Literal["pendiente", "mapear", "ignorar", "preguntar_a_indasel"]
+    note: str | None = None
+    mapped_label: str | None = None

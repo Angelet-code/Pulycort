@@ -1,0 +1,11 @@
+services:
+  api:
+    build:
+      context: .
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      # La demo del backend se retiró: define la conexión real (host env).
+      DATABASE_URL: ${DATABASE_URL}
+      CORS_ORIGIN: http://localhost:5173

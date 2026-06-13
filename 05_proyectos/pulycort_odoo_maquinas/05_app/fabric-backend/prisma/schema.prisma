@@ -1,0 +1,187 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model ProduccionMapeada {
+  id            Int       @id @default(autoincrement())
+  telarN        String?   @map("telar_n")
+  operario1     Int?      @map("operario_1")
+  operario2     Int?      @map("operario_2")
+  nBloque       Int?      @map("n_bloque")
+  material      Int?
+  largo         Float?
+  alto          Float?
+  grueso        Decimal?  @db.Decimal
+  potencia      Int?
+  velocidad     Int?
+  incidencia    String?
+  consumo       Int?
+  createUid     Int?      @map("create_uid")
+  writeUid      Int?      @map("write_uid")
+  fecha         DateTime? @db.Date
+  createDate    DateTime? @map("create_date") @db.Timestamp(6)
+  writeDate     DateTime? @map("write_date") @db.Timestamp(6)
+  hora          Float?
+  golpesXMinuto Int?      @map("golpesxminuto")
+  alturaActual  Int?      @map("altura_actual")
+  dato1         Int?      @map("dato_1")
+  dato2         Int?      @map("dato_2")
+  dato3         Int?      @map("dato_3")
+  dato4         Int?      @map("dato_4")
+  dato5         Int?      @map("dato_5")
+  dato6         Int?      @map("dato_6")
+  fechaHora     DateTime? @map("fecha_hora") @db.Timestamp(6)
+
+  @@map("produccion_mapeada")
+}
+
+model ParteTrabajoMapeada {
+  id                    Int       @id @default(autoincrement())
+  nTelar                String?   @map("n_telar")
+  operario1             Int?      @map("operario_1")
+  operario2             Int?      @map("operario_2")
+  nBloque               Int?      @map("n_bloque")
+  material              Int?
+  largo                 Float?
+  alto                  Float?
+  grueso                Decimal?  @db.Decimal
+  operacion             String?
+  nPaquete              Int?      @map("n_paquete")
+  nTablas               Int?      @map("n_tablas")
+  largoTablas           Float?    @map("largo_tablas")
+  altoTablas            Float?    @map("alto_tablas")
+  gruesoTablas          Float?    @map("grueso_tablas")
+  consumo               Int?
+  createUid             Int?      @map("create_uid")
+  writeUid              Int?      @map("write_uid")
+  fecha                 DateTime? @db.Date
+  createDate            DateTime? @map("create_date") @db.Timestamp(6)
+  writeDate             DateTime? @map("write_date") @db.Timestamp(6)
+  hora                  Float?
+  dato1                 Int?      @map("dato_1")
+  dato2                 Int?      @map("dato_2")
+  dato3                 Int?      @map("dato_3")
+  dato4                 Int?      @map("dato_4")
+  dato5                 Int?      @map("dato_5")
+  dato6                 Int?      @map("dato_6")
+  bloqueExiste          Boolean?  @map("bloque_existe")
+  accion                String?
+  fechaHora             DateTime? @map("fecha_hora") @db.Timestamp(6)
+  idBloque              Int?      @map("id_bloque")
+  metrosCubicos         Float?    @map("metros_cubicos")
+  metrosCuadradosTablas Decimal?  @map("metros_cuadrados_tablas") @db.Decimal
+  materialRecibido      Int?      @map("material_recibido")
+
+  @@map("parte_trabajo_mapeada")
+}
+
+model LotBlockCreation {
+  id                 Int       @id @default(autoincrement())
+  productId          Int?      @map("product_id")
+  operario           Int?
+  createUid          Int?      @map("create_uid")
+  writeUid           Int?      @map("write_uid")
+  name               String?
+  ref                String?
+  deliveryDone       Boolean?  @map("delivery_done")
+  createLotDone      Boolean?  @map("create_lot_done")
+  createDate         DateTime? @map("create_date") @db.Timestamp(6)
+  writeDate          DateTime? @map("write_date") @db.Timestamp(6)
+  largoSupplier      Float     @map("largo_supplier")
+  altoSupplier       Float     @map("alto_supplier")
+  gruesoSupplier     Float     @map("grueso_supplier")
+  largoMrp           Float?    @map("largo_mrp")
+  altoMrp            Float?    @map("alto_mrp")
+  gruesoMrp          Float?    @map("grueso_mrp")
+  supplier           Int?
+  pickingId          Int?      @map("picking_id")
+  poId               Int?      @map("po_id")
+  thirdPartyMaterial Boolean?  @map("thir_party_material")
+  locationDestId     Int?      @map("location_dest_id")
+  variantId          Int?      @map("variant_id")
+  productIdTmpl      Int?      @map("product_id_tmpl")
+  attributeValueId   Int?      @map("attribute_value_id")
+
+  @@map("lot_block_creation")
+}
+
+// Partes del disco puente ya mapeados (tabla viva de TotWare→Odoo). Sustituye a
+// la cruda `parte_disco_puente` (fecha/hora como enteros DDMM/HMM, sin año, sin
+// cronología). La mapeada añade `fecha_hora` real, m² entrada/salida, eficiencia,
+// acabado, bloque_existe e id_bloque, y sanea tipos (largo/alto a float, grueso a
+// numeric, disco_puente_n y operacion a texto). Ver 00_gestion/TAREAS.md.
+model ParteDiscoPuenteMapeada {
+  id               Int       @id @default(autoincrement())
+  operario1        Int?      @map("operario_1")
+  operario2        Int?      @map("operario_2")
+  nBloque          Int?      @map("n_bloque")
+  material         Int?
+  nPaquete         Int?      @map("n_paquete")
+  nTablas          Int?      @map("n_tablas")
+  consumo          Int?
+  observaciones    Int?
+  dato1            Int?      @map("dato_1")
+  dato2            Int?      @map("dato_2")
+  dato3            Int?      @map("dato_3")
+  dato4            Int?      @map("dato_4")
+  dato5            Int?      @map("dato_5")
+  dato6            Int?      @map("dato_6")
+  pmLosa           Int?      @map("pm_losa")
+  createUid        Int?      @map("create_uid")
+  writeUid         Int?      @map("write_uid")
+  discoPuenteN     String?   @map("disco_puente_n")
+  operacion        String?
+  fecha            DateTime? @db.Date
+  createDate       DateTime? @map("create_date") @db.Timestamp(6)
+  writeDate        DateTime? @map("write_date") @db.Timestamp(6)
+  hora             Float?
+  largo            Float?
+  alto             Float?
+  grueso           Decimal?  @db.Decimal
+  largoTablas1     Decimal?  @map("largo_tablas_1") @db.Decimal
+  largoTablas2     Float?    @map("largo_tablas_2")
+  largoTablas3     Float?    @map("largo_tablas_3")
+  largoTablas4     Float?    @map("largo_tablas_4")
+  largoTablas5     Float?    @map("largo_tablas_5")
+  largoTablas6     Float?    @map("largo_tablas_6")
+  largoTablas7     Float?    @map("largo_tablas_7")
+  largoTablas8     Float?    @map("largo_tablas_8")
+  altoTablas1      Decimal?  @map("alto_tablas_1") @db.Decimal
+  altoTablas2      Float?    @map("alto_tablas_2")
+  altoTablas3      Float?    @map("alto_tablas_3")
+  altoTablas4      Float?    @map("alto_tablas_4")
+  altoTablas5      Float?    @map("alto_tablas_5")
+  altoTablas6      Float?    @map("alto_tablas_6")
+  altoTablas7      Float?    @map("alto_tablas_7")
+  altoTablas8      Float?    @map("alto_tablas_8")
+  gruesoTablas     Decimal?  @map("grueso_tablas") @db.Decimal
+  bloqueExiste     Boolean?  @map("bloque_existe")
+  acabado          String?
+  fechaHora        DateTime? @map("fecha_hora") @db.Timestamp(6)
+  idBloque         Int?      @map("id_bloque")
+  metro2Entrada    Decimal?  @map("metro2_entrada") @db.Decimal
+  metro2Salida     Decimal?  @map("metro2_salida") @db.Decimal
+  eficienciaM2     Float?    @map("eficiencia_m2")
+  materialRecibido Int?      @map("material_recibido")
+
+  @@map("parte_discopuente_mapeada")
+}
+
+// Padrón real de bloques de máquina (puente id ↔ n_bloque). `parte_*.id_bloque`
+// apunta aquí. Es la fuente correcta para saber si un n_bloque es conocido.
+// OJO: NO es el inventario de Odoo (`lot_block_creation`) que mira el flag
+// `bloque_existe` de las _mapeada y está incompleto. Ver 00_gestion/TAREAS.md.
+model BloqueMaquinas {
+  id         Int       @id @default(autoincrement())
+  nBloque    Int?      @map("n_bloque")
+  createUid  Int?      @map("create_uid")
+  writeUid   Int?      @map("write_uid")
+  createDate DateTime? @map("create_date") @db.Timestamp(6)
+  writeDate  DateTime? @map("write_date") @db.Timestamp(6)
+
+  @@map("bloque_maquinas")
+}

@@ -19,6 +19,11 @@ def _int_env(name: str, default: int) -> int:
         return default
 
 
+def _choice_env(name: str, default: str, allowed: tuple[str, ...]) -> str:
+    value = (os.getenv(name) or "").strip().lower()
+    return value if value in allowed else default
+
+
 @dataclass(frozen=True)
 class Settings:
     database_url: str
@@ -26,7 +31,13 @@ class Settings:
     shift_schedule: str
     sql_table_config: Path
     sql_row_limit: int
+    mapping_actions_path: Path
     cors_origins: tuple[str, ...]
+    # Semantica de `quantity` en los partes de maquina, pendiente de confirmar
+    # con INDASEL: "cumulative" (cada parte trae el acumulado del pedido) o
+    # "incremental" (cada parte trae solo lo producido en ese parte).
+    quantity_mode: str
+    stalled_after_hours: int
 
     @property
     def data_mode(self) -> str:
@@ -53,5 +64,13 @@ def get_settings() -> Settings:
             )
         ),
         sql_row_limit=_int_env("SQL_ROW_LIMIT", 5000),
+        mapping_actions_path=Path(
+            os.getenv(
+                "MAPPING_ACTIONS_PATH",
+                str(BASE_DIR / "local_state" / "mapping_actions.json"),
+            )
+        ),
         cors_origins=origins,
+        quantity_mode=_choice_env("QUANTITY_MODE", "cumulative", ("cumulative", "incremental")),
+        stalled_after_hours=_int_env("STALLED_AFTER_HOURS", 6),
     )

@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 from datetime import datetime
 
-from app.metrics import area_m2, volume_m3, with_consumption_deltas
+from app.metrics import area_m2, build_kpis, volume_m3, with_consumption_deltas
 from app.models import Dimensions, ProductionRecord
 
 
@@ -31,16 +31,36 @@ class MetricsTests(unittest.TestCase):
         self.assertEqual(area_m2(item), 125)
         self.assertEqual(volume_m3(item), 2.5)
 
+    def test_m3_records_do_not_fake_area_from_block_dimensions(self) -> None:
+        item = record("a", 10).model_copy(update={"quantity": 13.3, "unit": "M3"})
+        self.assertEqual(area_m2(item), 0.0)
+        self.assertEqual(volume_m3(item), 13.3)
+
     def test_consumption_delta_handles_accumulative_counter(self) -> None:
         output = with_consumption_deltas([record("b", 15, 30), record("a", 10, 0)])
         by_id = {item.id: item for item in output}
-        self.assertEqual(by_id["a"].consumption_kwh_delta, 0.0)
+        # Sin lectura previa el delta es desconocido, no cero.
+        self.assertIsNone(by_id["a"].consumption_kwh_delta)
         self.assertEqual(by_id["b"].consumption_kwh_delta, 5.0)
 
     def test_consumption_delta_handles_counter_reset(self) -> None:
         output = with_consumption_deltas([record("b", 2, 30), record("a", 10, 0)])
         by_id = {item.id: item for item in output}
         self.assertEqual(by_id["b"].consumption_kwh_delta, 2.0)
+
+    def test_summary_machine_kpi_names_records_not_active_state(self) -> None:
+        kpis = build_kpis([record("a", 10), record("b", 15, 30)], datetime(2026, 6, 10, 9, 0))
+
+        self.assertEqual(kpis[0].label, "Maquinas con registros")
+        self.assertIn("ventana seleccionada", kpis[0].help)
+
+    def test_sawn_volume_kpi_only_counts_m3_machines(self) -> None:
+        sawing = record("a", 10).model_copy(update={"quantity": 13.3, "unit": "M3"})
+        polishing = record("b", 15, 30).model_copy(update={"quantity": 100, "unit": "M2", "machine_id": "pulidora_losas"})
+        kpis = build_kpis([sawing, polishing], datetime(2026, 6, 10, 9, 0))
+        volume_kpi = next(kpi for kpi in kpis if kpi.label == "Volumen aserrado")
+        # La pulidora no debe sumar volumen aunque tenga grueso disponible.
+        self.assertEqual(volume_kpi.value, 13.3)
 
 
 if __name__ == "__main__":

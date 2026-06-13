@@ -35,7 +35,7 @@ repositorio es español; mantén nombres de archivos, docs y commits en español
 ## Proyectos en 05_proyectos/
 
 - `pulycort_odoo_maquinas/` — **proyecto activo principal**. Integración entre el software de las
-  máquinas de producción y Odoo. Contiene la app **PulyTrack** (ver abajo).
+  máquinas de producción y Odoo. Contiene las apps **PulyTrack** y **Fabric** (ver abajo).
 - `visor_mapa_3d_instalaciones/` — visor 3D editable (Three.js + Vite) de las instalaciones.
 - `control_compresor/`, `control_silo_prensa_barro/` — futuras apps (aún sin código relevante).
 
@@ -78,6 +78,36 @@ TotWare/INDASEL. El adaptador SQL real se configura con un JSON que mapea tablas
 Mismo modelo en desktop (barra sticky) y móvil (dock inferior). Objetivo UX: cero scroll
 horizontal en `390x844`, `768x1024` y desktop.
 
+## Fabric — visor de producción de telares
+
+Ruta: `05_proyectos/pulycort_odoo_maquinas/05_app/fabric/`. Angular 19 (standalone + signals,
+SVG propio sin librerías de gráficos), UI en español con unidades en todos los valores.
+Visor de **solo lectura** de los 4 telares (corte de bloques en tablas): sala en vivo
+(`/telares`), detalle con "Bloque Vivo" (`/telares/:id`), partes de producción en crudo
+(`/partes`, las lecturas de la tabla real `produccion_mapeada`, paginadas), partes de
+trabajo de operario (`/partes-trabajo`, tabla real `parte_trabajo_mapeada`: operaciones,
+paquetes, tablas y m² reales), producción y paros (`/produccion`), inventario de bloques
+(`/inventario`, tabla real `lot_block_creation`: altas de bloque en almacén con medida del
+proveedor frente a medida de fábrica/mrp, m³ y merma derivados), salud del dato
+(`/datos`, cuarentena de lecturas corruptas con su motivo) y salud del sistema
+(`/sistema`, registro curado de problemas de máquinas/datos/cálculos con evidencia,
+solución recomendada y responsable; mantener a mano junto a `00_gestion/TAREAS.md`).
+El rendimiento m²/m³ de `/produccion` es un agregado de bloques con parte real: las
+medidas de consola llegan heredadas del bloque anterior y el m³ bloque a bloque es ruido
+(el cruce lecturas-partes va acotado a la ventana del corte; bloques imposibles marcados ⚠).
+
+**Dos fuentes con switch Demo | Real en la barra superior**, detrás de la fachada
+`FabricApi` (`core/fabric-api.ts`) vía `conmutador-fabric-api.ts`: la demo es la simulación
+en memoria (`core/mock/simulacion.ts`, replica el sistema antiguo con la corrupción de los
+telares 1/3/4; reloj virtual ×60 en `core/reloj.service.ts`) y la real es `HttpFabricApi`
+contra **fabric-backend** (`05_app/fabric-backend/`, NestJS + Prisma 7, puerto 3000), cuyo
+`PrismaFabricRepository` calcula todo desde `produccion_mapeada` y devuelve `null`/"—" para
+lo que la tabla no contiene (m², tablas, merma, roturas) — principio de `VERIFICACION.md`:
+no inventar. Las inferencias del modo real (códigos de incidencia, `consumo` = amperios,
+unidades cm/mm) están pendientes de confirmar en `00_gestion/TAREAS.md`. El validador
+(`core/validador.ts` y su copia backend) excluye las lecturas sospechosas de los KPIs.
+Ver su `README.md`.
+
 ## Comandos
 
 ### PulyTrack — backend (desde `.../dashboard_produccion/backend/`)
@@ -106,6 +136,14 @@ npm run build      # tsc + vite build
 npm run preview    # 127.0.0.1:4174
 ```
 
+### Fabric (desde `05_proyectos/pulycort_odoo_maquinas/05_app/fabric/`)
+
+```powershell
+npm install
+npm start          # dev server Angular en 127.0.0.1:4200
+npm run build      # producción → dist/fabric
+```
+
 ### Visor 3D (desde `05_proyectos/visor_mapa_3d_instalaciones/`)
 
 ```powershell
@@ -122,6 +160,7 @@ Salidas elaboradas → `04_analisis_y_entregables/informes/`; salidas brutas →
 ## Puertos locales (reservados para no pisarse)
 
 - PulyTrack backend: **8001** · frontend dev: **5174** · preview: **4174**
+- Fabric dev: **4200**
 - El proyecto deja libre `5173`/`8000` para otras apps Vite/servidores del repo.
 
 ## Convenciones de configuración

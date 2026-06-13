@@ -1,0 +1,133 @@
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { Injectable, inject } from '@angular/core';
+import { Observable } from 'rxjs';
+import { FabricApi } from './fabric-api';
+import {
+  DetalleTelar,
+  Estadisticas,
+  FiltrosInventario,
+  FiltrosLecturas,
+  FiltrosPartesTrabajo,
+  PaginaInventario,
+  PaginaLecturas,
+  PaginaPartes,
+  PaginaPartesTrabajo,
+  RangoEstadisticas,
+  SaludDatos,
+  SnapshotPlanta
+} from './models';
+
+/** URL base del backend de máquinas (NestJS + Prisma). */
+export const FABRIC_API_BASE = 'http://localhost:3000';
+
+/**
+ * Implementación real de la fachada contra el backend NestJS, que computa
+ * todas las vistas desde la tabla `produccion_mapeada` de la BD de las
+ * máquinas. Lo que la fuente real no permite calcular llega como null/vacío
+ * y la UI lo enseña como "—" (principio de VERIFICACION.md: no inventar).
+ */
+@Injectable({ providedIn: 'root' })
+export class HttpFabricApi extends FabricApi {
+  private readonly http = inject(HttpClient);
+
+  override getSnapshotPlanta(): Observable<SnapshotPlanta> {
+    return this.http.get<SnapshotPlanta>(`${FABRIC_API_BASE}/api/planta/snapshot`);
+  }
+
+  override getDetalleTelar(telarId: number): Observable<DetalleTelar> {
+    return this.http.get<DetalleTelar>(`${FABRIC_API_BASE}/api/telares/${telarId}`);
+  }
+
+  override getEstadisticas(rango: RangoEstadisticas): Observable<Estadisticas> {
+    return this.http.get<Estadisticas>(`${FABRIC_API_BASE}/api/estadisticas`, {
+      params: new HttpParams().set('rango', rango)
+    });
+  }
+
+  override getSaludDatos(): Observable<SaludDatos> {
+    return this.http.get<SaludDatos>(`${FABRIC_API_BASE}/api/salud-datos`);
+  }
+
+  override getPartes(
+    rango: RangoEstadisticas,
+    telarId: number | null
+  ): Observable<PaginaPartes> {
+    let params = new HttpParams().set('rango', rango);
+    if (telarId !== null) {
+      params = params.set('telar', String(telarId));
+    }
+    return this.http.get<PaginaPartes>(`${FABRIC_API_BASE}/api/partes`, { params });
+  }
+
+  override getLecturas(filtros: FiltrosLecturas): Observable<PaginaLecturas> {
+    let params = new HttpParams()
+      .set('limit', String(filtros.limit))
+      .set('offset', String(filtros.offset));
+    if (filtros.telarN) {
+      params = params.set('telar', filtros.telarN);
+    }
+    if (filtros.material) {
+      params = params.set('material', filtros.material);
+    }
+    if (filtros.desde) {
+      params = params.set('desde', filtros.desde);
+    }
+    if (filtros.hasta) {
+      params = params.set('hasta', filtros.hasta);
+    }
+    return this.http.get<PaginaLecturas>(`${FABRIC_API_BASE}/produccion-mapeada`, {
+      params
+    });
+  }
+
+  override getPartesTrabajo(
+    filtros: FiltrosPartesTrabajo
+  ): Observable<PaginaPartesTrabajo> {
+    let params = new HttpParams()
+      .set('limit', String(filtros.limit))
+      .set('offset', String(filtros.offset));
+    if (filtros.telarN) {
+      params = params.set('telar', filtros.telarN);
+    }
+    if (filtros.material) {
+      params = params.set('material', filtros.material);
+    }
+    if (filtros.operacion) {
+      params = params.set('operacion', filtros.operacion);
+    }
+    if (filtros.desde) {
+      params = params.set('desde', filtros.desde);
+    }
+    if (filtros.hasta) {
+      params = params.set('hasta', filtros.hasta);
+    }
+    return this.http.get<PaginaPartesTrabajo>(`${FABRIC_API_BASE}/partes-trabajo`, {
+      params
+    });
+  }
+
+  override getInventario(filtros: FiltrosInventario): Observable<PaginaInventario> {
+    let params = new HttpParams()
+      .set('limit', String(filtros.limit))
+      .set('offset', String(filtros.offset));
+    if (filtros.material) {
+      params = params.set('material', filtros.material);
+    }
+    if (filtros.proveedor) {
+      params = params.set('proveedor', filtros.proveedor);
+    }
+    if (filtros.estado) {
+      params = params.set('estado', filtros.estado);
+    }
+    if (filtros.q) {
+      params = params.set('q', filtros.q);
+    }
+    if (filtros.desde) {
+      params = params.set('desde', filtros.desde);
+    }
+    if (filtros.hasta) {
+      params = params.set('hasta', filtros.hasta);
+    }
+    return this.http.get<PaginaInventario>(`${FABRIC_API_BASE}/bloques`, { params });
+  }
+}

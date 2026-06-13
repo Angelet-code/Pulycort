@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -rnE ' ,| \\\\.| ;|,[A-Za-z]|[a-z][A-Z]{2,}' --include='*.md' 02_conocimiento/obsidian/)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(gh pr create --base main --head fix/typo-coresponde --title 'Fix typo: coresponde -> corresponde' --body ' *)",
+      "Bash(ls frontend/src)",
+      "Bash(ls frontend *)",
+      "PowerShell($base = \"A:\\\\PROYECTOS\\\\OPENCODE\\\\Pulycort\\\\05_proyectos\\\\pulycort_odoo_maquinas\\\\05_app\\\\dashboard_produccion\"; Get-ChildItem \"$base\\\\backend\\\\tests\" | Select-Object Name, Length; Get-ChildItem \"$base\\\\frontend\\\\src\" | Select-Object Name, Length; \\(Get-Content \"$base\\\\backend\\\\app\\\\mock_data.py\" | Measure-Object -Line\\).Lines; \\(Get-Content \"$base\\\\frontend\\\\src\\\\App.tsx\" | Measure-Object -Line\\).Lines)"
+    ]
+  }
+}

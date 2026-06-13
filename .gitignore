@@ -15,6 +15,7 @@ No Tocar/
 04_analisis_y_entregables/informes/caso_pedido_01_flujo_comercial_real_2026-06-11.md
 
 __pycache__/
+.pytest_cache/
 *.py[cod]
 *$py.class
 
