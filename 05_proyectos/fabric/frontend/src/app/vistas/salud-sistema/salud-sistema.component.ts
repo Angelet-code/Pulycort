@@ -94,10 +94,11 @@ import {
     }
 
     <p class="nota-metodo">
-      Registro curado a mano a partir de la auditoría de datos reales (2026-06-12), de
-      00_gestion/TAREAS.md y de fabric/VERIFICACION.md. La evidencia de cada fila es un
-      hecho documentado; la solución es una propuesta. Al confirmar o corregir algo,
-      actualizar este registro y TAREAS.md a la vez.
+      Registro curado a mano a partir de las auditorías de datos reales (2026-06-12 a
+      2026-06-14, incl. auditoria_coherencia_fabric_2026-06-14.md), de 00_gestion/TAREAS.md
+      y de fabric/VERIFICACION.md. La evidencia de cada fila es un hecho documentado; la
+      solución es una propuesta. Al confirmar o corregir algo, actualizar este registro y
+      TAREAS.md a la vez.
     </p>
   `,
   styles: `

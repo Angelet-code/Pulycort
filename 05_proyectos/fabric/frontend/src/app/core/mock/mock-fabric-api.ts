@@ -1563,6 +1563,8 @@ export class MockFabricApi extends FabricApi {
       volumenEstimado: false,
       // La simulación conoce las medidas reales de sus bloques: nunca imposibles.
       volumenImposible: false,
+      // El m³ de la demo es coherente con su parte: nunca infradimensionado.
+      volumenIncompatibleParte: false,
       mermaVolumenPct: Math.round(mermaVolumenPct(ciclo.bloque) * 10) / 10,
       enCurso,
       // La simulación conoce las medidas reales de sus bloques: siempre coherentes.

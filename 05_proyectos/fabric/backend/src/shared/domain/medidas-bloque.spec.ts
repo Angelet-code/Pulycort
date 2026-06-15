@@ -2,6 +2,7 @@ import {
   bloqueImposible,
   dimensionBloqueAMetros,
   volumenBloqueM3,
+  volumenMenorQuePiedraCortada,
 } from './medidas-bloque';
 
 describe('medidas-bloque · normalización de unidades del inventario', () => {
@@ -60,6 +61,34 @@ describe('medidas-bloque · normalización de unidades del inventario', () => {
 
     it('sin medida no es "imposible" sino "ausente" → false', () => {
       expect(bloqueImposible(0, 0, 0)).toBe(false);
+    });
+  });
+
+  describe('volumenMenorQuePiedraCortada', () => {
+    it('PM 47156: 204,9 m² a 2 cm (4,10 m³ de tabla) contra 1,86 m³ → imposible', () => {
+      expect(volumenMenorQuePiedraCortada(1.86, 204.9, 0.02)).toBe(true);
+    });
+
+    it('PM 47177: 60,8 m² a 5 cm (3,04 m³ de tabla) contra 2,77 m³ → imposible', () => {
+      expect(volumenMenorQuePiedraCortada(2.77, 60.8, 0.05)).toBe(true);
+    });
+
+    it('bloque sano: el m³ supera la piedra cortada (hay kerf y recortes) → false', () => {
+      // 79,8 m² a 2 cm = 1,60 m³ de tabla; bloque de 7,65 m³, de sobra.
+      expect(volumenMenorQuePiedraCortada(7.65, 79.8, 0.02)).toBe(false);
+    });
+
+    it('en el límite justo del piso no marca: el margen del 98 % evita el redondeo', () => {
+      // m² × espesor = 100 × 0,02 = 2,00 m³; con un bloque de 2,00 m³ no se marca.
+      expect(volumenMenorQuePiedraCortada(2.0, 100, 0.02)).toBe(false);
+      // Un 5 % por debajo del piso (1,90 < 2,00 × 0,98 = 1,96) sí es imposible.
+      expect(volumenMenorQuePiedraCortada(1.9, 100, 0.02)).toBe(true);
+    });
+
+    it('sin m³, sin parte (m² ≤ 0) o sin espesor (≤ 0) → false (ausente, no imposible)', () => {
+      expect(volumenMenorQuePiedraCortada(null, 204.9, 0.02)).toBe(false);
+      expect(volumenMenorQuePiedraCortada(1.86, 0, 0.02)).toBe(false);
+      expect(volumenMenorQuePiedraCortada(1.86, 204.9, 0)).toBe(false);
     });
   });
 });

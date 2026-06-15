@@ -364,6 +364,8 @@ import { MetricaComponent } from '../../shared/metrica.component';
                       <fabric-metrica [valor]="ciclo.volumenM3" unidad="m³" [decimales]="2" [tam]="13" />
                       @if (ciclo.volumenImposible) {
                         <span class="aviso-medidas" title="Medida del bloque imposible en el inventario (lot_block_creation): una dimensión queda fuera de rango físico aun tras ajustar unidades. Sin m³ fiable no se calcula rendimiento; a revisar.">⚠</span>
+                      } @else if (ciclo.volumenIncompatibleParte) {
+                        <span class="aviso-medidas" title="El m³ del inventario (lot_block_creation) no da para la piedra que salió en tabla (m² × espesor del parte): uno de los dos es erróneo — o el m³ del lote está infradimensionado, o los m² del parte no son de este lote (corte cruzado / lote multibloque). El rendimiento saldría por encima del máximo físico (1/espesor), así que no se calcula; a revisar.">⚠</span>
                       } @else if (ciclo.volumenM3 === null) {
                         <span class="aviso-medidas" title="El PM/lote no está dado de alta en el inventario (lot_block_creation): sin medida real del bloque no hay m³ ni rendimiento">⚠</span>
                       }

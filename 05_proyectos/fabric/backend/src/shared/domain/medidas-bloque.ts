@@ -83,3 +83,40 @@ export function bloqueImposible(
   }
   return l * a * g > MAX_M3_BLOQUE;
 }
+
+/**
+ * Margen al comparar el m³ del bloque con la piedra cortada (m² × espesor): ese
+ * piso físico asume kerf y recortes nulos (un bloque real siempre lo supera), así
+ * que solo marcamos por debajo del 98 % del piso. Evita falsos positivos por
+ * redondeo sin dejar pasar la corrupción real, que infradimensiona muy por debajo
+ * (caso PM 47156: 1,86 m³ frente a 4,10 m³ de piedra cortada).
+ */
+export const MARGEN_PIEDRA_CORTADA = 0.98;
+
+/**
+ * ¿El m³ del bloque es menor que la piedra que realmente salió en tabla?
+ * El parte da los m² de tabla y el espesor de corte (m); esa piedra ocupa, como
+ * mínimo, `m² × espesor` (sin contar el kerf de la sierra ni los recortes, que
+ * solo lo aumentan). Un bloque no puede rendir más superficie de la que cabe en
+ * su volumen, así que `volumenM3 < m² × espesor` es físicamente imposible:
+ * uno de los dos datos es erróneo (el m³ del alta infradimensionado, o los m²
+ * del parte de otro corte cruzado al lote). No se decide cuál: basta con que sean
+ * incompatibles para que el ratio no sea fiable.
+ *
+ * Esta corrupción NO la ve `bloqueImposible` (cada dimensión suelta es plausible)
+ * y dispara un rendimiento por encima del techo físico 1/espesor — caso real PM
+ * 47156: 204,9 m² a 2 cm = 4,10 m³ de tabla frente a 1,86 m³ del inventario →
+ * 110 m²/m³, imposible a 2 cm donde el máximo es 1/0,02 = 50 m²/m³. Marca para
+ * anular el rendimiento (no se pinta un m²/m³ que sabemos falso). Sin bloque, sin
+ * parte (m² ≤ 0) o sin espesor (≤ 0) → false: es "ausente", no "imposible".
+ */
+export function volumenMenorQuePiedraCortada(
+  volumenM3: number | null,
+  m2Cortados: number,
+  espesorCorteM: number,
+): boolean {
+  if (volumenM3 === null || volumenM3 <= 0 || m2Cortados <= 0 || espesorCorteM <= 0) {
+    return false;
+  }
+  return volumenM3 < m2Cortados * espesorCorteM * MARGEN_PIEDRA_CORTADA;
+}

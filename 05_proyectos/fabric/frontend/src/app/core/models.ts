@@ -155,6 +155,15 @@ export interface CicloBloque {
    * el rendimiento llegan a null y la UI lo marca ⚠ a revisar, sin inventar valor.
    */
   volumenImposible: boolean;
+  /**
+   * El m³ del inventario es MENOR que la piedra que salió en tabla (m² × espesor
+   * del parte): m³ y parte son incompatibles y uno de los dos es erróneo (m³ del
+   * alta infradimensionado o m² de otro corte cruzado al lote; no se decide cuál).
+   * A diferencia de `volumenImposible` (dimensión suelta fuera de rango), aquí
+   * cada cota es plausible y solo el cruce con el parte lo delata. El rendimiento
+   * llega a null (sería mayor que el techo físico 1/espesor) y la UI lo marca ⚠.
+   */
+  volumenIncompatibleParte: boolean;
   /** Merma de compra: (m³ proveedor − m³ fábrica) / m³ proveedor × 100. */
   mermaVolumenPct: number | null;
   enCurso: boolean;

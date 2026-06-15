@@ -12,23 +12,11 @@ import { formatFechaHoraAnio, formatNumero } from '../../core/format';
 import {
   CoberturaMaquina,
   CoberturaMaquinas,
-  EstadoIntegracion,
-  SeccionPlanta
+  EstadoIntegracion
 } from '../../core/models';
+import { rangoPresentacionMaquina } from '../../core/catalogo-maquinas';
 
 const REFRESCO_MS = 60_000;
-
-/** Una sección de planta con sus máquinas, para agrupar el mapa. */
-interface GrupoSeccion {
-  seccion: SeccionPlanta;
-  titulo: string;
-  maquinas: CoberturaMaquina[];
-}
-
-const TITULO_SECCION: Record<SeccionPlanta, string> = {
-  M3: 'Aserrado de bloque (M3)',
-  M2: 'Sala de máquinas (M2)'
-};
 
 const ETIQUETA_ESTADO: Record<EstadoIntegracion, string> = {
   integrada: 'Integrada',
@@ -81,49 +69,46 @@ const ETIQUETA_ESTADO: Record<EstadoIntegracion, string> = {
       @if (cargando() && !cobertura()) {
         <div class="aviso">Cargando el catálogo de máquinas…</div>
       } @else if (cobertura()) {
-        @for (grupo of grupos(); track grupo.seccion) {
-          <h2 class="titulo-seccion">{{ grupo.titulo }}</h2>
-          <div class="tabla-scroll" [class.actualizando]="cargando()">
-            <table class="tabla">
-              <thead>
+        <div class="tabla-scroll" [class.actualizando]="cargando()">
+          <table class="tabla">
+            <thead>
+              <tr>
+                <th class="derecha">#</th>
+                <th>Máquina</th>
+                <th>Estado</th>
+                <th>Fuente de datos</th>
+                <th class="derecha">Filas</th>
+                <th class="derecha">Lotes</th>
+                <th class="derecha">Última actividad</th>
+                <th>Nota</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (m of maquinasOrdenadas(); track m.codigo) {
                 <tr>
-                  <th class="derecha">#</th>
-                  <th>Máquina</th>
-                  <th>Estado</th>
-                  <th>Fuente de datos</th>
-                  <th class="derecha">Filas</th>
-                  <th class="derecha">Lotes</th>
-                  <th class="derecha">Última actividad</th>
-                  <th>Nota</th>
+                  <td class="derecha num soft">{{ m.codigo }}</td>
+                  <td class="nombre">{{ m.nombre }}</td>
+                  <td>
+                    <span class="chip-estado" [class]="claseEstado(m.estado)">
+                      {{ etiquetaEstado(m.estado) }}
+                    </span>
+                  </td>
+                  <td>
+                    @if (m.fuenteDatos) {
+                      <code class="fuente">{{ m.fuenteDatos }}</code>
+                    } @else {
+                      <span class="soft">—</span>
+                    }
+                  </td>
+                  <td class="derecha num">{{ num(m.filas) }}</td>
+                  <td class="derecha num">{{ num(m.lotes) }}</td>
+                  <td class="derecha num">{{ fecha(m.ultimaActividad) }}</td>
+                  <td class="nota soft">{{ m.nota ?? '—' }}</td>
                 </tr>
-              </thead>
-              <tbody>
-                @for (m of grupo.maquinas; track m.codigo) {
-                  <tr>
-                    <td class="derecha num soft">{{ m.codigo }}</td>
-                    <td class="nombre">{{ m.nombre }}</td>
-                    <td>
-                      <span class="chip-estado" [class]="claseEstado(m.estado)">
-                        {{ etiquetaEstado(m.estado) }}
-                      </span>
-                    </td>
-                    <td>
-                      @if (m.fuenteDatos) {
-                        <code class="fuente">{{ m.fuenteDatos }}</code>
-                      } @else {
-                        <span class="soft">—</span>
-                      }
-                    </td>
-                    <td class="derecha num">{{ num(m.filas) }}</td>
-                    <td class="derecha num">{{ num(m.lotes) }}</td>
-                    <td class="derecha num">{{ fecha(m.ultimaActividad) }}</td>
-                    <td class="nota soft">{{ m.nota ?? '—' }}</td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-        }
+              }
+            </tbody>
+          </table>
+        </div>
       }
     </section>
   `,
@@ -150,14 +135,6 @@ const ETIQUETA_ESTADO: Record<EstadoIntegracion, string> = {
       display: inline-flex;
       gap: 6px;
       flex-wrap: wrap;
-    }
-    .titulo-seccion {
-      margin: 6px 0 0;
-      font-family: var(--font-mono);
-      font-size: 13px;
-      font-weight: 700;
-      letter-spacing: -0.01em;
-      color: var(--text);
     }
     .nombre {
       font-weight: 600;
@@ -209,17 +186,18 @@ export class CoberturaMaquinasComponent {
   readonly error = signal<string | null>(null);
   readonly cobertura = signal<CoberturaMaquinas | null>(null);
 
-  /** Máquinas agrupadas por sección, en el orden M3 → M2. */
-  readonly grupos = computed<GrupoSeccion[]>(() => {
-    const maquinas = this.cobertura()?.maquinas ?? [];
-    return (['M3', 'M2'] as const)
-      .map((seccion) => ({
-        seccion,
-        titulo: TITULO_SECCION[seccion],
-        maquinas: maquinas.filter((m) => m.seccion === seccion)
-      }))
-      .filter((g) => g.maquinas.length > 0);
-  });
+  /**
+   * Máquinas en orden de presentación: las que ya tienen datos primero (telar →
+   * discopuente → reforzadora → resto) y las pendientes al final. Mismo criterio
+   * que la sala de máquinas (`rangoPresentacionMaquina`), en una lista única.
+   */
+  readonly maquinasOrdenadas = computed<CoberturaMaquina[]>(() =>
+    [...(this.cobertura()?.maquinas ?? [])].sort(
+      (a, b) =>
+        rangoPresentacionMaquina(a.familia, a.estado === 'pendiente', a.codigo) -
+        rangoPresentacionMaquina(b.familia, b.estado === 'pendiente', b.codigo)
+    )
+  );
 
   constructor() {
     // Recarga al cambiar la fuente de datos y refresca cada minuto.

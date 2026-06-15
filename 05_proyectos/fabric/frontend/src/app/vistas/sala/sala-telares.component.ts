@@ -8,10 +8,14 @@ import { formatDuracionMin, formatNumero } from '../../core/format';
 import { TickerEventosComponent } from '../../shared/ticker-eventos.component';
 import { FilaMaquinaCatalogoComponent } from './fila-maquina-catalogo.component';
 import { FilaMaquinaComponent } from './fila-maquina.component';
-import { CATALOGO_MAQUINAS, MaquinaCatalogo } from '../../core/catalogo-maquinas';
+import { CATALOGO_MAQUINAS_ORDENADO, MaquinaCatalogo } from '../../core/catalogo-maquinas';
 
-/** Máquinas de la nave sin lectura en vivo (todo el catálogo menos los telares). */
-const MAQUINAS_RESTO: MaquinaCatalogo[] = CATALOGO_MAQUINAS.filter(
+/**
+ * Máquinas de la nave sin lectura en vivo (todo el catálogo menos los telares),
+ * en el orden de presentación: primero los discos puente (con partes) y al final
+ * todas las que siguen sin integrar. Ver `CATALOGO_MAQUINAS_ORDENADO`.
+ */
+const MAQUINAS_RESTO: MaquinaCatalogo[] = CATALOGO_MAQUINAS_ORDENADO.filter(
   (m) => m.integracion !== 'en-vivo'
 );
 

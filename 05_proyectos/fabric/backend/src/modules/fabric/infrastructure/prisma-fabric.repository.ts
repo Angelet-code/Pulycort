@@ -7,6 +7,7 @@ import { PrismaService } from '../../../shared/infrastructure/database/prisma/pr
 import {
   bloqueImposible,
   volumenBloqueM3,
+  volumenMenorQuePiedraCortada,
 } from '../../../shared/domain/medidas-bloque';
 import { FabricRepository } from '../domain/fabric.repository';
 import {
@@ -1774,9 +1775,19 @@ export class PrismaFabricRepository implements FabricRepository {
     // (medidasIncoherentes).
     const volumenImposible = loteInv ? loteInv.imposible : false;
     const volumenM3 = loteInv && !volumenImposible ? loteInv.volumenM3 : null;
-    // Rendimiento solo con parte real sobre el m³ real del inventario.
+    // Cruce físico m³ ↔ parte: el m³ del inventario no puede ser menor que la
+    // piedra que salió en tabla (m² × espesor). Si lo es, uno de los dos datos es
+    // erróneo (m³ del alta infradimensionado o m² de otro corte cruzado al lote);
+    // no se decide cuál, basta con que sean incompatibles. Es una corrupción que
+    // volumenImposible no ve (cada dimensión suelta es plausible) y que daría un
+    // rendimiento por encima del techo físico 1/espesor (caso PM 47156: 110 m²/m³
+    // a 2 cm). El m³ se mantiene visible (lo que dice el inventario), marcado ⚠.
+    const volumenIncompatibleParte =
+      paquetes !== null &&
+      volumenMenorQuePiedraCortada(volumenM3, paquetes.metrosCuadrados, paquetes.gruesoTablaM);
+    // Rendimiento solo con parte real sobre un m³ real y compatible con el parte.
     const rendimientoM2M3 =
-      paquetes !== null && volumenM3 !== null && volumenM3 > 0
+      paquetes !== null && volumenM3 !== null && volumenM3 > 0 && !volumenIncompatibleParte
         ? redondea(paquetes.metrosCuadrados / volumenM3, 2)
         : null;
     // Espesor de corte real del parte (grueso de tabla); null sin parte (no se
@@ -1807,6 +1818,7 @@ export class PrismaFabricRepository implements FabricRepository {
       bloquesEnLote: loteInv ? loteInv.bloques : null,
       volumenEstimado: loteInv ? loteInv.estimado : false,
       volumenImposible,
+      volumenIncompatibleParte,
       mermaVolumenPct: null,
       enCurso,
       medidasIncoherentes:
