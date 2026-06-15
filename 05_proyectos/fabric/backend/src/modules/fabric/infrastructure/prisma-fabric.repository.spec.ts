@@ -53,6 +53,7 @@ function fila(opciones: {
   potencia?: number;
   alturaMm?: number;
   sinCreateDate?: boolean;
+  nBloque?: number;
 }): FilaPrueba {
   const fechaHora = new Date(AHORA - opciones.haceMs);
   const potencia = opciones.potencia ?? 45;
@@ -72,7 +73,7 @@ function fila(opciones: {
     alto: 160,
     grueso: 190,
     material: 1,
-    nBloque: 47177,
+    nBloque: opciones.nBloque ?? 47177,
     operario1: null,
     operario2: null,
     fecha: null,
@@ -180,8 +181,9 @@ describe('PrismaFabricRepository · estado del telar', () => {
 /**
  * m³/rendimiento POR LOTE: la medida REAL del bloque sale del inventario
  * (`lot_block_creation`) por PM, no de la consola de `produccion_mapeada`
- * (que hereda del bloque anterior = ruido). Un PM con varias filas = lote
- * multibloque (raro): se suma y se marca estimación.
+ * (que hereda del bloque anterior = ruido). La PM es un identificador ÚNICO
+ * de bloque (1:1): un PM con varias filas = PM duplicado (error de dato), no
+ * se suma ni se calcula su m³.
  */
 function repoConInventario(
   filas: FilaPrueba[],
@@ -213,6 +215,125 @@ function runCompletado(): FilaPrueba[] {
   ];
 }
 
+// Run completado en un telar y nº de bloque concretos (para el cruce de PM).
+function runCompletadoDe(telar: number, nBloque: number): FilaPrueba[] {
+  return [
+    fila({ telar, nBloque, haceMs: 3 * HORA, incidencia: '1', alturaMm: 1810 }),
+    fila({ telar, nBloque, haceMs: 3 * HORA - 10 * MIN, incidencia: '1', alturaMm: 1805 }),
+  ];
+}
+
+// Parte de paquetes (operación 4) con telar y nº de bloque explícitos.
+function parteOp4(opciones: {
+  telar: number;
+  nBloque: number;
+  haceMs?: number;
+  tablas?: number;
+  m2?: number;
+}): Record<string, unknown> {
+  const fechaHora = new Date(AHORA - (opciones.haceMs ?? 3 * HORA));
+  return {
+    id: siguienteId++,
+    nTelar: String(opciones.telar),
+    nBloque: opciones.nBloque,
+    operacion: '4',
+    operario1: null,
+    operario2: null,
+    nPaquete: 3,
+    nTablas: opciones.tablas ?? 37,
+    largoTablas: 1.65,
+    altoTablas: 1.35,
+    gruesoTablas: 0.02,
+    metrosCuadradosTablas: opciones.m2 ?? 82.4,
+    createDate: fechaHora,
+    fechaHora,
+  };
+}
+
+function repoConPartes(
+  filas: FilaPrueba[],
+  inventario: Array<Record<string, unknown>>,
+  partes: Array<Record<string, unknown>>,
+): PrismaFabricRepository {
+  const prisma = {
+    produccionMapeada: { findMany: jest.fn().mockResolvedValue(filas) },
+    parteTrabajoMapeada: { findMany: jest.fn().mockResolvedValue(partes) },
+    lotBlockCreation: { findMany: jest.fn().mockResolvedValue(inventario) },
+    $queryRawUnsafe: jest.fn().mockRejectedValue(new Error('permission denied')),
+  } as unknown as PrismaService;
+  return new PrismaFabricRepository(prisma);
+}
+
+/**
+ * PM heredada / mal etiquetada por la consola del telar: el run de un telar trae
+ * una PM cuyo parte de aserrado (op 4) consta en OTRO telar. Caso real 2026-06-15:
+ * la consola del telar 4 etiquetó su corte como PM 47156, pero 47156 se aserró en
+ * el telar 1 (su único parte op 4 está allí). El ciclo del telar 4 es un fantasma:
+ * se marca `parteEnOtroTelar` para avisar de que la fila no es fiable.
+ */
+describe('PrismaFabricRepository · parte de aserrado en otro telar (PM heredada)', () => {
+  beforeEach(() => {
+    jest.spyOn(Date, 'now').mockReturnValue(AHORA);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('marca parteEnOtroTelar cuando el parte op4 de la PM está en otro telar y el run no tiene parte propio', async () => {
+    const est = await repoConPartes(
+      runCompletadoDe(4, 47156), // run de consola del telar 4 con PM 47156
+      [],
+      [parteOp4({ telar: 1, nBloque: 47156, haceMs: 9 * 24 * HORA })], // pero su parte está en el telar 1
+    ).getEstadisticas('30d');
+    const ciclo = est.ciclosCompletados.find((c) => c.telarId === 4 && c.pmLote === 47156);
+    expect(ciclo?.parteEnOtroTelar).toBe(true);
+    expect(ciclo?.paquetes).toBeNull(); // run fantasma: sin parte propio en este telar
+  });
+
+  it('NO marca parteEnOtroTelar cuando el parte op4 está en el mismo telar del run', async () => {
+    const est = await repoConPartes(
+      runCompletadoDe(1, 47156),
+      [],
+      [parteOp4({ telar: 1, nBloque: 47156 })],
+    ).getEstadisticas('30d');
+    const ciclo = est.ciclosCompletados.find((c) => c.telarId === 1 && c.pmLote === 47156);
+    expect(ciclo?.parteEnOtroTelar).toBe(false);
+    expect(ciclo?.paquetes).not.toBeNull(); // aserrado real en este telar
+  });
+
+  it('NO marca parteEnOtroTelar cuando la PM no tiene ningún parte op4', async () => {
+    const est = await repoConPartes(runCompletadoDe(4, 47156), [], []).getEstadisticas('30d');
+    const ciclo = est.ciclosCompletados.find((c) => c.telarId === 4 && c.pmLote === 47156);
+    expect(ciclo?.parteEnOtroTelar).toBe(false);
+  });
+
+  it('NO marca parteEnOtroTelar por una PM REUTILIZADA meses atrás en otro telar (fuera de ventana)', async () => {
+    // Los nº de bloque se reciclan: un parte de hace 60 días en otro telar es de
+    // OTRO bloque físico, no una PM heredada del corte actual → no debe marcar.
+    const est = await repoConPartes(
+      runCompletadoDe(4, 47156),
+      [],
+      [parteOp4({ telar: 1, nBloque: 47156, haceMs: 60 * 24 * HORA })],
+    ).getEstadisticas('90d');
+    const ciclo = est.ciclosCompletados.find((c) => c.telarId === 4 && c.pmLote === 47156);
+    expect(ciclo?.parteEnOtroTelar).toBe(false);
+  });
+
+  it('NO marca parteEnOtroTelar cuando la PM tiene parte en su telar Y en otro', async () => {
+    const est = await repoConPartes(
+      runCompletadoDe(1, 47156),
+      [],
+      [
+        parteOp4({ telar: 1, nBloque: 47156 }), // parte propio del telar del run
+        parteOp4({ telar: 4, nBloque: 47156, haceMs: 5 * 24 * HORA }), // y otro en el telar 4
+      ],
+    ).getEstadisticas('30d');
+    const ciclo = est.ciclosCompletados.find((c) => c.telarId === 1 && c.pmLote === 47156);
+    expect(ciclo?.parteEnOtroTelar).toBe(false);
+  });
+});
+
 describe('PrismaFabricRepository · m³/rendimiento por lote desde inventario', () => {
   beforeEach(() => {
     jest.spyOn(Date, 'now').mockReturnValue(AHORA);
@@ -243,7 +364,7 @@ describe('PrismaFabricRepository · m³/rendimiento por lote desde inventario', 
     expect(ciclo?.volumenEstimado).toBe(false);
   });
 
-  it('lote multibloque (PM repetido): suma los volúmenes y marca estimación', async () => {
+  it('PM duplicado (aparece en >1 bloque del inventario): error de dato, sin m³ ni rendimiento', async () => {
     const ciclo = await cicloDe(
       runCompletado(),
       [
@@ -252,9 +373,12 @@ describe('PrismaFabricRepository · m³/rendimiento por lote desde inventario', 
       ],
       47177,
     );
-    expect(ciclo?.volumenM3).toBeCloseTo(5, 2); // 2 + 3
+    // La PM debe ser un identificador único (1:1, Pulycort 2026-06-15): repetida
+    // = error de dato, no se suma ni se inventa un m³.
+    expect(ciclo?.pmDuplicado).toBe(true);
     expect(ciclo?.bloquesEnLote).toBe(2);
-    expect(ciclo?.volumenEstimado).toBe(true);
+    expect(ciclo?.volumenM3).toBeNull();
+    expect(ciclo?.rendimientoM2M3).toBeNull();
   });
 
   it('PM sin alta en inventario: m³, rendimiento y nº de bloques a null, sin estimación', async () => {

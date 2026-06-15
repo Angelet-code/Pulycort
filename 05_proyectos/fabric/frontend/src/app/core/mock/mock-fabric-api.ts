@@ -1558,9 +1558,10 @@ export class MockFabricApi extends FabricApi {
           : null,
       volumenM3: Math.round(m3 * 100) / 100,
       rendimientoM2M3,
-      // La demo es 1 bloque por lote (1:1): m³ exacto, sin estimación.
+      // La demo es 1 bloque por PM (1:1): m³ exacto, sin estimación ni duplicado.
       bloquesEnLote: 1,
       volumenEstimado: false,
+      pmDuplicado: false,
       // La simulación conoce las medidas reales de sus bloques: nunca imposibles.
       volumenImposible: false,
       // El m³ de la demo es coherente con su parte: nunca infradimensionado.
@@ -1568,7 +1569,9 @@ export class MockFabricApi extends FabricApi {
       mermaVolumenPct: Math.round(mermaVolumenPct(ciclo.bloque) * 10) / 10,
       enCurso,
       // La simulación conoce las medidas reales de sus bloques: siempre coherentes.
-      medidasIncoherentes: false
+      medidasIncoherentes: false,
+      // La demo liga cada PM a su telar real: nunca hay PM heredada de otro telar.
+      parteEnOtroTelar: false
     };
   }
 

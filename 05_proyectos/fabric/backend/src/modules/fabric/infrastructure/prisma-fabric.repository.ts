@@ -126,13 +126,24 @@ function volumenM3De(medidas: Medidas): number | null {
   return (medidas.largoCm * medidas.altoCm * medidas.gruesoCm) / 1_000_000;
 }
 
-/** Volumen real y nº de bloques de un lote (PM), leídos del inventario. */
+/** Medida real de un PM (nº de lote), leída del inventario `lot_block_creation`. */
 interface LoteInventario {
+  /**
+   * Nº de filas con este PM en el inventario. La PM es un identificador ÚNICO
+   * de bloque (1:1, confirmado por Pulycort 2026-06-15), así que debe ser 1;
+   * >1 = PM duplicado (error de dato, ver `duplicado`).
+   */
   bloques: number;
-  /** m³ del lote (suma de sus bloques), ya redondeado. */
+  /** m³ del bloque, ya redondeado. */
   volumenM3: number;
-  /** true si multibloque o se usó la medida de proveedor como respaldo. */
+  /** true si se usó la medida del proveedor como respaldo (falta la de fábrica). */
   estimado: boolean;
+  /**
+   * El PM aparece en más de una fila del inventario. Como la PM debe ser única
+   * (1:1), es un error de dato: no se sabe cuál es la medida del bloque, así que
+   * el m³/rendimiento no se calcula y la UI lo marca ⚠ a revisar.
+   */
+  duplicado: boolean;
   /**
    * Alguna medida del lote es físicamente imposible incluso tras normalizar
    * unidades cm→m (corrupción real del inventario): el m³/rendimiento no es
@@ -182,12 +193,27 @@ function fechaParteMs(fila: FilaParte): number | null {
 const MARGEN_PARTE_ANTES_MS = 2 * 86_400_000;
 const MARGEN_PARTE_DESPUES_MS = 15 * 86_400_000;
 
-function partesDeVentana(partes: FilaParte[], desdeMs: number, hastaMs: number): FilaParte[] {
+/**
+ * Margen ATRÁS para detectar una PM heredada por la consola del telar
+ * (parteEnOtroTelar): el eco de la consola llega DÍAS después del corte real
+ * (caso 47156: aserrado en el telar 1 el 3 jun, eco en el telar 4 el 12-13 jun,
+ * 9 días), así que el margen normal de 2 días no alcanza el parte de origen.
+ * Más amplio para llegar a él, pero acotado para no confundirlo con una PM
+ * REUTILIZADA meses atrás en otro telar (otro bloque físico que recicló el nº).
+ */
+const MARGEN_PM_OTRO_TELAR_MS = 30 * 86_400_000;
+
+function partesDeVentana(
+  partes: FilaParte[],
+  desdeMs: number,
+  hastaMs: number,
+  margenAntesMs: number = MARGEN_PARTE_ANTES_MS,
+): FilaParte[] {
   return partes.filter((fila) => {
     const t = fechaParteMs(fila);
     return (
       t !== null &&
-      t >= desdeMs - MARGEN_PARTE_ANTES_MS &&
+      t >= desdeMs - margenAntesMs &&
       t <= hastaMs + MARGEN_PARTE_DESPUES_MS
     );
   });
@@ -784,6 +810,10 @@ export class PrismaFabricRepository implements FabricRepository {
         runsCompletados.map((rc) => rc.run.bloque),
       );
       const partesPorClave = new Map<string, FilaParte[]>();
+      // Todos los partes op 4 de cada PM (cualquier telar), para detectar una PM
+      // heredada por la consola: una PM cuyo parte de aserrado consta en OTRO
+      // telar dentro de la ventana del run (ver parteEnOtroTelar más abajo).
+      const partesPorBloque = new Map<number, FilaParte[]>();
       for (const fila of partesRows) {
         if (fila.nBloque === null || fila.nTelar === null) {
           continue;
@@ -793,6 +823,10 @@ export class PrismaFabricRepository implements FabricRepository {
           partesPorClave.set(clave, []);
         }
         partesPorClave.get(clave)!.push(fila);
+        if (!partesPorBloque.has(fila.nBloque)) {
+          partesPorBloque.set(fila.nBloque, []);
+        }
+        partesPorBloque.get(fila.nBloque)!.push(fila);
       }
 
       // Volumen real del lote (PM) desde el inventario, para el m³/rendimiento
@@ -834,12 +868,31 @@ export class PrismaFabricRepository implements FabricRepository {
           run.hastaMs,
         );
         const paquetes = delBloque.length > 0 ? resumenDePartes(delBloque) : null;
+        // PM heredada/mal etiquetada por la consola del telar: dentro de la
+        // ventana del run (con margen atrás amplio porque el eco de consola llega
+        // DÍAS después del corte real), el parte de aserrado de esta PM consta en
+        // OTRO telar y en ninguno el de este run → ciclo fantasma. La ventana
+        // evita el falso positivo de una PM reutilizada meses atrás en otro telar.
+        // Como esta ventana (−30 d) contiene la del cruce de paquetes (−2 d),
+        // parteEnOtroTelar=true implica paquetes=null (no entra en los agregados).
+        // Limitación: si el parte del telar de origen trae nTelar corrupto (fuera
+        // de 1-4) queda fuera de partesRows y el cruce no se detecta.
+        const telaresParte = new Set(
+          partesDeVentana(
+            partesPorBloque.get(run.bloque) ?? [],
+            run.desdeMs,
+            run.hastaMs,
+            MARGEN_PM_OTRO_TELAR_MS,
+          ).map((p) => Number(p.nTelar)),
+        );
+        const parteEnOtroTelar = telaresParte.size > 0 && !telaresParte.has(telarId);
         const ciclo = this.aCicloBloque(
           run,
           ahora,
           false,
           paquetes,
           inventario.get(run.bloque) ?? null,
+          parteEnOtroTelar,
         );
         ciclosCompletados.push(ciclo);
         // Volumen en m³ asumiendo medidas en cm (inferencia documentada).
@@ -1684,12 +1737,13 @@ export class PrismaFabricRepository implements FabricRepository {
   }
 
   /**
-   * Volumen real y nº de bloques de cada lote (PM) desde el inventario
-   * `lot_block_creation`. La PM es la columna `name` (numérica), la misma que
-   * `n_bloque`. Para cada bloque toma la medida de FÁBRICA (mrp); si falta, la
-   * del proveedor como respaldo (marca el lote estimado). Un PM con varias filas
-   * = lote multibloque (raro): suma volúmenes y marca estimado. Los PM ausentes
-   * del inventario no aparecen en el mapa (→ m³ null en el ciclo).
+   * Medida real de cada PM desde el inventario `lot_block_creation`. La PM es la
+   * columna `name` (numérica), la misma que `n_bloque`, y es un identificador
+   * ÚNICO de bloque (1:1, confirmado por Pulycort 2026-06-15). Toma la medida de
+   * FÁBRICA (mrp); si falta, la del proveedor como respaldo (marca `estimado`).
+   * Un PM con varias filas = PM duplicado (error de dato): se marca `duplicado`
+   * y el ciclo no calcula su m³ (no se inventa cuál de los bloques es). Los PM
+   * ausentes del inventario no aparecen en el mapa (→ m³ null en el ciclo).
    */
   private async inventarioPorPm(pms: number[]): Promise<Map<number, LoteInventario>> {
     const numeros = [...new Set(pms.filter((n) => Number.isInteger(n) && n > 0))];
@@ -1749,7 +1803,8 @@ export class PrismaFabricRepository implements FabricRepository {
         {
           bloques: v.bloques,
           volumenM3: redondea(v.volumen, 2),
-          estimado: v.bloques > 1 || v.respaldo,
+          estimado: v.respaldo,
+          duplicado: v.bloques > 1,
           imposible: v.imposible,
         },
       ]),
@@ -1762,6 +1817,7 @@ export class PrismaFabricRepository implements FabricRepository {
     enCurso: boolean,
     paquetes: ResumenPaquetes | null = null,
     loteInv: LoteInventario | null = null,
+    parteEnOtroTelar = false,
   ): CicloBloque {
     const minutos = minutosPorIncidencia(run.lecturas, Math.min(run.hastaMs, ahora));
     const tramos = tramosDeParo(run.lecturas, Math.min(run.hastaMs, ahora));
@@ -1769,12 +1825,15 @@ export class PrismaFabricRepository implements FabricRepository {
     const m2 = m2PrevistosDe(bloque.medidasFabrica);
     // m³ del lote desde la MEDIDA REAL del inventario por PM (no la de consola,
     // que hereda del bloque anterior = ruido). null si el PM no está dado de
-    // alta en inventario O si su medida es imposible aun tras normalizar cm→m
-    // (corrupción real): no se muestra un m³ que sabemos falso. La medida de
-    // consola (bloque.medidasFabrica) se queda solo como punto de control
-    // (medidasIncoherentes).
+    // alta en inventario, si su medida es imposible aun tras normalizar cm→m
+    // (corrupción real) o si el PM está duplicado (error de identidad: la PM
+    // debe ser única, así que no se sabe la medida del bloque): no se muestra
+    // un m³ que sabemos no fiable. La medida de consola (bloque.medidasFabrica)
+    // se queda solo como punto de control (medidasIncoherentes).
     const volumenImposible = loteInv ? loteInv.imposible : false;
-    const volumenM3 = loteInv && !volumenImposible ? loteInv.volumenM3 : null;
+    const pmDuplicado = loteInv ? loteInv.duplicado : false;
+    const volumenM3 =
+      loteInv && !volumenImposible && !pmDuplicado ? loteInv.volumenM3 : null;
     // Cruce físico m³ ↔ parte: el m³ del inventario no puede ser menor que la
     // piedra que salió en tabla (m² × espesor). Si lo es, uno de los dos datos es
     // erróneo (m³ del alta infradimensionado o m² de otro corte cruzado al lote);
@@ -1817,12 +1876,14 @@ export class PrismaFabricRepository implements FabricRepository {
       rendimientoM2M3,
       bloquesEnLote: loteInv ? loteInv.bloques : null,
       volumenEstimado: loteInv ? loteInv.estimado : false,
+      pmDuplicado,
       volumenImposible,
       volumenIncompatibleParte,
       mermaVolumenPct: null,
       enCurso,
       medidasIncoherentes:
         paquetes !== null && medidasIncompatiblesConParte(bloque.medidasFabrica, paquetes),
+      parteEnOtroTelar,
     };
   }
 

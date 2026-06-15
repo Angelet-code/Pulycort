@@ -137,8 +137,8 @@ export interface CicloBloque {
    * Volumen del lote (PM) en m³, de la MEDIDA REAL del bloque en el inventario
    * `lot_block_creation` por PM (metros → m³ directo), no de la medida de
    * consola de `produccion_mapeada` (que hereda del bloque anterior = ruido).
-   * Suma de los bloques del lote si el PM tiene varios. null = el PM no está
-   * dado de alta en inventario (sin medida real).
+   * null = el PM no está dado de alta en inventario, su medida es imposible o el
+   * PM está duplicado (sin medida fiable del bloque).
    */
   volumenM3: number | null;
   /**
@@ -147,16 +147,23 @@ export interface CicloBloque {
    */
   rendimientoM2M3: number | null;
   /**
-   * Nº de bloques físicos del lote (PM) según el inventario. null = PM sin alta
-   * en inventario. Lo común es 1 (1 lote = 1 bloque); >1 es la excepción.
+   * Nº de filas de este PM (nº de lote) en el inventario. La PM es un
+   * identificador ÚNICO de bloque (1:1, confirmado por Pulycort 2026-06-15):
+   * debe ser 1. >1 = PM duplicado (error de dato, ver `pmDuplicado`). null = PM
+   * sin alta en inventario.
    */
   bloquesEnLote: number | null;
   /**
-   * El m³/rendimiento del lote NO es exacto: lote multibloque (no se certifica
-   * que el parte cubra todos los bloques) o medida de proveedor usada como
-   * respaldo al faltar la de fábrica. false = 1 bloque con medida de fábrica.
+   * El m³/rendimiento del lote NO es exacto: se usó la medida del proveedor como
+   * respaldo al faltar la de fábrica. false = medida de fábrica.
    */
   volumenEstimado: boolean;
+  /**
+   * El PM aparece en más de un bloque del inventario. Como la PM debe ser un
+   * identificador único (1:1), es un error de dato: no se sabe la medida del
+   * bloque, así que el m³/rendimiento se anulan (a null) y la UI lo marca ⚠.
+   */
+  pmDuplicado: boolean;
   /**
    * La medida del bloque en el inventario es físicamente imposible incluso tras
    * normalizar unidades cm→m (corrupción real de `lot_block_creation`): se anula
@@ -182,6 +189,14 @@ export interface CicloBloque {
    * tablas de las que caben). Cuenta como dudoso en el rendimiento m²/m³.
    */
   medidasIncoherentes: boolean;
+  /**
+   * El parte de aserrado (op 4) de esta PM consta en OTRO telar, no en el de
+   * este run, y este run no tiene parte propio. Señal de PM heredada o mal
+   * etiquetada por la consola del telar (caso típico del telar 4, que arrastra
+   * una PM ya aserrada en otro telar): el ciclo probablemente no es un aserrado
+   * real de esta PM en este telar. La UI lo marca ⚠ en la PM; la fila es dudosa.
+   */
+  parteEnOtroTelar: boolean;
 }
 
 export interface SnapshotTelar {

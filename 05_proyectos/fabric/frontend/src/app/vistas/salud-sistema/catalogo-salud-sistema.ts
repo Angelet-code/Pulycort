@@ -7,7 +7,8 @@
  * Se mantiene A MANO, junto con `00_gestion/TAREAS.md` y
  * `fabric/VERIFICACION.md`: al confirmar o corregir algo, actualizar las dos
  * fuentes. Última revisión: 2026-06-15 (auditoría de coherencia entre pestañas
- * 2026-06-14 e integración de reforzadora, disco puente e inventario real).
+ * 2026-06-14, integración de reforzadora, disco puente e inventario real, y
+ * confirmación de PM única 1:1).
  */
 
 export type AreaSistema = 'maquinas' | 'datos' | 'calculos' | 'flujo';
@@ -56,6 +57,29 @@ export const PROBLEMAS_SISTEMA: ProblemaSistema[] = [
       'con ⚠ los lotes incompatibles con su parte y calcula el rendimiento como ' +
       'agregado, que sí se compensa.',
     dependeDe: ['Producción', 'TotWare'],
+    estado: 'mitigado'
+  },
+  {
+    id: 'pm-heredada-consola-telar',
+    area: 'maquinas',
+    problema: 'La consola del telar arrastra una PM (nº de lote) que se aserró en otro telar',
+    evidencia:
+      'Caso real 2026-06-15: la consola del telar 4 etiquetó su corte del 12-13 jun como ' +
+      'PM 47156, pero 47156 ya se había aserrado en el telar 1 el 3 jun (su único parte de ' +
+      'aserrado consta allí: 37 tablas, 82,4 m², bloque de 1,86 m³ → 44 m²/m³, coherente). El ' +
+      'corte real del telar 4 era el 47146 (telar 4, 69 tablas, 204,9 m², bloque 4,62 m³ → 44 ' +
+      'm²/m³). Al heredar la PM equivocada, el telar 4 genera un ciclo fantasma: muestra la PM ' +
+      '47156 con el m³ de ese bloque (1,86) y sin parte propio. Frecuencia ~1 de cada 12-40 ' +
+      'cortes recientes; es de la familia del telar 4 (incidencia 0, sensores congelados).',
+    solucion:
+      'Que la consola/PLC del telar emita la PM real del bloque en corte (no una heredada del ' +
+      'anterior). Mientras tanto, Fabric detecta el cruce —la PM de un run tiene su parte de ' +
+      'aserrado en OTRO telar (dentro de la ventana del corte, no una PM reutilizada meses ' +
+      'atrás) y ninguno en el suyo— y marca la fila con ⚠ (`parteEnOtroTelar`) en /producción ' +
+      'para avisar de que no es un aserrado fiable de esa PM en ese telar. Limitación conocida: ' +
+      'si el parte del telar de origen trae el nº de telar corrupto (fuera de 1-4), ese cruce ' +
+      'no se detecta.',
+    dependeDe: ['TotWare', 'Producción'],
     estado: 'mitigado'
   },
   {
@@ -153,16 +177,34 @@ export const PROBLEMAS_SISTEMA: ProblemaSistema[] = [
     estado: 'mitigado'
   },
   {
+    id: 'pm-debe-ser-unico',
+    area: 'datos',
+    problema: 'La PM (nº de lote) debe ser un identificador único de bloque (1:1)',
+    evidencia:
+      'Confirmado por Pulycort (2026-06-15): la PM identifica un único bloque físico (1:1). ' +
+      'Antes se asumía que una PM podía agrupar varios bloques (multibloque, 1:N); esa lectura ' +
+      'queda descartada. Por tanto una PM repetida en el inventario (lot_block_creation) —dos ' +
+      'altas con el mismo nº— es un error de dato, igual que reutilizar la PM en el tiempo.',
+    solucion:
+      'Que el origen garantice la unicidad de la PM al dar de alta el bloque. Fabric ya no suma ' +
+      'el volumen de un PM repetido: lo marca como PM duplicado (⚠ en /producción) y no calcula ' +
+      'su m³/rendimiento (no inventa cuál de los bloques es).',
+    dependeDe: ['Odoo / INDASEL', 'TotWare'],
+    estado: 'mitigado'
+  },
+  {
     id: 'bloques-reutilizados',
     area: 'datos',
-    problema: 'Los PM/lotes se reutilizan con el tiempo',
+    problema: 'Los PM/lotes (que deben ser únicos) se reutilizan con el tiempo',
     evidencia:
-      'Mismo telar + PM/lote con partes separados meses (ej.: PM/lote 46449 del ' +
-      'telar 4 con partes en dic-2025 y may-2026). Sin acotar por fecha, el cruce sumaba ' +
-      'm² de cortes antiguos (+306 m² en el total de 30 días).',
+      'Confirmado (Pulycort 2026-06-15): la PM es un identificador ÚNICO de bloque (1:1), así ' +
+      'que reutilizarla es un error de dato, no algo esperable. Mismo telar + PM/lote con partes ' +
+      'separados meses (ej.: PM/lote 46449 del telar 4 con partes en dic-2025 y may-2026). Sin ' +
+      'acotar por fecha, el cruce sumaba m² de cortes antiguos (+306 m² en el total de 30 días).',
     solucion:
-      'Usar un identificador único de corte si la fuente lo confirma. Fabric ya ' +
-      'acota el cruce a la ventana temporal de cada corte.',
+      'Que el origen no reutilice la PM (es identificador único de bloque). Mientras tanto, ' +
+      'Fabric acota el cruce lecturas-partes a la ventana temporal de cada corte y marca con ⚠ ' +
+      'el PM duplicado en el inventario.',
     dependeDe: ['TotWare', 'Odoo / INDASEL'],
     estado: 'mitigado'
   },
@@ -205,25 +247,23 @@ export const PROBLEMAS_SISTEMA: ProblemaSistema[] = [
   {
     id: 'inventario-m3-infradimensionado',
     area: 'datos',
-    problema: 'En algunos lotes el m³ del inventario y los m² del parte son incompatibles',
+    problema: 'En algún lote el m³ del inventario y los m² del parte son incompatibles',
     evidencia:
-      'El m³ del lote sale de lot_block_creation por PM; en varios lotes no da para la piedra ' +
-      'que salió en tabla (m² del parte × espesor): no caben tantos m² en ese volumen. ' +
-      'PM/lote 47156 (telar 4, MARFIL): parte real de 69 tablas y 204,9 m² a 2 cm = 4,10 m³ ' +
-      'de tabla, pero el inventario declara 1,86 m³ → rendimiento 110 m²/m³, imposible (a ' +
-      '2 cm el máximo físico es 1/0,02 = 50). PM/lote 47177 igual: 2,77 m³ frente a 3,04 m³ ' +
-      'de tabla a 5 cm → 21,95 m²/m³ (techo 20). NO está demostrado cuál de los dos miente: ' +
-      '1,86 m³ por sí solo es un bloque pequeño plausible (cola baja, por debajo del p10 ' +
-      '~2,12 m³ del inventario), así que tanto puede estar infradimensionada la medida del ' +
-      'alta como ser los m² de otro corte cruzado al lote (o lote multibloque). Cada dimensión ' +
-      'suelta del bloque es plausible, por eso el chequeo de "bloque imposible" no lo detecta: ' +
-      'solo el cruce con el parte lo delata.',
+      'El m³ del lote sale de lot_block_creation por PM; en algún lote no da para la piedra ' +
+      'que salió en tabla (m² del parte × espesor): no caben tantos m² en ese volumen, lo que ' +
+      'daría un rendimiento por encima del techo físico 1/espesor. Caso vivo (verificado en BD ' +
+      '2026-06-15): PM 47177 (telar 1), 25 tablas / 60,8 m² a 5 cm = 3,04 m³ de tabla, pero su ' +
+      'bloque declara 2,77 m³ → 21,95 m²/m³, imposible (techo a 5 cm = 1/0,05 = 20). Es un ' +
+      'desajuste pequeño (~9 %) en el MISMO telar: o la medida del alta está algo corta, o ' +
+      'influyen el kerf/espesor. Cada dimensión suelta del bloque es plausible, por eso el ' +
+      'chequeo de "bloque imposible" no lo ve; solo el cruce con el parte lo delata. (El caso ' +
+      '47156 que disparó esta detección resultó NO ser de m³ sino una PM heredada por la ' +
+      'consola del telar —ver pm-heredada-consola-telar—; su m³ 1,86 es correcto.)',
     solucion:
-      'Verificar contra Odoo cuál de los dos falla: las tres dimensiones del alta de 47156 ' +
-      '(¿bloque pequeño real o medida truncada?), si el parte agrega varios cortes y si el PM ' +
-      'es multibloque; corregir la fuente que toque (medida en lot_block_creation o atribución ' +
-      'del parte). Fabric ya marca con ⚠ el lote y NO calcula su rendimiento mientras m³ y ' +
-      'parte sean incompatibles, para no pintar un m²/m³ por encima del techo físico.',
+      'Verificar contra Odoo la medida del alta del lote marcado (¿bloque algo pequeño real, ' +
+      'kerf, o medida corta?) y confirmar la unidad/semántica de grueso_tablas (espesor de ' +
+      'corte). Fabric ya marca con ⚠ el lote y NO calcula su rendimiento mientras m³ y parte ' +
+      'sean incompatibles, para no pintar un m²/m³ por encima del techo físico.',
     dependeDe: ['Odoo / INDASEL'],
     estado: 'mitigado'
   },
@@ -461,9 +501,10 @@ export const PROBLEMAS_SISTEMA: ProblemaSistema[] = [
       'Casos en stock con actividad de máquina: 45953A/B (on-hand + producción telares 3/4 + ' +
       'partes + disco), 45493A y 45971 (este con n_telar=45971, columna contaminada).',
     solucion:
-      'Revisar manualmente esos PM y decidir si son stock no descargado, duplicidad A/B, ' +
-      'reproceso o semántica correcta. Confirmar si los sufijos A/B son bloques físicos dentro ' +
-      'de una PM. Tratar el PM 0 como "sin PM/lote", no como un PM real.',
+      'Revisar manualmente esos PM y decidir si son stock no descargado, reproceso o semántica ' +
+      'correcta. Confirmado (Pulycort 2026-06-15): la PM es un identificador único de bloque ' +
+      '(1:1), así que un mismo nº de PM en dos bloques físicos (incl. sufijos A/B sobre el mismo ' +
+      'número) es un error de dato. Tratar el PM 0 como "sin PM/lote", no como un PM real.',
     dependeDe: ['Odoo / INDASEL', 'TotWare'],
     estado: 'pendiente'
   }

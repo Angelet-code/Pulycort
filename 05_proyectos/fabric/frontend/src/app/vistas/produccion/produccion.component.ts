@@ -306,13 +306,22 @@ import { MetricaComponent } from '../../shared/metrica.component';
                   <td>
                     <span class="celda-bloque">
                       {{ ciclo.pmLote }}
-                      @if (ciclo.bloquesEnLote !== null && ciclo.bloquesEnLote > 1) {
-                        <span class="soft" title="Bloques físicos de este lote (PM) en el inventario">·{{ ciclo.bloquesEnLote }} bloques</span>
+                      @if (ciclo.pmDuplicado) {
+                        <span
+                          class="aviso-medidas"
+                          title="PM duplicado: este nº de lote (PM) aparece en más de un bloque del inventario, y la PM debe ser un identificador único de bloque. Es un error de dato a revisar; no se calcula el m³ del lote."
+                        >⚠</span>
                       }
                       @if (ciclo.medidasIncoherentes) {
                         <span
                           class="aviso-medidas"
                           title="Punto de control: las medidas de consola del telar no encajan con el parte real (posible error de dato a revisar). El m³ se calcula del inventario, no de la consola."
+                        >⚠</span>
+                      }
+                      @if (ciclo.parteEnOtroTelar) {
+                        <span
+                          class="aviso-medidas"
+                          title="PM heredada: el parte de aserrado de este nº de lote (PM) consta en OTRO telar, no en este, y este corte no tiene parte propio. Probablemente la consola del telar arrastró una PM ya aserrada en otro telar (típico del telar 4): la fila no es un aserrado fiable de esta PM aquí. A revisar."
                         >⚠</span>
                       }
                     </span>
@@ -358,15 +367,15 @@ import { MetricaComponent } from '../../shared/metrica.component';
                   </td>
                   <td class="derecha">
                     <span class="celda-bloque">
-                      @if (ciclo.volumenEstimado && !ciclo.volumenImposible) {
-                        <span class="soft" title="m³ estimado: el lote tiene varios bloques (no se certifica que el parte cubra todos) o se usó la medida del proveedor como respaldo">≈</span>
+                      @if (ciclo.volumenEstimado && ciclo.volumenM3 !== null) {
+                        <span class="soft" title="m³ estimado: se usó la medida del proveedor como respaldo (falta la medida de fábrica del inventario)">≈</span>
                       }
                       <fabric-metrica [valor]="ciclo.volumenM3" unidad="m³" [decimales]="2" [tam]="13" />
                       @if (ciclo.volumenImposible) {
                         <span class="aviso-medidas" title="Medida del bloque imposible en el inventario (lot_block_creation): una dimensión queda fuera de rango físico aun tras ajustar unidades. Sin m³ fiable no se calcula rendimiento; a revisar.">⚠</span>
                       } @else if (ciclo.volumenIncompatibleParte) {
-                        <span class="aviso-medidas" title="El m³ del inventario (lot_block_creation) no da para la piedra que salió en tabla (m² × espesor del parte): uno de los dos es erróneo — o el m³ del lote está infradimensionado, o los m² del parte no son de este lote (corte cruzado / lote multibloque). El rendimiento saldría por encima del máximo físico (1/espesor), así que no se calcula; a revisar.">⚠</span>
-                      } @else if (ciclo.volumenM3 === null) {
+                        <span class="aviso-medidas" title="El m³ del inventario (lot_block_creation) no da para la piedra que salió en tabla (m² × espesor del parte): uno de los dos es erróneo — o el m³ del lote está infradimensionado, o los m² del parte no son de este lote (corte cruzado de otro lote). El rendimiento saldría por encima del máximo físico (1/espesor), así que no se calcula; a revisar.">⚠</span>
+                      } @else if (ciclo.volumenM3 === null && !ciclo.pmDuplicado) {
                         <span class="aviso-medidas" title="El PM/lote no está dado de alta en el inventario (lot_block_creation): sin medida real del bloque no hay m³ ni rendimiento">⚠</span>
                       }
                     </span>
