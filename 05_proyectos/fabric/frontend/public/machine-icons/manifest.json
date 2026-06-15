@@ -1,0 +1,202 @@
+{
+  "generatedFrom": "05_proyectos/fabric/frontend/scripts/generate-machine-icons.mjs",
+  "sourceCatalog": "05_proyectos/fabric/frontend/src/app/core/catalogo-maquinas.ts",
+  "rules": [
+    "One SVG per official machine code.",
+    "Machines in the same family share the same simplified drawing template.",
+    "Icons do not show numeric badges; machine identity is carried by filename and manifest.",
+    "Machine variants differ by accent color and metadata."
+  ],
+  "machines": [
+    {
+      "code": 1,
+      "name": "Reforzadora de bloques",
+      "family": "reforzadora",
+      "unit": "m3",
+      "phase": "bloque",
+      "color": "#d8c8a8",
+      "file": "01-reforzadora-de-bloques.svg",
+      "publicPath": "/machine-icons/01-reforzadora-de-bloques.svg"
+    },
+    {
+      "code": 2,
+      "name": "Monohilo",
+      "family": "monohilo",
+      "unit": "m3",
+      "phase": "bloque",
+      "color": "#ff5f7d",
+      "file": "02-monohilo.svg",
+      "publicPath": "/machine-icons/02-monohilo.svg"
+    },
+    {
+      "code": 3,
+      "name": "Telar 1",
+      "family": "telar",
+      "unit": "m3",
+      "phase": "bloque",
+      "color": "#4b9fff",
+      "file": "03-telar-1.svg",
+      "publicPath": "/machine-icons/03-telar-1.svg"
+    },
+    {
+      "code": 4,
+      "name": "Telar 2",
+      "family": "telar",
+      "unit": "m3",
+      "phase": "bloque",
+      "color": "#35d99d",
+      "file": "04-telar-2.svg",
+      "publicPath": "/machine-icons/04-telar-2.svg"
+    },
+    {
+      "code": 5,
+      "name": "Telar 3",
+      "family": "telar",
+      "unit": "m3",
+      "phase": "bloque",
+      "color": "#98a8ff",
+      "file": "05-telar-3.svg",
+      "publicPath": "/machine-icons/05-telar-3.svg"
+    },
+    {
+      "code": 6,
+      "name": "Telar 4",
+      "family": "telar",
+      "unit": "m3",
+      "phase": "bloque",
+      "color": "#4fc9de",
+      "file": "06-telar-4.svg",
+      "publicPath": "/machine-icons/06-telar-4.svg"
+    },
+    {
+      "code": 7,
+      "name": "Telar externo",
+      "family": "telar",
+      "unit": "m3",
+      "phase": "bloque",
+      "color": "#f3c86a",
+      "file": "07-telar-externo.svg",
+      "publicPath": "/machine-icons/07-telar-externo.svg"
+    },
+    {
+      "code": 8,
+      "name": "Cortabloques",
+      "family": "cortabloques",
+      "unit": "m2",
+      "phase": "bloque",
+      "color": "#a3e635",
+      "file": "08-cortabloques.svg",
+      "publicPath": "/machine-icons/08-cortabloques.svg"
+    },
+    {
+      "code": 9,
+      "name": "Reforzadora 1",
+      "family": "reforzadora",
+      "unit": "m2",
+      "phase": "tabla",
+      "color": "#c797ff",
+      "file": "09-reforzadora-1.svg",
+      "publicPath": "/machine-icons/09-reforzadora-1.svg"
+    },
+    {
+      "code": 10,
+      "name": "Reforzadora 2 SEI",
+      "family": "reforzadora",
+      "unit": "m2",
+      "phase": "tabla",
+      "color": "#7bd4a4",
+      "file": "10-reforzadora-2-sei.svg",
+      "publicPath": "/machine-icons/10-reforzadora-2-sei.svg"
+    },
+    {
+      "code": 11,
+      "name": "Pulidora de tabla SIMEC",
+      "family": "pulidora",
+      "unit": "m2",
+      "phase": "tabla",
+      "color": "#63d2ff",
+      "file": "11-pulidora-de-tabla-simec.svg",
+      "publicPath": "/machine-icons/11-pulidora-de-tabla-simec.svg"
+    },
+    {
+      "code": 12,
+      "name": "Disco puente 1 Terzago",
+      "family": "disco-puente",
+      "unit": "m2",
+      "phase": "losa",
+      "color": "#ff7a5c",
+      "file": "12-disco-puente-1-terzago.svg",
+      "publicPath": "/machine-icons/12-disco-puente-1-terzago.svg"
+    },
+    {
+      "code": 13,
+      "name": "Disco puente 2 Gomez",
+      "family": "disco-puente",
+      "unit": "m2",
+      "phase": "losa",
+      "color": "#f3c86a",
+      "file": "13-disco-puente-2-gomez.svg",
+      "publicPath": "/machine-icons/13-disco-puente-2-gomez.svg"
+    },
+    {
+      "code": 14,
+      "name": "Disco puente 3 Canigo",
+      "family": "disco-puente",
+      "unit": "m2",
+      "phase": "losa",
+      "color": "#4fc9de",
+      "file": "14-disco-puente-3-canigo.svg",
+      "publicPath": "/machine-icons/14-disco-puente-3-canigo.svg"
+    },
+    {
+      "code": 15,
+      "name": "Control numerico Donatoni",
+      "family": "control-numerico",
+      "unit": "m2",
+      "phase": "losa",
+      "color": "#73a7ff",
+      "file": "15-control-numerico-donatoni.svg",
+      "publicPath": "/machine-icons/15-control-numerico-donatoni.svg"
+    },
+    {
+      "code": 16,
+      "name": "Pulidora de losa",
+      "family": "pulidora",
+      "unit": "m2",
+      "phase": "losa",
+      "color": "#ff8fc1",
+      "file": "16-pulidora-de-losa.svg",
+      "publicPath": "/machine-icons/16-pulidora-de-losa.svg"
+    },
+    {
+      "code": 17,
+      "name": "Biseladora",
+      "family": "biseladora",
+      "unit": "m2",
+      "phase": "losa",
+      "color": "#f59e0b",
+      "file": "17-biseladora.svg",
+      "publicPath": "/machine-icons/17-biseladora.svg"
+    },
+    {
+      "code": 18,
+      "name": "Recuperadora",
+      "family": "recuperadora",
+      "unit": "m2",
+      "phase": "losa",
+      "color": "#38bdf8",
+      "file": "18-recuperadora.svg",
+      "publicPath": "/machine-icons/18-recuperadora.svg"
+    },
+    {
+      "code": 19,
+      "name": "Taller",
+      "family": "taller",
+      "unit": "m2",
+      "phase": "losa",
+      "color": "#c4b5fd",
+      "file": "19-taller.svg",
+      "publicPath": "/machine-icons/19-taller.svg"
+    }
+  ]
+}

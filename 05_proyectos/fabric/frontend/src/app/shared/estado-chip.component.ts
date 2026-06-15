@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { EstadoTelar, TipoIncidencia } from '../core/models';
 
-/** Chip de estado de telar: marcha, paro, rotura, cambio de bloque, sin señal. */
+/** Chip de estado de telar: marcha, paro, rotura, cambio de lote, sin señal. */
 @Component({
   selector: 'fabric-estado-chip',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -30,7 +30,7 @@ export class EstadoChipComponent {
       case 'incidencia':
         return 'Rotura de fleje';
       case 'cambio-bloque':
-        return 'Cambio de bloque';
+        return 'Cambio de lote';
       case 'sin-datos':
         return 'Sin señal';
       default:

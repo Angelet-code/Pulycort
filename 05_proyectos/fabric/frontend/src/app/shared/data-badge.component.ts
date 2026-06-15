@@ -8,7 +8,13 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
   selector: 'fabric-data-badge',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <span class="sello" [class.mal]="sospechosa()" [title]="titulo()">
+    <span
+      class="sello"
+      [class.mal]="sospechosa()"
+      role="img"
+      [attr.aria-label]="titulo()"
+      [title]="titulo()"
+    >
       {{ sospechosa() ? '⚠' : '✓' }}
     </span>
   `,
@@ -19,7 +25,7 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
       justify-content: center;
       width: 20px;
       height: 20px;
-      border-radius: 7px;
+      border-radius: var(--radius-sm);
       font-size: 11px;
       color: var(--green);
       background: rgba(53, 217, 157, 0.12);

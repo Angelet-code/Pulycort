@@ -175,3 +175,55 @@ export function materialPorId(id: string | null | undefined): Material {
   // sin inventar nombre.
   return { ...DESCONOCIDO, id, nombre: `Material ${id}` };
 }
+
+/** Material por NOMBRE (mayúsculas), para resolver el color cuando el id no es
+ *  del catálogo (p. ej. el inventario, donde las altas recientes traen el id del
+ *  producto "M3 BLOQUE X" en vez del producto de material). */
+const POR_NOMBRE = new Map<string, Material>();
+for (const m of MATERIALES) {
+  POR_NOMBRE.set(m.nombre.toUpperCase(), m);
+}
+for (const [, , nombre, familia] of CATALOGO_REAL) {
+  const clave = nombre.toUpperCase();
+  if (!POR_NOMBRE.has(clave)) {
+    POR_NOMBRE.set(clave, { id: clave, nombre, ...DISENO_FAMILIA[familia] });
+  }
+}
+
+/**
+ * Familia (color) por palabra clave en el nombre, para nombres que no casan
+ * exacto — sobre todo los "M3 BLOQUE X" normalizados (TRAVERTINOS, MARQUINA,
+ * IBIZA, ARENISCA). Es SOLO color (presentación), nunca alimenta cálculos. El
+ * orden importa: primero las palabras más específicas. Si nada casa, neutro.
+ */
+const FAMILIA_POR_PALABRA: ReadonlyArray<readonly [RegExp, Familia]> = [
+  [/TRAVERTINO/, 'travertino'],
+  [/MARQUINA|NEGRO|CALATORAO|SAHARA/, 'negro'],
+  [/CARRARA|BLANCO|IBIZA|THASSOS|MACAEL|CALACATTA|VOLAKAS|GIOIA|DOLOMITA|ARGOS|MARMARA/, 'blanco'],
+  [/ROJO|CORALITO|QUIPAR|KRISTEL/, 'rojo'],
+  [/ROSA|LILAC|PORRIÑO/, 'rosa'],
+  [/VERDE|PIZARRA/, 'verde'],
+  [/AMARILLO|YELLOW|ONIX|FOSIL/, 'amarillo'],
+  [/EMPERADOR|MARRON|SERPEGIANTE|RAIN FOREST/, 'marron'],
+  [/PIETRA|MARENGO|GRIS|GREY|KOALA|TUNDRA|MOON/, 'gris'],
+  [/CALIZA|ARENISCA|BATEIG|VINAIXA|CAPRI/, 'caliza'],
+  [/CREMA|MARFIL|SUNNY|DAINO|SINAI|NACAR|SAN VICENTE|MOKA|NOVA|LORCA/, 'crema']
+];
+
+export function materialPorNombre(nombre: string | null | undefined): Material {
+  if (!nombre) {
+    return DESCONOCIDO;
+  }
+  const clave = nombre.toUpperCase().trim();
+  const exacto = POR_NOMBRE.get(clave);
+  if (exacto) {
+    return exacto;
+  }
+  for (const [palabra, familia] of FAMILIA_POR_PALABRA) {
+    if (palabra.test(clave)) {
+      return { id: clave, nombre, ...DISENO_FAMILIA[familia] };
+    }
+  }
+  // Sin familia reconocible: color neutro, sin inventar piedra.
+  return { ...DESCONOCIDO, nombre };
+}

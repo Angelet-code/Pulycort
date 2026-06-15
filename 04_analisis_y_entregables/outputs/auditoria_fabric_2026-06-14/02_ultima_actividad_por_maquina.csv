@@ -1,0 +1,16 @@
+fuente;maquina;filas;pm_distintos;primera;ultima;horas_desde_ultima
+disco_puente;0;221;28;Wed May 14 2025 11:45:00 GMT+0200 (hora de verano de Europa central);Fri May 30 2025 05:30:00 GMT+0200 (hora de verano de Europa central);9133.9466320288888889
+disco_puente;1;12634;831;Wed Jun 04 2025 08:56:00 GMT+0200 (hora de verano de Europa central);Tue Dec 22 2026 19:33:00 GMT+0100 (hora estándar de Europa central);-4584.1033679711111111
+partes_telar;0;164;19;Sat Sep 06 2025 11:58:00 GMT+0200 (hora de verano de Europa central);Sat Sep 06 2025 11:58:00 GMT+0200 (hora de verano de Europa central);6751.4799653622222222
+partes_telar;1;2463;340;Mon May 19 2025 11:56:00 GMT+0200 (hora de verano de Europa central);Wed Dec 16 2026 12:50:00 GMT+0100 (hora estándar de Europa central);-4433.3867013044444444
+partes_telar;2;2339;330;Wed Jun 04 2025 06:39:00 GMT+0200 (hora de verano de Europa central);Fri Dec 18 2026 20:56:00 GMT+0100 (hora estándar de Europa central);-4489.4867013044444444
+partes_telar;3;1825;230;Wed Jun 04 2025 06:39:00 GMT+0200 (hora de verano de Europa central);Fri Dec 18 2026 20:56:00 GMT+0100 (hora estándar de Europa central);-4489.4867013044444444
+partes_telar;4;2110;323;Tue Sep 02 2025 06:54:00 GMT+0200 (hora de verano de Europa central);Tue Nov 17 2026 12:52:00 GMT+0100 (hora estándar de Europa central);-3737.4200346377777778
+partes_telar;45971;2;1;Mon Sep 01 2025 04:10:00 GMT+0200 (hora de verano de Europa central);Mon Sep 01 2025 17:00:00 GMT+0200 (hora de verano de Europa central);6866.4466320288888889
+partes_telar;46002;1;1;Tue Sep 02 2025 11:20:00 GMT+0200 (hora de verano de Europa central);Tue Sep 02 2025 11:20:00 GMT+0200 (hora de verano de Europa central);6848.1132986955555556
+partes_telar;46052;1;1;Thu Sep 11 2025 15:00:00 GMT+0200 (hora de verano de Europa central);Thu Sep 11 2025 15:00:00 GMT+0200 (hora de verano de Europa central);6628.4466320288888889
+partes_telar;;16;1;;;
+produccion;1;25375;165;Mon May 05 2025 03:59:00 GMT+0200 (hora de verano de Europa central);Sat Jun 13 2026 10:39:00 GMT+0200 (hora de verano de Europa central);32.7966320288888889
+produccion;2;23358;164;Wed Jun 04 2025 06:39:00 GMT+0200 (hora de verano de Europa central);Sat Jun 13 2026 10:43:00 GMT+0200 (hora de verano de Europa central);32.7299653622222222
+produccion;3;21407;123;Wed Jun 04 2025 06:39:00 GMT+0200 (hora de verano de Europa central);Sat Jun 13 2026 10:43:00 GMT+0200 (hora de verano de Europa central);32.7299653622222222
+produccion;4;38300;203;Tue Dec 31 2024 23:01:00 GMT+0100 (hora estándar de Europa central);Sun Jun 14 2026 19:15:00 GMT+0200 (hora de verano de Europa central);0.19663202888888888889

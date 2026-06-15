@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-labelledby="title-17-biseladora desc-17-biseladora">
+  <title id="title-17-biseladora">Biseladora</title>
+  <desc id="desc-17-biseladora">Icono SVG simple de Biseladora. Familia biseladora con silueta comun y color propio.</desc>
+  <defs>
+    <linearGradient id="accent-17-biseladora" x1="48" y1="44" x2="208" y2="212" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f7b341"/>
+      <stop offset="0.62" stop-color="#f59e0b"/>
+      <stop offset="1" stop-color="#bb7a0e"/>
+    </linearGradient>
+    <filter id="shadow-17-biseladora" x="-22%" y="-22%" width="144%" height="144%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#020617" flood-opacity="0.26"/>
+    </filter>
+    <style>
+      .base{fill:#182235}
+      .frame{fill:#26344f}
+      .dark{fill:#0f172a}
+      .stone{fill:#b9aa86}
+      .stone-top{fill:#d1c39e}
+      .line{stroke:#e7f0ff;stroke-opacity:.24;stroke-linecap:round;stroke-linejoin:round}
+      .accent-stroke{stroke:url(#accent-17-biseladora);stroke-linecap:round;stroke-linejoin:round}
+    </style>
+  </defs>
+  <g filter="url(#shadow-17-biseladora)">
+    
+    <ellipse cx="128" cy="219" rx="86" ry="11" fill="#020617" opacity=".2"/>
+    <rect class="base" x="40" y="190" width="176" height="17" rx="8.5"/>
+    <path class="stone" d="M60 164h123l20 26H43z"/>
+    <path class="stone-top" d="M73 151h101l9 13H60z"/>
+    <rect class="frame" x="56" y="86" width="22" height="82" rx="9"/>
+    <rect class="base" x="56" y="74" width="124" height="20" rx="9"/>
+    <g transform="rotate(-24 160 135)">
+      <rect x="127" y="105" width="64" height="22" rx="10" fill="url(#accent-17-biseladora)"/>
+      <path class="line" d="M159 127v24" stroke-width="7"/>
+      <circle cx="159" cy="154" r="23" fill="#e7f0ff"/>
+      <circle cx="159" cy="154" r="14" fill="url(#accent-17-biseladora)"/>
+    </g>
+  
+  </g>
+</svg>

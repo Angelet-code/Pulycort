@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-labelledby="title-18-recuperadora desc-18-recuperadora">
+  <title id="title-18-recuperadora">Recuperadora</title>
+  <desc id="desc-18-recuperadora">Icono SVG simple de Recuperadora. Familia recuperadora con silueta comun y color propio.</desc>
+  <defs>
+    <linearGradient id="accent-18-recuperadora" x1="48" y1="44" x2="208" y2="212" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#64ccfa"/>
+      <stop offset="0.62" stop-color="#38bdf8"/>
+      <stop offset="1" stop-color="#2b91c2"/>
+    </linearGradient>
+    <filter id="shadow-18-recuperadora" x="-22%" y="-22%" width="144%" height="144%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#020617" flood-opacity="0.26"/>
+    </filter>
+    <style>
+      .base{fill:#182235}
+      .frame{fill:#26344f}
+      .dark{fill:#0f172a}
+      .stone{fill:#b9aa86}
+      .stone-top{fill:#d1c39e}
+      .line{stroke:#e7f0ff;stroke-opacity:.24;stroke-linecap:round;stroke-linejoin:round}
+      .accent-stroke{stroke:url(#accent-18-recuperadora);stroke-linecap:round;stroke-linejoin:round}
+    </style>
+  </defs>
+  <g filter="url(#shadow-18-recuperadora)">
+    
+    <ellipse cx="128" cy="219" rx="86" ry="11" fill="#020617" opacity=".2"/>
+    <rect class="base" x="39" y="191" width="178" height="16" rx="8"/>
+    <path class="stone" d="M64 151l40 5 10 34H53z"/>
+    <path class="stone" d="M129 147h60l13 43h-84z"/>
+    <path class="stone-top" d="M70 140l32 4 2 12-40-5z"/>
+    <path class="stone-top" d="M138 136h44l7 11h-60z"/>
+    <path class="accent-stroke" d="M78 115c18-31 66-35 91-9" fill="none" stroke-width="9"/>
+    <path d="M161 90l20 19-27 8z" fill="url(#accent-18-recuperadora)"/>
+    <path class="accent-stroke" d="M177 143c-13 31-58 42-88 19" fill="none" stroke-width="9"/>
+    <path d="M99 179l-25-16 25-13z" fill="url(#accent-18-recuperadora)"/>
+  
+  </g>
+</svg>

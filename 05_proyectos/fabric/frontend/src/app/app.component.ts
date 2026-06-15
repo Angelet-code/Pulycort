@@ -1,46 +1,41 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { catchError, map, of, switchMap, timer } from 'rxjs';
+import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
+import { catchError, filter, map, of, switchMap, timer } from 'rxjs';
 import { FabricApi } from './core/fabric-api';
 import { FuenteDatosService } from './core/fuente-datos.service';
 import { RelojService } from './core/reloj.service';
 
 /**
- * Armazón de Fabric: barra superior (marca, navegación, reloj y modo demo)
- * en escritorio y dock inferior en móvil. Las vistas cuelgan del router.
+ * Armazón de Fabric: una barra de navegación tipo pastilla centrada (logo
+ * redondo + secciones) y, fuera de ella, los controles de fuente/reloj. En
+ * móvil la navegación pasa al dock inferior. Las vistas cuelgan del router.
  */
 @Component({
   selector: 'app-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink],
   template: `
     <div class="marco">
       <header class="topbar">
-        <a routerLink="/telares" class="marca">
-          <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
-            <rect x="3" y="4" width="3.4" height="16" rx="1.2" fill="var(--stone)" />
-            <rect x="8.6" y="4" width="3.4" height="16" rx="1.2" fill="var(--stone)" opacity="0.75" />
-            <rect x="14.2" y="4" width="3.4" height="11" rx="1.2" fill="var(--stone)" opacity="0.5" />
-            <rect x="2" y="2" width="18" height="1.6" rx="0.8" fill="var(--text-muted)" />
-          </svg>
-          <span class="marca-texto">
-            <strong>Fabric</strong>
-            <span class="soft">Pulycort · producción</span>
-          </span>
-        </a>
-
-        <nav class="nav-principal">
-          <a routerLink="/telares" routerLinkActive="activa">Sala de telares</a>
-          <a routerLink="/produccion" routerLinkActive="activa">Producción</a>
-          <a routerLink="/partes" routerLinkActive="activa">Partes de producción</a>
-          <a routerLink="/partes-trabajo" routerLinkActive="activa">Partes de trabajo</a>
-          <a routerLink="/inventario" routerLinkActive="activa">Inventario</a>
-          <a routerLink="/datos" routerLinkActive="activa">Salud del dato</a>
-          <a routerLink="/sistema" routerLinkActive="activa">Salud del sistema</a>
+        <nav class="barra-nav" aria-label="Secciones">
+          <a routerLink="/telares" class="marca-logo" aria-label="Pulycort — inicio">
+            <span class="logo-circulo" aria-hidden="true">
+              <img class="logo-p" src="pulycort-p.svg" alt="" width="15" height="15" />
+            </span>
+          </a>
+          <a routerLink="/telares" class="tab" [class.activa]="seccion() === 'maquinas'">Máquinas</a>
+          <a routerLink="/produccion" class="tab" [class.activa]="seccion() === 'produccion'">
+            Producción
+          </a>
+          <a routerLink="/partes" class="tab" [class.activa]="seccion() === 'partes'">Partes</a>
+          <a routerLink="/inventario" class="tab" [class.activa]="seccion() === 'inventario'">
+            Inventario
+          </a>
+          <a routerLink="/salud" class="tab" [class.activa]="seccion() === 'salud'">Salud</a>
         </nav>
 
-        <div class="topbar-der">
+        <div class="controles">
           <div
             class="switch-fuente"
             role="group"
@@ -77,6 +72,11 @@ import { RelojService } from './core/reloj.service';
               class="boton-demo"
               [class.activo]="reloj.factor() > 1"
               (click)="reloj.alternarDemo()"
+              [attr.aria-label]="
+                reloj.factor() > 1
+                  ? 'Reloj de demo acelerado ×60; pulsa para volver a tiempo real'
+                  : 'Acelerar el reloj de demo a ×60'
+              "
               title="Acelera el reloj ×60 para ver avanzar los cortes (1 min real = 1 h de fábrica)"
             >
               {{ reloj.factor() > 1 ? '×60' : '×1' }}
@@ -109,33 +109,25 @@ import { RelojService } from './core/reloj.service';
       </footer>
 
       <nav class="dock">
-        <a routerLink="/telares" routerLinkActive="activa">
-          <span class="dock-icono">▦</span>
-          Telares
+        <a routerLink="/telares" [class.activa]="seccion() === 'maquinas'">
+          <span class="dock-icono" aria-hidden="true">▦</span>
+          Máquinas
         </a>
-        <a routerLink="/produccion" routerLinkActive="activa">
-          <span class="dock-icono">▤</span>
+        <a routerLink="/produccion" [class.activa]="seccion() === 'produccion'">
+          <span class="dock-icono" aria-hidden="true">▤</span>
           Producción
         </a>
-        <a routerLink="/partes" routerLinkActive="activa">
-          <span class="dock-icono">☰</span>
+        <a routerLink="/partes" [class.activa]="seccion() === 'partes'">
+          <span class="dock-icono" aria-hidden="true">☰</span>
           Partes
         </a>
-        <a routerLink="/partes-trabajo" routerLinkActive="activa">
-          <span class="dock-icono">✎</span>
-          Trabajo
+        <a routerLink="/inventario" [class.activa]="seccion() === 'inventario'">
+          <span class="dock-icono" aria-hidden="true">▣</span>
+          Inventario
         </a>
-        <a routerLink="/inventario" routerLinkActive="activa">
-          <span class="dock-icono">▣</span>
-          Bloques
-        </a>
-        <a routerLink="/datos" routerLinkActive="activa">
-          <span class="dock-icono">✓</span>
-          Datos
-        </a>
-        <a routerLink="/sistema" routerLinkActive="activa">
-          <span class="dock-icono">⚙</span>
-          Sistema
+        <a routerLink="/salud" [class.activa]="seccion() === 'salud'">
+          <span class="dock-icono" aria-hidden="true">✓</span>
+          Salud
         </a>
       </nav>
     </div>
@@ -150,61 +142,77 @@ import { RelojService } from './core/reloj.service';
       gap: 16px;
       min-height: 100vh;
     }
+
+    /* Cabecera: la pastilla de navegación va centrada y flota sobre el fondo;
+       los controles de fuente/reloj quedan a la derecha, fuera de la pastilla. */
     .topbar {
       position: sticky;
       top: 10px;
-      z-index: 20;
-      display: flex;
+      z-index: var(--z-bar);
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
       align-items: center;
-      justify-content: space-between;
-      gap: 14px;
-      padding: 10px 16px;
-      background: rgba(10, 17, 32, 0.72);
-      border: 1px solid var(--line);
-      border-radius: var(--radius-panel);
-      backdrop-filter: blur(18px);
-      box-shadow: var(--shadow-soft);
+      gap: 12px;
     }
-    .marca {
+    .barra-nav {
+      grid-column: 2;
+      justify-self: center;
       display: inline-flex;
       align-items: center;
-      gap: 10px;
-      flex: none;
-    }
-    .marca-texto {
-      display: flex;
-      flex-direction: column;
-      line-height: 1.05;
-    }
-    .marca-texto strong {
-      font-size: 18px;
-      font-weight: 800;
-      letter-spacing: 0.01em;
-    }
-    .marca-texto .soft {
-      font-size: 10.5px;
-    }
-    .nav-principal {
-      display: flex;
-      gap: 4px;
-      flex-wrap: wrap;
-    }
-    .nav-principal a {
-      padding: 7px 14px;
+      gap: 3px;
+      padding: 5px;
+      background: rgba(10, 17, 32, 0.72);
+      border: 1px solid var(--line);
       border-radius: var(--radius-pill);
-      font-size: 13.5px;
-      font-weight: 650;
+      backdrop-filter: blur(var(--blur-bar));
+      box-shadow: var(--shadow-soft);
+    }
+    .marca-logo {
+      display: inline-flex;
+      align-items: center;
+      flex: none;
+      margin-right: 5px;
+    }
+    .logo-circulo {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: #ffffff;
+      color: #0a1120;
+      overflow: hidden;
+      box-shadow: inset 0 0 0 1px rgba(10, 17, 32, 0.06);
+    }
+    .logo-p {
+      display: block;
+      width: 15px;
+      height: 15px;
+    }
+    .tab {
+      padding: 7px 15px;
+      border-radius: var(--radius-pill);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
       color: var(--text-muted);
+      white-space: nowrap;
       transition: background 0.2s ease, color 0.2s ease;
     }
-    .nav-principal a:hover {
+    .tab:hover {
       color: var(--text);
     }
-    .nav-principal a.activa {
-      background: var(--surface-strong);
-      color: var(--text);
+    .tab.activa {
+      background: var(--text);
+      color: #0a1120;
+      font-weight: 700;
     }
-    .topbar-der {
+
+    .controles {
+      grid-column: 3;
+      justify-self: end;
       display: inline-flex;
       align-items: center;
       gap: 10px;
@@ -216,6 +224,7 @@ import { RelojService } from './core/reloj.service';
       border: 1px solid var(--line);
       border-radius: var(--radius-pill);
       background: var(--surface-soft);
+      backdrop-filter: blur(var(--blur-bar));
     }
     .switch-fuente .fuente {
       display: inline-flex;
@@ -225,9 +234,11 @@ import { RelojService } from './core/reloj.service';
       background: transparent;
       color: var(--text-muted);
       border-radius: var(--radius-pill);
-      padding: 4px 11px;
-      font-size: 11.5px;
-      font-weight: 700;
+      padding: 5px 12px;
+      min-height: 32px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
       transition: background 0.2s ease, color 0.2s ease;
     }
     .switch-fuente .fuente .punto {
@@ -245,10 +256,11 @@ import { RelojService } from './core/reloj.service';
       opacity: 1;
     }
     .reloj {
-      font-size: 13.5px;
-      font-weight: 700;
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      font-weight: 600;
       color: var(--text-muted);
-      min-width: 86px;
+      min-width: 96px;
       text-align: right;
     }
     .boton-demo {
@@ -257,14 +269,16 @@ import { RelojService } from './core/reloj.service';
       color: var(--text-muted);
       border-radius: var(--radius-pill);
       padding: 5px 12px;
-      font-size: 12.5px;
-      font-weight: 750;
+      min-height: 32px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 650;
       transition: background 0.2s ease, color 0.2s ease;
     }
     .boton-demo.activo {
       background: var(--stone);
       border-color: var(--stone);
-      color: #221c10;
+      color: var(--on-stone);
     }
     .aviso-backend-demo {
       padding: 10px 16px;
@@ -283,13 +297,35 @@ import { RelojService } from './core/reloj.service';
     }
     .pie {
       text-align: center;
-      font-size: 11.5px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: -0.01em;
     }
     .dock {
       display: none;
     }
+
+    /* Móvil: la pastilla deja solo el logo (la navegación pasa al dock) y los
+       controles de fuente quedan a la derecha. */
     @media (max-width: 760px) {
-      .nav-principal,
+      .topbar {
+        grid-template-columns: auto 1fr;
+      }
+      .barra-nav {
+        grid-column: 1;
+        justify-self: start;
+        padding: 4px;
+      }
+      .barra-nav .tab {
+        display: none;
+      }
+      .marca-logo {
+        margin-right: 0;
+      }
+      .controles {
+        grid-column: 2;
+        justify-self: end;
+      }
       .reloj {
         display: none;
       }
@@ -301,15 +337,15 @@ import { RelojService } from './core/reloj.service';
         left: 12px;
         right: 12px;
         bottom: 12px;
-        z-index: 30;
+        z-index: var(--z-dock);
         display: grid;
-        grid-template-columns: repeat(7, 1fr);
+        grid-template-columns: repeat(5, 1fr);
         gap: 4px;
         padding: 8px;
         background: rgba(10, 17, 32, 0.88);
         border: 1px solid var(--line-strong);
         border-radius: 20px;
-        backdrop-filter: blur(20px);
+        backdrop-filter: blur(var(--blur-dock));
         box-shadow: var(--shadow);
       }
       .dock a {
@@ -317,10 +353,11 @@ import { RelojService } from './core/reloj.service';
         flex-direction: column;
         align-items: center;
         gap: 2px;
-        padding: 7px 4px;
+        padding: 9px 4px;
         border-radius: 14px;
-        font-size: 11px;
-        font-weight: 650;
+        font-family: var(--font-mono);
+        font-size: 10.5px;
+        font-weight: 600;
         color: var(--text-muted);
       }
       .dock a.activa {
@@ -338,6 +375,34 @@ export class AppComponent {
   readonly reloj = inject(RelojService);
   readonly fuenteDatos = inject(FuenteDatosService);
   private readonly api = inject(FabricApi);
+  private readonly router = inject(Router);
+
+  /** URL actual como señal, para resaltar la sección activa de la pastilla. */
+  private readonly url = toSignal(
+    this.router.events.pipe(
+      filter((e): e is NavigationEnd => e instanceof NavigationEnd),
+      map(() => this.router.url)
+    ),
+    { initialValue: this.router.url }
+  );
+
+  /** Sección de la barra a la que pertenece la ruta actual. */
+  readonly seccion = computed<'maquinas' | 'produccion' | 'partes' | 'inventario' | 'salud'>(() => {
+    const u = this.url();
+    if (u.startsWith('/inventario')) {
+      return 'inventario';
+    }
+    if (u.startsWith('/produccion')) {
+      return 'produccion';
+    }
+    if (u.startsWith('/partes')) {
+      return 'partes';
+    }
+    if (u.startsWith('/salud') || u.startsWith('/datos') || u.startsWith('/sistema')) {
+      return 'salud';
+    }
+    return 'maquinas';
+  });
 
   /**
    * Vigila que el modo Real reciba datos reales: si el backend declara

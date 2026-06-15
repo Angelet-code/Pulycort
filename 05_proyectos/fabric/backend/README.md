@@ -64,7 +64,7 @@ Endpoints para el contrato del frontend:
 ```bash
 GET /api/planta/snapshot
 GET /api/telares/:telarId
-GET /api/estadisticas?rango=hoy
+GET /api/estadisticas?rango=hoy   # rango ∈ hoy | 7d | 30d | 90d | 1a | todo
 GET /api/salud-datos
 GET /api/partes?rango=7d&telar=1
 ```
@@ -74,7 +74,15 @@ Raw paginated tables:
 ```bash
 GET /produccion-mapeada?telar=1&material=72&desde=2026-06-01&hasta=2026-06-12&limit=50&offset=0
 GET /partes-trabajo?telar=1&material=72&operacion=4&desde=2026-06-01&hasta=2026-06-12&limit=50&offset=0
+GET /partes-disco-puente?disco=1&material=72&operacion=2&desde=2026-06-01&hasta=2026-06-12&limit=50&offset=0
+GET /partes-reforzadora?reforzadora=1&material=71&acabado=1&desde=2026-06-01&hasta=2026-06-12&limit=50&offset=0
 GET /bloques?material=72&proveedor=201&q=47000&desde=2026-06-01&hasta=2026-06-12&limit=50&offset=0
+```
+
+Machine coverage map (catálogo de las 19 máquinas + volumen real por máquina conectada):
+
+```bash
+GET /cobertura-maquinas
 ```
 
 ## Docker deployment

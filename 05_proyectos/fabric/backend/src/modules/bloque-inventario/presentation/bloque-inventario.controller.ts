@@ -7,31 +7,29 @@ import {
   Query,
 } from '@nestjs/common';
 import { GetBloquesInventarioUseCase } from '../application/get-bloques-inventario.use-case';
+import { GetResumenInventarioUseCase } from '../application/get-resumen-inventario.use-case';
 import { PaginaBloqueInventario } from '../domain/bloque-inventario.entity';
-import { EstadoCicloBloque } from '../domain/estado-ciclo';
+import { InventarioVistaConjunta } from '../domain/resumen-inventario.entity';
 
 const LIMIT_MAXIMO = 200;
 const LIMIT_POR_DEFECTO = 50;
 
-const ESTADOS_CICLO: readonly EstadoCicloBloque[] = [
-  'inventariado',
-  'moviendo-a-telar',
-  'aserrando',
-  'sacando-del-telar',
-  'almacenando',
-  'almacenado',
-  'sin-lecturas',
-];
-
 @Controller('bloques')
 export class BloqueInventarioController {
-  constructor(private readonly getListaUseCase: GetBloquesInventarioUseCase) {}
+  constructor(
+    private readonly getListaUseCase: GetBloquesInventarioUseCase,
+    private readonly getResumenUseCase: GetResumenInventarioUseCase,
+  ) {}
+
+  /** Existencias por material para el mapa de inventario (treemap). */
+  @Get('resumen')
+  resumen(): Promise<InventarioVistaConjunta> {
+    return this.getResumenUseCase.execute();
+  }
 
   @Get()
   list(
     @Query('material') material?: string,
-    @Query('proveedor') proveedor?: string,
-    @Query('estado') estado?: string,
     @Query('q') q?: string,
     @Query('desde') desde?: string,
     @Query('hasta') hasta?: string,
@@ -41,9 +39,7 @@ export class BloqueInventarioController {
     offset?: number,
   ): Promise<PaginaBloqueInventario> {
     return this.getListaUseCase.execute({
-      material: this.parseEntero('material', material),
-      proveedor: proveedor && proveedor.trim() !== '' ? proveedor.trim() : null,
-      estado: this.parseEstado(estado),
+      material: material && material.trim() !== '' ? material.trim() : null,
       q: q && q.trim() !== '' ? q.trim() : null,
       desde: this.parseFecha('desde', desde, false),
       // `hasta` incluye el día completo: límite exclusivo al día siguiente.
@@ -51,30 +47,6 @@ export class BloqueInventarioController {
       limit: Math.min(Math.max(limit ?? LIMIT_POR_DEFECTO, 1), LIMIT_MAXIMO),
       offset: Math.max(offset ?? 0, 0),
     });
-  }
-
-  private parseEstado(valor?: string): EstadoCicloBloque | null {
-    if (valor === undefined || valor.trim() === '') {
-      return null;
-    }
-    const limpio = valor.trim() as EstadoCicloBloque;
-    if (!ESTADOS_CICLO.includes(limpio)) {
-      throw new BadRequestException(
-        `Invalid estado. Expected one of: ${ESTADOS_CICLO.join(', ')}.`,
-      );
-    }
-    return limpio;
-  }
-
-  private parseEntero(nombre: string, valor?: string): number | null {
-    if (valor === undefined || valor.trim() === '') {
-      return null;
-    }
-    const numero = Number(valor);
-    if (!Number.isInteger(numero)) {
-      throw new BadRequestException(`Invalid ${nombre}. Expected integer.`);
-    }
-    return numero;
   }
 
   private parseFecha(

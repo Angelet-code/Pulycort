@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-labelledby="title-19-taller desc-19-taller">
+  <title id="title-19-taller">Taller</title>
+  <desc id="desc-19-taller">Icono SVG simple de Taller. Familia taller con silueta comun y color propio.</desc>
+  <defs>
+    <linearGradient id="accent-19-taller" x1="48" y1="44" x2="208" y2="212" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#d1c5fd"/>
+      <stop offset="0.62" stop-color="#c4b5fd"/>
+      <stop offset="1" stop-color="#958bc6"/>
+    </linearGradient>
+    <filter id="shadow-19-taller" x="-22%" y="-22%" width="144%" height="144%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#020617" flood-opacity="0.26"/>
+    </filter>
+    <style>
+      .base{fill:#182235}
+      .frame{fill:#26344f}
+      .dark{fill:#0f172a}
+      .stone{fill:#b9aa86}
+      .stone-top{fill:#d1c39e}
+      .line{stroke:#e7f0ff;stroke-opacity:.24;stroke-linecap:round;stroke-linejoin:round}
+      .accent-stroke{stroke:url(#accent-19-taller);stroke-linecap:round;stroke-linejoin:round}
+    </style>
+  </defs>
+  <g filter="url(#shadow-19-taller)">
+    
+    <ellipse cx="128" cy="219" rx="86" ry="11" fill="#020617" opacity=".2"/>
+    <rect class="base" x="44" y="174" width="168" height="23" rx="10"/>
+    <rect class="frame" x="59" y="196" width="17" height="23" rx="6"/>
+    <rect class="frame" x="180" y="196" width="17" height="23" rx="6"/>
+    <rect class="stone" x="62" y="149" width="132" height="25" rx="7"/>
+    <path class="stone-top" d="M70 139h116l8 10H62z"/>
+    <path d="M84 104h36l11 16-14 17H79l-11-17z" fill="url(#accent-19-taller)"/>
+    <path class="line" d="M128 73v42M113 73h30" stroke-width="8"/>
+    <circle cx="153" cy="115" r="17" class="dark" stroke="url(#accent-19-taller)" stroke-width="7"/>
+    <path class="accent-stroke" d="M165 127l29 29" stroke-width="9"/>
+  
+  </g>
+</svg>

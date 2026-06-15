@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-labelledby="title-16-pulidora-de-losa desc-16-pulidora-de-losa">
+  <title id="title-16-pulidora-de-losa">Pulidora de losa</title>
+  <desc id="desc-16-pulidora-de-losa">Icono SVG simple de Pulidora de losa. Familia pulidora con silueta comun y color propio.</desc>
+  <defs>
+    <linearGradient id="accent-16-pulidora-de-losa" x1="48" y1="44" x2="208" y2="212" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffa8cf"/>
+      <stop offset="0.62" stop-color="#ff8fc1"/>
+      <stop offset="1" stop-color="#c26e98"/>
+    </linearGradient>
+    <filter id="shadow-16-pulidora-de-losa" x="-22%" y="-22%" width="144%" height="144%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#020617" flood-opacity="0.26"/>
+    </filter>
+    <style>
+      .base{fill:#182235}
+      .frame{fill:#26344f}
+      .dark{fill:#0f172a}
+      .stone{fill:#b9aa86}
+      .stone-top{fill:#d1c39e}
+      .line{stroke:#e7f0ff;stroke-opacity:.24;stroke-linecap:round;stroke-linejoin:round}
+      .accent-stroke{stroke:url(#accent-16-pulidora-de-losa);stroke-linecap:round;stroke-linejoin:round}
+    </style>
+  </defs>
+  <g filter="url(#shadow-16-pulidora-de-losa)">
+    
+    <ellipse cx="128" cy="219" rx="88" ry="11" fill="#020617" opacity=".2"/>
+    <rect class="base" x="38" y="188" width="180" height="18" rx="9"/>
+    <rect class="frame" x="51" y="85" width="21" height="101" rx="9"/>
+    <rect class="frame" x="184" y="85" width="21" height="101" rx="9"/>
+    <rect class="base" x="48" y="73" width="160" height="22" rx="10"/>
+    <path class="line" d="M84 95v43M128 95v43M172 95v43" stroke-width="7"/>
+    <circle cx="84" cy="144" r="17" fill="url(#accent-16-pulidora-de-losa)"/>
+    <circle cx="128" cy="144" r="17" fill="url(#accent-16-pulidora-de-losa)"/>
+    <circle cx="172" cy="144" r="17" fill="url(#accent-16-pulidora-de-losa)"/>
+    <rect class="stone" x="58" y="164" width="140" height="24" rx="7"/>
+    <path class="stone-top" d="M66 154h124l8 10H58z"/>
+  
+  </g>
+</svg>

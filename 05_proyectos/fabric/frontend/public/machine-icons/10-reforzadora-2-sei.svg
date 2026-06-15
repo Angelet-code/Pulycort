@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-labelledby="title-10-reforzadora-2-sei desc-10-reforzadora-2-sei">
+  <title id="title-10-reforzadora-2-sei">Reforzadora 2 SEI</title>
+  <desc id="desc-10-reforzadora-2-sei">Icono SVG simple de Reforzadora 2 SEI. Familia reforzadora con silueta comun y color propio.</desc>
+  <defs>
+    <linearGradient id="accent-10-reforzadora-2-sei" x1="48" y1="44" x2="208" y2="212" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#98ddb8"/>
+      <stop offset="0.62" stop-color="#7bd4a4"/>
+      <stop offset="1" stop-color="#5ea382"/>
+    </linearGradient>
+    <filter id="shadow-10-reforzadora-2-sei" x="-22%" y="-22%" width="144%" height="144%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#020617" flood-opacity="0.26"/>
+    </filter>
+    <style>
+      .base{fill:#182235}
+      .frame{fill:#26344f}
+      .dark{fill:#0f172a}
+      .stone{fill:#b9aa86}
+      .stone-top{fill:#d1c39e}
+      .line{stroke:#e7f0ff;stroke-opacity:.24;stroke-linecap:round;stroke-linejoin:round}
+      .accent-stroke{stroke:url(#accent-10-reforzadora-2-sei);stroke-linecap:round;stroke-linejoin:round}
+    </style>
+  </defs>
+  <g filter="url(#shadow-10-reforzadora-2-sei)">
+    
+    <ellipse cx="128" cy="219" rx="86" ry="11" fill="#020617" opacity=".2"/>
+    <rect class="base" x="39" y="188" width="178" height="17" rx="8.5"/>
+    <rect class="frame" x="51" y="84" width="22" height="96" rx="9"/>
+    <rect class="frame" x="183" y="84" width="22" height="96" rx="9"/>
+    <rect class="base" x="48" y="74" width="160" height="22" rx="10"/>
+    <rect x="88" y="101" width="80" height="14" rx="7" fill="url(#accent-10-reforzadora-2-sei)"/>
+    <path class="accent-stroke" d="M103 115v18M128 115v18M153 115v18" stroke-width="4"/>
+    <path class="stone" d="M65 148h126l13 31H52z"/>
+    <path class="stone-top" d="M78 137h100l13 11H65z"/>
+    <path class="line" d="M70 193h116" stroke-width="9"/>
+  
+  </g>
+</svg>

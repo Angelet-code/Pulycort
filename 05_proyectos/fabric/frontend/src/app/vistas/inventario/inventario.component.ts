@@ -15,56 +15,40 @@ import {
   formatPorcentaje,
   formatValorUnidad
 } from '../../core/format';
-import { materialPorId } from '../../core/materiales';
-import { EstadoCicloBloque, PaginaInventario } from '../../core/models';
+import {
+  BloqueInventario,
+  PaginaInventario,
+  TipoBloque
+} from '../../core/models';
 import { MaterialDotComponent } from '../../shared/material-dot.component';
 
 const LIMIT = 50;
 const REFRESCO_MS = 60_000;
 
 /**
- * Inventario de bloques: las altas de bloque en almacén tal cual están en la
- * tabla real `lot_block_creation` de Odoo, con la medida declarada por el
- * proveedor frente a la medida tomada en fábrica (mrp; "—" mientras no se
- * mida). Las medidas vienen en metros; el m³ y la merma los deriva el backend
- * (o el mock) de esas medidas y aquí solo se pintan, con sus unidades al lado.
- * La unidad metro sigue pendiente de confirmar oficialmente
- * (00_gestion/TAREAS.md). El proveedor es la columna `ref` (nombre legible; el
- * FK `supplier` viene vacío en real). Valores en crudo, sin interpretar.
+ * Inventario de bloques en existencias: los bloques que realmente hay ahora en
+ * el almacén. Une dos eras (lo hace el backend/mock): `fuente='stock'` =
+ * existencias on-hand del snapshot de Odoo (`stock_lot`+`stock_quant`) y
+ * `fuente='alta'` = bloques recibidos recientemente (`lot_block_creation`) aún
+ * sin existencias en el stock y sin cortar. Para cada bloque, la medida del
+ * proveedor frente a la de fábrica (mrp; "—" mientras no se mida, se toma al
+ * procesar). Las medidas vienen en metros; el m³ y la merma los deriva el
+ * backend (o el mock) de esas medidas y aquí solo se pintan, con sus unidades al
+ * lado. Valores en crudo, sin interpretar.
  */
 @Component({
   selector: 'fabric-inventario',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MaterialDotComponent],
   template: `
-    <div class="cabecera-vista">
-      <div>
-        <h1>Inventario de bloques</h1>
-        <p class="muted subtitulo">
-          altas de bloque en almacén · tabla <code>lot_block_creation</code>
-        </p>
-      </div>
-      @if (fuenteDatos.esReal()) {
-        <span class="chip chip-fuente chip-real">
-          <span class="punto"></span>
-          Datos reales de BD
-        </span>
-      } @else {
-        <span class="chip chip-fuente chip-demo">
-          <span class="punto"></span>
-          Datos demo
-        </span>
-      }
-    </div>
-
     <section class="panel">
       <div class="panel-head filtros">
         <div class="fila-filtros">
           <input
             type="search"
             class="control control-busqueda"
-            placeholder="Nº de bloque o proveedor"
-            aria-label="Buscar por número de bloque o proveedor"
+            placeholder="Nº de bloque"
+            aria-label="Buscar por nº de bloque"
             [value]="q() ?? ''"
             (change)="setQ(valorDe($event) || null)"
           />
@@ -77,31 +61,7 @@ const REFRESCO_MS = 60_000;
           >
             <option value="">Todos los materiales</option>
             @for (m of materiales(); track m) {
-              <option [value]="m">{{ nombreMaterial(m) }}</option>
-            }
-          </select>
-
-          <select
-            class="control"
-            aria-label="Filtrar por proveedor"
-            [value]="proveedor() ?? ''"
-            (change)="setProveedor(valorDe($event) || null)"
-          >
-            <option value="">Todos los proveedores</option>
-            @for (p of proveedores(); track p) {
-              <option [value]="p">{{ p }}</option>
-            }
-          </select>
-
-          <select
-            class="control"
-            aria-label="Filtrar por estado del bloque"
-            [value]="estado() ?? ''"
-            (change)="setEstado(valorEstado($event))"
-          >
-            <option value="">Todos los estados</option>
-            @for (e of estadosCiclo; track e) {
-              <option [value]="e">{{ etiquetaCiclo(e) }}</option>
+              <option [value]="m">{{ m }}</option>
             }
           </select>
 
@@ -136,13 +96,15 @@ const REFRESCO_MS = 60_000;
       </div>
 
       @if (error()) {
-        <div class="aviso aviso-error">
-          No se pudo leer de la fuente de datos ({{ error() }}).
+        <div class="banner-error" role="alert">
+          ⚠ No se pudo leer de la fuente ({{ error() }}).
           @if (fuenteDatos.esReal()) {
             ¿Está arrancado el backend en <code>http://localhost:3000</code>?
           }
+          Reintentando…
         </div>
-      } @else if (cargando() && !pagina()) {
+      }
+      @if (cargando() && !pagina()) {
         <div class="aviso">Cargando inventario…</div>
       } @else if (pagina()) {
         @if (pagina()!; as p) {
@@ -151,18 +113,21 @@ const REFRESCO_MS = 60_000;
             <thead>
               <tr>
                 <th>Alta</th>
-                <th class="derecha">Nº bloque</th>
+                <th
+                  class="derecha"
+                  title="Número de bloque (stock_lot.name, la misma referencia que el telar)."
+                >
+                  Nº bloque
+                </th>
                 <th>Material</th>
-                <th>Proveedor</th>
+                <th title="Clasificación del lote en Odoo (type_product_lot)">Tipo</th>
+                <th title="Ubicación física en el almacén (stock_location)">Ubicación</th>
                 <th class="derecha">Medidas proveedor</th>
                 <th class="derecha" [title]="tituloM3">Volumen prov.</th>
                 <th class="derecha">Medidas fábrica</th>
                 <th class="derecha" [title]="tituloM3">Volumen fáb.</th>
                 <th class="derecha" title="(m³ proveedor − m³ fábrica) / m³ proveedor × 100">
                   Merma
-                </th>
-                <th title="Estado de ciclo de vida del bloque (derivado de los partes de trabajo) y flags de logística de Odoo (entrada/lote)">
-                  Estado
                 </th>
               </tr>
             </thead>
@@ -176,58 +141,51 @@ const REFRESCO_MS = 60_000;
                       <button
                         type="button"
                         class="celda-clicable celda-material"
-                        (click)="setMaterial(aTexto(fila.material))"
-                        title="Filtrar por {{ nombreMaterial(fila.material) }}"
+                        (click)="setMaterial(nombreMaterialFila(fila))"
+                        title="Filtrar por {{ nombreMaterialFila(fila) }}"
                       >
-                        <fabric-material-dot [materialId]="aTexto(fila.material)" [tam]="11" />
-                        {{ nombreMaterial(fila.material) }}
+                        <fabric-material-dot [nombre]="nombreMaterialFila(fila)" [tam]="11" />
+                        {{ nombreMaterialFila(fila) }}
                       </button>
                     } @else {
                       <span class="soft">—</span>
                     }
                   </td>
                   <td>
-                    @if (fila.ref !== null) {
-                      <button
-                        type="button"
-                        class="celda-clicable"
-                        (click)="setProveedor(fila.ref!)"
-                        title="Filtrar por este proveedor"
-                      >{{ fila.ref }}</button>
+                    <span class="tag-tipo">{{ etiquetaTipo(fila.tipo) }}</span>
+                  </td>
+                  <td>
+                    @if (fila.ubicacion) {
+                      {{ fila.ubicacion }}
+                    } @else if (fila.fuente === 'alta') {
+                      <span
+                        class="tag-reciente"
+                        title="Bloque recibido recientemente (registrado en el alta de recepción), aún sin existencias en el stock de Odoo. Se cuenta en el inventario hasta que se asierra o se da entrada al stock."
+                        >Recepción reciente</span
+                      >
                     } @else {
                       <span class="soft">—</span>
-                    }
-                    @if (fila.thirdPartyMaterial) {
-                      <span class="tag-terceros" title="Material de terceros">terceros</span>
                     }
                   </td>
                   <td class="derecha num">
                     {{ medidas(fila.largoSupplier, fila.altoSupplier, fila.gruesoSupplier) }}
                   </td>
-                  <td class="derecha num">{{ vol(fila.m3Supplier) }}</td>
+                  <td class="derecha num">
+                    {{ vol(fila.m3Supplier, fila.m3SupplierImposible) }}
+                    @if (fila.m3SupplierImposible) {
+                      <span class="aviso-medidas" title="Medida de proveedor imposible (fuera de rango físico aun tras ajustar unidades cm/m): m³ no fiable, a revisar.">⚠</span>
+                    }
+                  </td>
                   <td class="derecha num">
                     {{ medidas(fila.largoMrp, fila.altoMrp, fila.gruesoMrp) }}
                   </td>
-                  <td class="derecha num">{{ vol(fila.m3Mrp) }}</td>
-                  <td class="derecha num">{{ pct1(fila.mermaPct) }}</td>
-                  <td>
-                    <div class="celda-estado">
-                      @if (fila.estadoCiclo) {
-                        <span class="badge-ciclo" [attr.data-estado]="fila.estadoCiclo">
-                          <span class="punto-ciclo" aria-hidden="true"></span>
-                          {{ etiquetaCiclo(fila.estadoCiclo) }}
-                        </span>
-                      }
-                      <span class="estados-odoo">
-                        <span class="estado" [class.ok]="fila.deliveryDone === true">
-                          {{ marcaEstado(fila.deliveryDone) }} entrada
-                        </span>
-                        <span class="estado" [class.ok]="fila.createLotDone === true">
-                          {{ marcaEstado(fila.createLotDone) }} lote
-                        </span>
-                      </span>
-                    </div>
+                  <td class="derecha num">
+                    {{ vol(fila.m3Mrp, fila.m3MrpImposible) }}
+                    @if (fila.m3MrpImposible) {
+                      <span class="aviso-medidas" title="Medida de fábrica (mrp) imposible (fuera de rango físico aun tras ajustar unidades cm/m): m³ y merma no fiables, a revisar.">⚠</span>
+                    }
                   </td>
+                  <td class="derecha num">{{ pct1(fila.mermaPct) }}</td>
                 </tr>
               }
             </tbody>
@@ -260,69 +218,13 @@ const REFRESCO_MS = 60_000;
       flex-direction: column;
       gap: 16px;
     }
-    .filtros {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    .fila-filtros {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-    .control {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      border: 1px solid var(--line);
-      background: var(--surface-soft);
-      color: var(--text);
-      border-radius: var(--radius-pill);
-      padding: 5px 12px;
-      font-size: 12.5px;
-      font-weight: 600;
-    }
-    select.control {
-      appearance: none;
-      cursor: pointer;
-      max-width: 220px;
-    }
-    select.control option {
-      background: var(--bg-1);
-      color: var(--text);
-    }
+    /* Filtros, controles, celdas y paginación: globales en styles.css.
+       Aquí solo lo propio de la vista (búsqueda, tag de tipo). */
     input.control-busqueda {
       width: 170px;
     }
     input.control-busqueda::placeholder {
       color: var(--text-muted);
-    }
-    .control-fecha .soft {
-      font-size: 11.5px;
-    }
-    .control-fecha input {
-      border: none;
-      background: transparent;
-      color: var(--text);
-      font: inherit;
-      color-scheme: dark;
-      cursor: pointer;
-    }
-    .limpiar {
-      border: 1px solid color-mix(in srgb, var(--red) 40%, transparent);
-      background: transparent;
-      color: var(--red);
-      border-radius: var(--radius-pill);
-      padding: 5px 12px;
-      font-size: 12px;
-      font-weight: 650;
-      transition: background 0.2s ease;
-    }
-    .limpiar:hover {
-      background: color-mix(in srgb, var(--red) 12%, transparent);
     }
     .total {
       font-size: 12.5px;
@@ -330,99 +232,13 @@ const REFRESCO_MS = 60_000;
     .bloque {
       font-weight: 750;
     }
-    .aviso {
-      padding: 26px 18px;
-      text-align: center;
-      color: var(--text-muted);
-      font-size: 13.5px;
-    }
-    .aviso-error {
-      color: var(--red);
-    }
-    .aviso-error code {
-      color: var(--text);
-    }
-    .tabla-scroll.actualizando {
-      opacity: 0.55;
-      transition: opacity 0.15s ease;
-    }
-    .celda-clicable {
-      border: none;
-      background: transparent;
-      color: inherit;
-      font: inherit;
-      padding: 0;
-      cursor: pointer;
-      border-radius: 6px;
-    }
-    .celda-clicable:hover {
-      text-decoration: underline;
-      text-underline-offset: 3px;
-      text-decoration-style: dotted;
-    }
-    .celda-material {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      white-space: nowrap;
-    }
-    .tag-terceros {
-      margin-left: 6px;
-      padding: 1px 7px;
-      border-radius: var(--radius-pill);
-      border: 1px solid color-mix(in srgb, var(--amber) 45%, transparent);
+    .aviso-medidas {
+      margin-left: 3px;
       color: var(--amber);
-      font-size: 10.5px;
-      font-weight: 700;
-      white-space: nowrap;
+      font-size: 12px;
+      cursor: help;
     }
-    .celda-estado {
-      display: inline-flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 5px;
-    }
-    .badge-ciclo {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 2px 9px;
-      border-radius: var(--radius-pill);
-      border: 1px solid color-mix(in srgb, var(--c, var(--text-muted)) 45%, transparent);
-      background: color-mix(in srgb, var(--c, var(--text-muted)) 12%, transparent);
-      color: var(--c, var(--text-muted));
-      font-size: 11px;
-      font-weight: 700;
-      white-space: nowrap;
-    }
-    .punto-ciclo {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: var(--c, var(--text-muted));
-    }
-    .badge-ciclo[data-estado='inventariado'] {
-      --c: var(--text-muted);
-    }
-    .badge-ciclo[data-estado='moviendo-a-telar'] {
-      --c: var(--violet);
-    }
-    .badge-ciclo[data-estado='aserrando'] {
-      --c: var(--blue);
-    }
-    .badge-ciclo[data-estado='sacando-del-telar'] {
-      --c: var(--teal);
-    }
-    .badge-ciclo[data-estado='almacenando'] {
-      --c: var(--amber);
-    }
-    .badge-ciclo[data-estado='almacenado'] {
-      --c: var(--green);
-    }
-    .badge-ciclo[data-estado='sin-lecturas'] {
-      --c: var(--red);
-    }
-    .estado {
+    .tag-tipo {
       display: inline-flex;
       align-items: center;
       padding: 1px 8px;
@@ -433,33 +249,18 @@ const REFRESCO_MS = 60_000;
       font-weight: 650;
       white-space: nowrap;
     }
-    .estado + .estado {
-      margin-left: 4px;
-    }
-    .estado.ok {
-      border-color: color-mix(in srgb, var(--green) 45%, transparent);
-      color: var(--green);
-    }
-    .paginacion {
-      display: flex;
+    /* Procedencia "alta": bloque recibido aún sin existencias en el stock de Odoo. */
+    .tag-reciente {
+      display: inline-flex;
       align-items: center;
-      justify-content: center;
-      gap: 14px;
-      padding: 14px 8px 4px;
-      font-size: 12.5px;
-    }
-    .paginacion button {
-      border: 1px solid var(--line-strong);
-      background: var(--surface-soft);
-      color: var(--text);
+      padding: 1px 8px;
       border-radius: var(--radius-pill);
-      padding: 6px 14px;
-      font-size: 12.5px;
+      border: 1px solid var(--amber);
+      color: var(--amber);
+      font-size: 11px;
       font-weight: 650;
-    }
-    .paginacion button:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
+      white-space: nowrap;
+      cursor: help;
     }
   `
 })
@@ -472,21 +273,9 @@ export class InventarioComponent {
 
   readonly q = signal<string | null>(null);
   readonly material = signal<string | null>(null);
-  readonly proveedor = signal<string | null>(null);
-  readonly estado = signal<EstadoCicloBloque | null>(null);
   readonly desde = signal<string | null>(null);
   readonly hasta = signal<string | null>(null);
 
-  /** Estados de ciclo en orden cronológico, para el desplegable del filtro. */
-  readonly estadosCiclo: readonly EstadoCicloBloque[] = [
-    'inventariado',
-    'moviendo-a-telar',
-    'aserrando',
-    'sacando-del-telar',
-    'almacenando',
-    'almacenado',
-    'sin-lecturas'
-  ];
   readonly offset = signal(0);
   readonly cargando = signal(false);
   readonly error = signal<string | null>(null);
@@ -494,19 +283,14 @@ export class InventarioComponent {
 
   readonly materiales = computed(() => {
     const lista = this.pagina()?.materiales ?? [];
-    return [...lista].sort((a, b) =>
-      materialPorId(String(a)).nombre.localeCompare(materialPorId(String(b)).nombre, 'es')
-    );
+    // El backend/mock ya ordena por nombre; se reordena por robustez.
+    return [...lista].sort((a, b) => a.localeCompare(b, 'es'));
   });
-
-  readonly proveedores = computed(() => this.pagina()?.proveedores ?? []);
 
   readonly hayFiltros = computed(
     () =>
       this.q() !== null ||
       this.material() !== null ||
-      this.proveedor() !== null ||
-      this.estado() !== null ||
       this.desde() !== null ||
       this.hasta() !== null
   );
@@ -521,26 +305,22 @@ export class InventarioComponent {
       const filtros = {
         q: this.q(),
         material: this.material(),
-        proveedor: this.proveedor(),
-        estado: this.estado(),
         desde: this.desde(),
         hasta: this.hasta(),
         offset: this.offset()
       };
       const fuente = this.fuenteDatos.fuente();
-      // Material (código) y proveedor (nombre de `ref`) son valores del
-      // catálogo de cada fuente: al conmutar Demo|Real dejan de ser válidos,
-      // así que se limpian en vez de provocar un 400 o 0 filas.
+      // El material (nombre del catálogo) es propio de cada fuente: al conmutar
+      // Demo|Real deja de ser válido, así que se limpia en vez de dar 0 filas.
       if (
         this.fuenteAnterior !== null &&
         fuente !== this.fuenteAnterior &&
-        (filtros.material !== null || filtros.proveedor !== null)
+        filtros.material !== null
       ) {
         this.fuenteAnterior = fuente;
         untracked(() => {
           this.offset.set(0);
           this.material.set(null);
-          this.proveedor.set(null);
         });
         return; // la escritura relanza este effect ya con los filtros limpios
       }
@@ -572,28 +352,6 @@ export class InventarioComponent {
     this.material.set(m);
   }
 
-  setProveedor(p: string | null): void {
-    if (this.proveedor() === p) {
-      return;
-    }
-    this.offset.set(0);
-    this.proveedor.set(p);
-  }
-
-  /** Valor del desplegable de estado (cadena vacía = todos → null). */
-  valorEstado(evento: Event): EstadoCicloBloque | null {
-    const valor = (evento.target as HTMLSelectElement).value;
-    return valor === '' ? null : (valor as EstadoCicloBloque);
-  }
-
-  setEstado(e: EstadoCicloBloque | null): void {
-    if (this.estado() === e) {
-      return;
-    }
-    this.offset.set(0);
-    this.estado.set(e);
-  }
-
   setDesde(fecha: string | null): void {
     this.offset.set(0);
     this.desde.set(fecha);
@@ -608,8 +366,6 @@ export class InventarioComponent {
     this.offset.set(0);
     this.q.set(null);
     this.material.set(null);
-    this.proveedor.set(null);
-    this.estado.set(null);
     this.desde.set(null);
     this.hasta.set(null);
   }
@@ -622,8 +378,15 @@ export class InventarioComponent {
     this.offset.set(this.offset() + LIMIT);
   }
 
-  /** Volumen en m³ con su unidad (lo deriva el backend/mock; aquí solo se pinta). */
-  vol(valor: number | null): string {
+  /**
+   * Volumen en m³ con su unidad (lo deriva el backend/mock; aquí solo se pinta).
+   * Si la medida es imposible (corrupción real), devuelve "—": el ⚠ de la celda
+   * explica por qué, en vez de pintar un m³ que sabemos falso.
+   */
+  vol(valor: number | null, imposible = false): string {
+    if (imposible) {
+      return '—';
+    }
     return formatValorUnidad(valor, 'm³', 2);
   }
 
@@ -644,35 +407,17 @@ export class InventarioComponent {
     return `${f(largo)} × ${f(alto)} × ${f(grueso)} m`;
   }
 
-  aTexto(valor: number | string): string {
-    return String(valor);
+  /** Etiqueta legible del `type_product_lot` (significado exacto pendiente de confirmar). */
+  etiquetaTipo(tipo: TipoBloque): string {
+    return tipo === 'block' ? 'Bloque' : 'Otro material';
   }
 
-  /** Etiqueta legible del estado de ciclo (lo calcula el backend, aquí se pinta). */
-  private readonly ETIQUETA_CICLO: Record<EstadoCicloBloque, string> = {
-    inventariado: 'Inventariado',
-    'moviendo-a-telar': 'Moviendo a telar',
-    aserrando: 'Aserrando',
-    'sacando-del-telar': 'Sacando del telar',
-    almacenando: 'Almacenando',
-    almacenado: 'Almacenado',
-    'sin-lecturas': 'Sin lecturas'
-  };
-
-  etiquetaCiclo(estado: EstadoCicloBloque): string {
-    return this.ETIQUETA_CICLO[estado];
-  }
-
-  /** '✓' hecho, '·' no hecho, '—' sin dato en la fuente (columna NULL). */
-  marcaEstado(valor: boolean | null): string {
-    if (valor === null) {
-      return '—';
-    }
-    return valor ? '✓' : '·';
-  }
-
-  nombreMaterial(valor: number | string): string {
-    return materialPorId(String(valor)).nombre;
+  /**
+   * Etiqueta de material de la fila. El backend/mock ya entrega la etiqueta
+   * final (nombre real o "Material {id}"); aquí solo se pinta, sin recomponerla.
+   */
+  nombreMaterialFila(fila: BloqueInventario): string {
+    return fila.materialNombre ?? '—';
   }
 
   fechaHora(iso: string | null): string {
@@ -682,8 +427,6 @@ export class InventarioComponent {
   private cargar(filtros: {
     q: string | null;
     material: string | null;
-    proveedor: string | null;
-    estado: EstadoCicloBloque | null;
     desde: string | null;
     hasta: string | null;
     offset: number;

@@ -4,7 +4,7 @@ import { formatHora, formatNumero } from '../core/format';
 import { MaterialDotComponent } from './material-dot.component';
 
 const ETIQUETA_EVENTO: Record<TipoEvento, string> = {
-  colocacion: 'Colocación de bloque',
+  colocacion: 'Colocación de lote',
   aserrado: 'Aserrado en curso',
   salida: 'Salida del telar',
   paquetes: 'Paquetes hechos',
@@ -27,7 +27,7 @@ const ETIQUETA_EVENTO: Record<TipoEvento, string> = {
             <span class="detalle muted">
               @if (evento.bloque !== null) {
                 <fabric-material-dot [materialId]="evento.materialId" [tam]="10" />
-                Bloque {{ evento.bloque }}
+                PM/lote {{ evento.pmLote ?? evento.bloque }}
               }
               @if (evento.paquetes; as paquetes) {
                 · {{ resumen(paquetes.numTablas, paquetes.metrosCuadrados) }}

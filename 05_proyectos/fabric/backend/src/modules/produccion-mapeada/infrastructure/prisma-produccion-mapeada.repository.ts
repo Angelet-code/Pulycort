@@ -85,6 +85,7 @@ export class PrismaProduccionMapeadaRepository
   private toDomain(fila: PrismaProduccionMapeada): ProduccionMapeada {
     return {
       ...fila,
+      pmLote: fila.nBloque,
       // `grueso` es NUMERIC en Postgres → Prisma lo entrega como Decimal.
       grueso: fila.grueso === null ? null : fila.grueso.toNumber(),
     };

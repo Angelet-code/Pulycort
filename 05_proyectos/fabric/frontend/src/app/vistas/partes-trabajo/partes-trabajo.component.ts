@@ -31,26 +31,6 @@ const TELARES = ['1', '2', '3', '4'] as const;
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MaterialDotComponent, MetricaComponent],
   template: `
-    <div class="cabecera-vista">
-      <div>
-        <h1>Partes de trabajo</h1>
-        <p class="muted subtitulo">
-          partes de operario · tabla <code>parte_trabajo_mapeada</code>
-        </p>
-      </div>
-      @if (fuenteDatos.esReal()) {
-        <span class="chip chip-fuente chip-real">
-          <span class="punto"></span>
-          Datos reales de BD
-        </span>
-      } @else {
-        <span class="chip chip-fuente chip-demo">
-          <span class="punto"></span>
-          Datos demo
-        </span>
-      }
-    </div>
-
     <section class="panel">
       <div class="panel-head filtros">
         <div class="fila-filtros">
@@ -65,11 +45,13 @@ const TELARES = ['1', '2', '3', '4'] as const;
             @for (t of telares; track t) {
               <button
                 type="button"
-                [style.--c]="'var(--t' + t + ')'"
                 [class.activo]="telar() === t"
+                [style.background-color]="telar() === t ? 'var(--t' + t + ')' : null"
+                [attr.aria-label]="'Telar ' + t"
+                [attr.title]="'Telar ' + t"
                 (click)="setTelar(t)"
               >
-                Telar {{ t }}
+                T{{ t }}
               </button>
             }
           </div>
@@ -129,13 +111,15 @@ const TELARES = ['1', '2', '3', '4'] as const;
       </div>
 
       @if (error()) {
-        <div class="aviso aviso-error">
-          No se pudo leer de la fuente de datos ({{ error() }}).
+        <div class="banner-error" role="alert">
+          ⚠ No se pudo leer de la fuente ({{ error() }}).
           @if (fuenteDatos.esReal()) {
             ¿Está arrancado el backend en <code>http://localhost:3000</code>?
           }
+          Reintentando…
         </div>
-      } @else if (cargando() && !pagina()) {
+      }
+      @if (cargando() && !pagina()) {
         <div class="aviso">Cargando partes…</div>
       } @else if (pagina()) {
         @if (pagina()!; as p) {
@@ -146,9 +130,9 @@ const TELARES = ['1', '2', '3', '4'] as const;
                 <th>Fecha y hora</th>
                 <th>Telar</th>
                 <th>Operación</th>
-                <th class="derecha">Nº bloque</th>
+                <th class="derecha">PM / lote</th>
                 <th>Material</th>
-                <th class="derecha">Medidas bloque (cm)</th>
+                <th class="derecha">Medidas fuente (cm)</th>
                 <th class="derecha">m³</th>
                 <th class="derecha">Paq.</th>
                 <th class="derecha">Tablas</th>
@@ -186,11 +170,11 @@ const TELARES = ['1', '2', '3', '4'] as const;
                     }
                   </td>
                   <td class="derecha num">
-                    {{ num(fila.nBloque) }}
+                    {{ num(fila.pmLote ?? fila.nBloque) }}
                     @if (fila.nBloque !== null && fila.nBloque > 0 && !fila.bloqueConocido) {
                       <span
                         class="aviso-bloque"
-                        title="Bloque no registrado en el padrón de máquina (bloque_maquinas)"
+                        title="PM/lote no registrado en el padrón de máquina (bloque_maquinas)"
                       >⚠</span>
                     }
                   </td>
@@ -247,84 +231,34 @@ const TELARES = ['1', '2', '3', '4'] as const;
       flex-direction: column;
       gap: 16px;
     }
-    .filtros {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    .fila-filtros {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-    .control {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      border: 1px solid var(--line);
-      background: var(--surface-soft);
-      color: var(--text);
-      border-radius: var(--radius-pill);
-      padding: 5px 12px;
-      font-size: 12.5px;
-      font-weight: 600;
-    }
-    select.control {
-      appearance: none;
-      cursor: pointer;
-      max-width: 220px;
-    }
-    select.control option {
-      background: var(--bg-1);
-      color: var(--text);
-    }
-    .control-fecha .soft {
-      font-size: 11.5px;
-    }
-    .control-fecha input {
-      border: none;
-      background: transparent;
-      color: var(--text);
-      font: inherit;
-      color-scheme: dark;
-      cursor: pointer;
-    }
-    .limpiar {
-      border: 1px solid color-mix(in srgb, var(--red) 40%, transparent);
-      background: transparent;
-      color: var(--red);
-      border-radius: var(--radius-pill);
-      padding: 5px 12px;
-      font-size: 12px;
-      font-weight: 650;
-      transition: background 0.2s ease;
-    }
-    .limpiar:hover {
-      background: color-mix(in srgb, var(--red) 12%, transparent);
-    }
+    /* Filtros, controles, celdas y paginación: globales en styles.css.
+       Aquí solo lo propio de la vista. El control segmentado .seg se queda
+       local: ese nombre colisiona con el .seg de linea-jornada. */
     .seg {
       display: inline-flex;
       gap: 4px;
+      padding: 4px;
+      background: var(--surface-soft);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-pill);
       flex-wrap: wrap;
     }
     .seg button {
-      --c: var(--text-muted);
-      border: 1px solid var(--line);
-      background: var(--surface-soft);
+      border: none;
+      background: transparent;
       color: var(--text-muted);
       border-radius: var(--radius-pill);
-      padding: 6px 13px;
-      font-size: 12.5px;
+      padding: 6px 14px;
+      font-size: 13px;
       font-weight: 650;
-      transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+    .seg button:hover {
+      color: var(--text);
     }
     .seg button.activo {
-      color: var(--c);
-      border-color: var(--c);
-      background: color-mix(in srgb, var(--c) 14%, transparent);
+      background: var(--stone);
+      color: var(--on-stone);
     }
     .total {
       font-size: 12.5px;
@@ -337,63 +271,6 @@ const TELARES = ['1', '2', '3', '4'] as const;
       color: var(--amber);
       font-size: 11px;
       cursor: help;
-    }
-    .aviso {
-      padding: 26px 18px;
-      text-align: center;
-      color: var(--text-muted);
-      font-size: 13.5px;
-    }
-    .aviso-error {
-      color: var(--red);
-    }
-    .aviso-error code {
-      color: var(--text);
-    }
-    .tabla-scroll.actualizando {
-      opacity: 0.55;
-      transition: opacity 0.15s ease;
-    }
-    .celda-clicable {
-      border: none;
-      background: transparent;
-      color: inherit;
-      font: inherit;
-      padding: 0;
-      cursor: pointer;
-      border-radius: 6px;
-    }
-    .celda-clicable:hover {
-      text-decoration: underline;
-      text-underline-offset: 3px;
-      text-decoration-style: dotted;
-    }
-    .celda-material {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      white-space: nowrap;
-    }
-    .paginacion {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 14px;
-      padding: 14px 8px 4px;
-      font-size: 12.5px;
-    }
-    .paginacion button {
-      border: 1px solid var(--line-strong);
-      background: var(--surface-soft);
-      color: var(--text);
-      border-radius: var(--radius-pill);
-      padding: 6px 14px;
-      font-size: 12.5px;
-      font-weight: 650;
-    }
-    .paginacion button:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
     }
   `
 })

@@ -5,14 +5,20 @@ import { FuenteDatosService } from './fuente-datos.service';
 import { HttpFabricApi } from './http-fabric-api';
 import { MockFabricApi } from './mock/mock-fabric-api';
 import {
+  CoberturaMaquinas,
   DetalleTelar,
   Estadisticas,
   FiltrosInventario,
   FiltrosLecturas,
+  FiltrosPartesDiscoPuente,
+  FiltrosPartesReforzadora,
   FiltrosPartesTrabajo,
+  InventarioVistaConjunta,
   PaginaInventario,
   PaginaLecturas,
   PaginaPartes,
+  PaginaPartesDiscoPuente,
+  PaginaPartesReforzadora,
   PaginaPartesTrabajo,
   RangoEstadisticas,
   SaludDatos,
@@ -68,7 +74,27 @@ export class ConmutadorFabricApi extends FabricApi {
     return this.activa.getPartesTrabajo(filtros);
   }
 
+  override getPartesDiscoPuente(
+    filtros: FiltrosPartesDiscoPuente
+  ): Observable<PaginaPartesDiscoPuente> {
+    return this.activa.getPartesDiscoPuente(filtros);
+  }
+
+  override getPartesReforzadora(
+    filtros: FiltrosPartesReforzadora
+  ): Observable<PaginaPartesReforzadora> {
+    return this.activa.getPartesReforzadora(filtros);
+  }
+
   override getInventario(filtros: FiltrosInventario): Observable<PaginaInventario> {
     return this.activa.getInventario(filtros);
+  }
+
+  override getResumenInventario(): Observable<InventarioVistaConjunta> {
+    return this.activa.getResumenInventario();
+  }
+
+  override getCoberturaMaquinas(): Observable<CoberturaMaquinas> {
+    return this.activa.getCoberturaMaquinas();
   }
 }

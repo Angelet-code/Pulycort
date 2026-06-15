@@ -43,17 +43,17 @@ export const PROBLEMAS_SISTEMA: ProblemaSistema[] = [
   {
     id: 'medidas-bloque-consola',
     area: 'maquinas',
-    problema: 'Las medidas de bloque tecleadas en la consola no son fiables bloque a bloque',
+    problema: 'Las medidas de consola no son fiables lote a lote',
     evidencia:
-      'En 59 de 61 cortes de 30 días las medidas cambian a mitad de corte (cada bloque ' +
+      'En 59 de 61 cortes de 30 días las medidas cambian a mitad de corte (cada lote ' +
       'arranca heredando las del anterior); 8 juegos de medidas idénticos entre los ' +
-      'telares 2 y 3 en fechas solapadas; bloques cuyo parte real es geométricamente ' +
-      'imposible con las medidas declaradas (ej.: bloque 47080 declara 2,37 m³ con un ' +
+      'telares 2 y 3 en fechas solapadas; lotes cuyo parte real es geométricamente ' +
+      'imposible con las medidas declaradas (ej.: PM/lote 47080 declara 2,37 m³ con un ' +
       'parte de 42 tablas y 143,75 m²).',
     solucion:
-      'Que el operario introduzca y confirme las medidas al colocar cada bloque y que el ' +
-      'software las ligue al nº de bloque (no a la consola). Mientras tanto, Fabric marca ' +
-      'con ⚠ los bloques incompatibles con su parte y calcula el rendimiento como ' +
+      'Que el operario introduzca y confirme las medidas al colocar cada lote y que el ' +
+      'software las ligue al PM/lote (`n_bloque`), no a la consola. Mientras tanto, Fabric marca ' +
+      'con ⚠ los lotes incompatibles con su parte y calcula el rendimiento como ' +
       'agregado, que sí se compensa.',
     dependeDe: ['Producción', 'TotWare'],
     estado: 'mitigado'
@@ -113,7 +113,7 @@ export const PROBLEMAS_SISTEMA: ProblemaSistema[] = [
     area: 'datos',
     problema: 'Partes con número de telar corrupto',
     evidencia:
-      "Filas con números de bloque en la columna de telar ('45971', '46002'...) y 164 " +
+      "Filas con PM/lotes en la columna de telar ('45971', '46002'...) y 164 " +
       "filas con telar '0'. Esos partes no se pueden cruzar con ningún telar.",
     solucion: 'Validación de rango (1-4) en el origen al grabar el parte.',
     dependeDe: ['TotWare'],
@@ -135,13 +135,13 @@ export const PROBLEMAS_SISTEMA: ProblemaSistema[] = [
   {
     id: 'bloques-reutilizados',
     area: 'datos',
-    problema: 'Los números de bloque se reutilizan con el tiempo',
+    problema: 'Los PM/lotes se reutilizan con el tiempo',
     evidencia:
-      'Mismo telar + nº de bloque con partes separados meses (ej.: bloque 46449 del ' +
+      'Mismo telar + PM/lote con partes separados meses (ej.: PM/lote 46449 del ' +
       'telar 4 con partes en dic-2025 y may-2026). Sin acotar por fecha, el cruce sumaba ' +
       'm² de cortes antiguos (+306 m² en el total de 30 días).',
     solucion:
-      'Usar un identificador único de bloque (id_bloque) en partes y lecturas. Fabric ya ' +
+      'Usar un identificador único de corte si la fuente lo confirma. Fabric ya ' +
       'acota el cruce a la ventana temporal de cada corte.',
     dependeDe: ['TotWare', 'Odoo / INDASEL'],
     estado: 'mitigado'
@@ -149,7 +149,7 @@ export const PROBLEMAS_SISTEMA: ProblemaSistema[] = [
   {
     id: 'material-sospechoso',
     area: 'maquinas',
-    problema: 'Los telares 1 y 2 no registran el material de cada bloque (sensor/consola)',
+    problema: 'Los telares 1 y 2 no registran el material de cada PM/lote (sensor/consola)',
     evidencia:
       'Verificado en BD (2026-06-13): el telar 1 (25.375 lecturas) y el telar 2 (23.358) ' +
       'tienen UN SOLO material en todo su histórico, clavado en 114 (Pietra Grey); los ' +
@@ -158,9 +158,9 @@ export const PROBLEMAS_SISTEMA: ProblemaSistema[] = [
       'sensor/configuración de esos telares, no a un despiste puntual del operario.',
     solucion:
       'Confirmar con TotWare/producción si el origen es el sensor de los telares 1 y 2 o ' +
-      'que el operario no lo introduce. Decisión (2026-06-13): el material del bloque se ' +
-      'toma del parte de operario (parte_trabajo_mapeada, fiable por bloque y en el mismo ' +
-      'código que el catálogo), no de la lectura del telar; cubre el 94-99% de los bloques ' +
+      'que el operario no lo introduce. Decisión (2026-06-13): el material del PM/lote se ' +
+      'toma del parte de operario (parte_trabajo_mapeada, fiable por lote y en el mismo ' +
+      'código que el catálogo), no de la lectura del telar; cubre el 94-99% de los lotes ' +
       'de 1 y 2. Para un telar estancado sin parte, el material queda como no confirmado en ' +
       'vez de enseñar el 114 erróneo (no se usa la lectura como respaldo).',
     dependeDe: ['TotWare', 'Producción'],
@@ -169,10 +169,10 @@ export const PROBLEMAS_SISTEMA: ProblemaSistema[] = [
   {
     id: 'metros-cubicos-vacio',
     area: 'datos',
-    problema: 'Los partes no traen ni m³ ni medidas de bloque',
+    problema: 'Los partes no traen ni m³ ni medidas de lote completas',
     evidencia:
       'La columna metros_cubicos de parte_trabajo_mapeada llega siempre vacía y los ' +
-      'partes de paquetes no rellenan largo/alto/grueso del bloque: no hay segunda ' +
+      'partes de paquetes no rellenan largo/alto/grueso del lote: no hay segunda ' +
       'fuente para contrastar el volumen (ni para calcular merma).',
     solucion: 'Rellenar esas columnas al grabar el parte, o exponer la tabla origen que las tenga.',
     dependeDe: ['TotWare'],
@@ -202,7 +202,7 @@ export const PROBLEMAS_SISTEMA: ProblemaSistema[] = [
     evidencia:
       "De los datos solo se deduce que la operación '4' es hacer paquetes (la única con " +
       'tablas y m²). El resto (0-5, 10, 11) está sin mapear y los ciclos se infieren por ' +
-      'cambio de nº de bloque.',
+      'cambio de PM/lote.',
     solucion: 'Pedir a TotWare la tabla de códigos de operacion y accion.',
     dependeDe: ['TotWare'],
     estado: 'pendiente'
@@ -214,13 +214,13 @@ export const PROBLEMAS_SISTEMA: ProblemaSistema[] = [
     area: 'calculos',
     problema: 'El rendimiento m²/m³ se distorsionaba por el denominador',
     evidencia:
-      'Con las medidas de consola tal cual, el ratio por bloque oscila entre 13,9 y ' +
-      '122,9 m²/m³ (un día con un solo bloque mostró 60). El AGREGADO sí es fiable: a 30 ' +
+      'Con las medidas de consola tal cual, el ratio por lote oscila entre 13,9 y ' +
+      '122,9 m²/m³ (un día con un solo lote mostró 60). El AGREGADO sí es fiable: a 30 ' +
       'días el m³ declarado coincide ±3% con el volumen implícito de los partes a paso ' +
-      '~2,4 cm/tabla (las medidas llegan con un bloque de retraso y la suma se compensa).',
+      '~2,4 cm/tabla (las medidas llegan con un lote de retraso y la suma se compensa).',
     solucion:
-      'Calcular el ratio como agregado sobre bloques con parte real (sin estimaciones), ' +
-      'decir de cuántos bloques sale, marcar con ⚠ los de medidas imposibles y mostrar ' +
+      'Calcular el ratio como agregado sobre PM/lotes con parte real (sin estimaciones), ' +
+      'decir de cuántos lotes sale, marcar con ⚠ los de medidas imposibles y mostrar ' +
       '"—" cuando la mayoría de la base es dudosa.',
     dependeDe: ['Fabric'],
     estado: 'corregido'
@@ -230,7 +230,7 @@ export const PROBLEMAS_SISTEMA: ProblemaSistema[] = [
     area: 'calculos',
     problema: 'El cruce lecturas-partes no acotaba por fecha',
     evidencia:
-      'Se buscaba por telar + nº de bloque en todo el histórico: el bloque 46449 sumó un ' +
+      'Se buscaba por telar + PM/lote en todo el histórico: el PM/lote 46449 sumó un ' +
       'parte de diciembre de 2025 a un corte de mayo de 2026.',
     solucion: 'Acotar el cruce a la ventana del corte (desde 2 días antes hasta 15 después).',
     dependeDe: ['Fabric'],
@@ -305,9 +305,10 @@ export const PROBLEMAS_SISTEMA: ProblemaSistema[] = [
   {
     id: 'trazabilidad-incompleta',
     area: 'flujo',
-    problema: 'La trazabilidad bloque → tablas → pedido está incompleta',
+    problema: 'La trazabilidad PM/lote → tablas → pedido está incompleta',
     evidencia:
-      'bloque_maquinas resultó ser solo una tabla puente (id ↔ nº de bloque, sin PM ni ' +
+      'bloque_maquinas resultó ser solo una tabla puente (id ↔ nº de bloque (n_bloque, ' +
+      'el PM/lote), sin PM ni ' +
       'nombre): faltan las tablas de Odoo que cuelgan de ella.',
     solucion:
       'Identificar la relación con los PM de "Dar entrada bloques" en Odoo para cerrar ' +

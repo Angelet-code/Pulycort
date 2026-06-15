@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { materialPorId } from '../core/materiales';
+import { materialPorId, materialPorNombre } from '../core/materiales';
 
 /** Círculo de color que identifica el material trabajado. */
 @Component({
@@ -30,8 +30,19 @@ import { materialPorId } from '../core/materiales';
   `
 })
 export class MaterialDotComponent {
-  readonly materialId = input.required<string | null>();
+  /** Color por id de catálogo (telar, partes…). */
+  readonly materialId = input<string | null>(null);
+  /**
+   * Color por nombre, para cuando el id no es del catálogo (inventario: las
+   * altas recientes traen el id del producto "M3 BLOQUE X"). Si se da, prevalece.
+   */
+  readonly nombre = input<string | null>(null);
   readonly tam = input(14);
 
-  readonly material = computed(() => materialPorId(this.materialId()));
+  readonly material = computed(() => {
+    const nombre = this.nombre();
+    return nombre !== null
+      ? materialPorNombre(nombre)
+      : materialPorId(this.materialId());
+  });
 }

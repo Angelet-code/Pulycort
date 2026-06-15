@@ -4,6 +4,10 @@ import {
   ProduccionMapeada as FilaProduccion,
 } from '@prisma/client';
 import { PrismaService } from '../../../shared/infrastructure/database/prisma/prisma.service';
+import {
+  bloqueImposible,
+  volumenBloqueM3,
+} from '../../../shared/domain/medidas-bloque';
 import { FabricRepository } from '../domain/fabric.repository';
 import {
   Bloque,
@@ -12,8 +16,12 @@ import {
   DetalleTelar,
   Estadisticas,
   EstadisticasTelar,
+  EstadoFuente,
   EstadoTelar,
   EventoParte,
+  FuenteDato,
+  Granularidad,
+  GrupoFuente,
   JornadaTelar,
   KpisPlanta,
   LecturaCuarentena,
@@ -70,6 +78,13 @@ const TELAR_IDS = [1, 2, 3, 4];
 const NOMBRES_TELAR = new Map(TELAR_IDS.map((id) => [id, `Telar ${id}`]));
 
 const UMBRAL_SIN_DATOS_MS = 25 * 60_000;
+/**
+ * Frescura de la fuente de lecturas: si la última lectura (de cualquier telar)
+ * es más antigua que esto, no se afirma que "llegan con normalidad" aunque la
+ * fiabilidad del periodo sea buena. Holgado para no avisar por pausas de turno;
+ * un silencio de horas sí es señal en una página de salud del dato.
+ */
+const FUENTE_FRESCA_MS = 3 * 3_600_000;
 /** Tope de atribución de tiempo entre lecturas: un hueco mayor no se imputa. */
 const HUECO_MAX_MS = 25 * 60_000;
 /** Cadencia nominal, solo para extender visualmente el Gantt de jornada. */
@@ -100,6 +115,29 @@ function m2PrevistosDe(medidas: Medidas): number | null {
     return null;
   }
   return (tablas * medidas.largoCm * medidas.altoCm) / 10_000;
+}
+
+/** Volumen del bloque en m³ (medidas asumidas en cm); null sin medidas. */
+function volumenM3De(medidas: Medidas): number | null {
+  if (medidas.largoCm <= 0 || medidas.altoCm <= 0 || medidas.gruesoCm <= 0) {
+    return null;
+  }
+  return (medidas.largoCm * medidas.altoCm * medidas.gruesoCm) / 1_000_000;
+}
+
+/** Volumen real y nº de bloques de un lote (PM), leídos del inventario. */
+interface LoteInventario {
+  bloques: number;
+  /** m³ del lote (suma de sus bloques), ya redondeado. */
+  volumenM3: number;
+  /** true si multibloque o se usó la medida de proveedor como respaldo. */
+  estimado: boolean;
+  /**
+   * Alguna medida del lote es físicamente imposible incluso tras normalizar
+   * unidades cm→m (corrupción real del inventario): el m³/rendimiento no es
+   * fiable y no debe mostrarse ni entrar en los KPIs.
+   */
+  imposible: boolean;
 }
 
 /**
@@ -197,7 +235,9 @@ function resumenDePartes(partes: FilaParte[]): ResumenPaquetes {
     numTablas: partes.reduce((s, p) => s + (p.nTablas ?? 0), 0),
     largoTablaM: redondea(tablaAMetros(ultimo.largoTablas, 10), 2),
     altoTablaM: redondea(tablaAMetros(ultimo.altoTablas, 10), 2),
-    gruesoTablaM: redondea(tablaAMetros(ultimo.gruesoTablas, 0.5), 2),
+    // 3 decimales (mm): el espesor de tabla es de 1-3 cm y 1,5 cm = 0,015 m se
+    // perdería redondeando a 2 (→ 0,02 = 2 cm). Lo consume espesorCorteCm.
+    gruesoTablaM: redondea(tablaAMetros(ultimo.gruesoTablas, 0.5), 3),
     metrosCuadrados: redondea(
       partes.reduce(
         (s, p) => s + (p.metrosCuadradosTablas !== null ? Number(p.metrosCuadradosTablas) : 0),
@@ -269,6 +309,72 @@ function inicioDia(ms: number): number {
   return new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate()).getTime();
 }
 
+/** Lunes 00:00 (calendario local) de la semana que contiene `ms`. */
+function inicioSemana(ms: number): number {
+  const fecha = new Date(ms);
+  const dia = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate());
+  const desdeLunes = (dia.getDay() + 6) % 7; // 0 = lunes
+  dia.setDate(dia.getDate() - desdeLunes);
+  return dia.getTime();
+}
+
+/** Día 1 a las 00:00 (calendario local) del mes que contiene `ms`. */
+function inicioMes(ms: number): number {
+  const fecha = new Date(ms);
+  return new Date(fecha.getFullYear(), fecha.getMonth(), 1).getTime();
+}
+
+function inicioPeriodo(ms: number, granularidad: Granularidad): number {
+  if (granularidad === 'mes') {
+    return inicioMes(ms);
+  }
+  return granularidad === 'semana' ? inicioSemana(ms) : inicioDia(ms);
+}
+
+/** Inicio del periodo siguiente (avanza el cursor de los buckets). */
+function siguientePeriodo(ms: number, granularidad: Granularidad): number {
+  const fecha = new Date(ms);
+  if (granularidad === 'mes') {
+    return new Date(fecha.getFullYear(), fecha.getMonth() + 1, 1).getTime();
+  }
+  const dias = granularidad === 'semana' ? 7 : 1;
+  return new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate() + dias).getTime();
+}
+
+/**
+ * Ventana temporal y granularidad de agregación de cada rango. Mes y 3 meses
+ * se agrupan por semana; un año e histórico, por mes (con tantas barras al día
+ * sería ilegible). `todo` arranca en epoch 0 y luego se acota al primer dato
+ * real para no pintar meses vacíos previos a la primera lectura.
+ */
+function ventanaEstadisticas(
+  rango: RangoEstadisticas,
+  ahora: number,
+): { desde: number; granularidad: Granularidad } {
+  const fecha = new Date(ahora);
+  const haceDias = (dias: number): number =>
+    new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate() - dias).getTime();
+  if (rango === 'hoy') {
+    return { desde: inicioDia(ahora), granularidad: 'dia' };
+  }
+  if (rango === '7d') {
+    return { desde: haceDias(6), granularidad: 'dia' };
+  }
+  if (rango === '30d') {
+    return { desde: haceDias(29), granularidad: 'semana' };
+  }
+  if (rango === '90d') {
+    return { desde: haceDias(89), granularidad: 'semana' };
+  }
+  if (rango === '1a') {
+    return {
+      desde: new Date(fecha.getFullYear() - 1, fecha.getMonth(), fecha.getDate()).getTime(),
+      granularidad: 'mes',
+    };
+  }
+  return { desde: 0, granularidad: 'mes' }; // 'todo'
+}
+
 function media(valores: number[]): number {
   if (valores.length === 0) {
     return 0;
@@ -279,6 +385,14 @@ function media(valores: number[]): number {
 function redondea(valor: number, decimales = 1): number {
   const factor = 10 ** decimales;
   return Math.round(valor * factor) / factor;
+}
+
+/** Enumera en español: ["Telar 3","Telar 4"] → "Telar 3 y Telar 4". */
+function listaEs(items: string[]): string {
+  if (items.length <= 1) {
+    return items[0] ?? '';
+  }
+  return `${items.slice(0, -1).join(', ')} y ${items[items.length - 1]}`;
 }
 
 function turnoDe(epochMs: number): Turno {
@@ -588,6 +702,10 @@ export class PrismaFabricRepository implements FabricRepository {
         partesPorClave.get(clave)!.push(fila);
       }
 
+      // Volumen real del lote (PM) desde el inventario para los ciclos del
+      // historial (m³/rendimiento por lote; la consola queda solo como control).
+      const inventario = await this.inventarioPorPm(completados.map((r) => r.bloque));
+
       return {
         snapshot,
         serieAltura: validasJornada.map((l) => ({ t: l.recibidaEn, v: l.alturaActualMm })),
@@ -626,6 +744,7 @@ export class PrismaFabricRepository implements FabricRepository {
             ahora,
             false,
             delBloque.length > 0 ? resumenDePartes(delBloque) : null,
+            inventario.get(r.bloque) ?? null,
           );
         }),
       };
@@ -635,15 +754,7 @@ export class PrismaFabricRepository implements FabricRepository {
   getEstadisticas(rango: RangoEstadisticas): Promise<Estadisticas> {
     return this.cacheado(`estadisticas-${rango}`, TTL_ESTADISTICAS_MS, async () => {
       const ahora = Date.now();
-      const fecha = new Date(ahora);
-      const desde =
-        rango === 'hoy'
-          ? inicioDia(ahora)
-          : new Date(
-              fecha.getFullYear(),
-              fecha.getMonth(),
-              fecha.getDate() - (rango === '7d' ? 6 : 29),
-            ).getTime();
+      const { desde, granularidad } = ventanaEstadisticas(rango, ahora);
 
       const porTelar = await this.lecturasDesde(desde);
       this.materialesActual = await this.resolverMateriales();
@@ -683,6 +794,12 @@ export class PrismaFabricRepository implements FabricRepository {
         partesPorClave.get(clave)!.push(fila);
       }
 
+      // Volumen real del lote (PM) desde el inventario, para el m³/rendimiento
+      // por lote (la medida de consola se conserva solo como control).
+      const inventario = await this.inventarioPorPm(
+        runsCompletados.map((rc) => rc.run.bloque),
+      );
+
       const ciclosCompletados: CicloBloque[] = [];
       const porMaterial = new Map<string, { materialId: string; m2: number; bloques: number }>();
       const porTelarEst = new Map<number, { m2: number; tablas: number }>(
@@ -716,15 +833,17 @@ export class PrismaFabricRepository implements FabricRepository {
           run.hastaMs,
         );
         const paquetes = delBloque.length > 0 ? resumenDePartes(delBloque) : null;
-        const ciclo = this.aCicloBloque(run, ahora, false, paquetes);
+        const ciclo = this.aCicloBloque(
+          run,
+          ahora,
+          false,
+          paquetes,
+          inventario.get(run.bloque) ?? null,
+        );
         ciclosCompletados.push(ciclo);
-        const medidas = ciclo.bloque.medidasFabrica;
         // Volumen en m³ asumiendo medidas en cm (inferencia documentada).
-        let volumenM3 = 0;
-        if (medidas.largoCm > 0 && medidas.altoCm > 0 && medidas.gruesoCm > 0) {
-          volumenM3 = (medidas.largoCm * medidas.altoCm * medidas.gruesoCm) / 1_000_000;
-          totalM3 += volumenM3;
-        }
+        const volumenM3 = volumenM3De(ciclo.bloque.medidasFabrica) ?? 0;
+        totalM3 += volumenM3;
         // m²/tablas REALES del parte de paquetes; estimación solo si falta.
         const m2 = paquetes?.metrosCuadrados ?? ciclo.m2Previstos ?? 0;
         const tablas = paquetes?.numTablas ?? ciclo.tablasPrevistas ?? 0;
@@ -785,25 +904,32 @@ export class PrismaFabricRepository implements FabricRepository {
         tablas: porTelarEst.get(t.telarId)?.tablas ?? 0,
       }));
 
-      // m² estimados por día natural, según el día en que terminó cada bloque.
+      // m² por periodo (día/semana/mes según el rango), según cuándo terminó
+      // cada bloque. En 'todo' se arranca en el primer bloque real, no en 1970.
+      const inicioVentana =
+        rango === 'todo'
+          ? completados.length > 0
+            ? completados.reduce((min, c) => Math.min(min, c.finMs), Number.POSITIVE_INFINITY)
+            : inicioDia(ahora)
+          : desde;
       const produccionPorDia: ProduccionDia[] = [];
-      let cursor = new Date(inicioDia(desde));
-      while (cursor.getTime() <= ahora) {
-        const dia = cursor.getTime();
-        const delDia = completados.filter((c) => inicioDia(c.finMs) === dia);
+      let cursor = inicioPeriodo(inicioVentana, granularidad);
+      while (cursor <= ahora) {
+        const finPeriodo = siguientePeriodo(cursor, granularidad);
+        const delPeriodo = completados.filter((c) => c.finMs >= cursor && c.finMs < finPeriodo);
         const m2PorTelar: Record<number, number> = {};
         for (const telarId of TELAR_IDS) {
           m2PorTelar[telarId] = redondea(
-            delDia.filter((c) => c.telarId === telarId).reduce((s, c) => s + c.m2, 0),
+            delPeriodo.filter((c) => c.telarId === telarId).reduce((s, c) => s + c.m2, 0),
           );
         }
         produccionPorDia.push({
-          fecha: new Date(dia).toISOString(),
+          fecha: new Date(cursor).toISOString(),
           m2PorTelar,
-          m2Total: redondea(delDia.reduce((s, c) => s + c.m2, 0)),
-          tablas: delDia.reduce((s, c) => s + c.tablas, 0),
+          m2Total: redondea(delPeriodo.reduce((s, c) => s + c.m2, 0)),
+          tablas: delPeriodo.reduce((s, c) => s + c.tablas, 0),
         });
-        cursor = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 1);
+        cursor = finPeriodo;
       }
 
       const horasTotales = telares.reduce(
@@ -819,7 +945,8 @@ export class PrismaFabricRepository implements FabricRepository {
 
       return {
         rango,
-        desde: new Date(desde).toISOString(),
+        granularidad,
+        desde: new Date(inicioPeriodo(inicioVentana, granularidad)).toISOString(),
         hasta: new Date(ahora).toISOString(),
         // m²/tablas REALES de los partes de paquetes (estimación solo en los
         // bloques sin parte); la merma sigue sin fuente real (null).
@@ -889,13 +1016,403 @@ export class PrismaFabricRepository implements FabricRepository {
         .slice(0, 60)
         .map((lectura) => ({ lectura, motivos: lectura.motivosSospecha }));
 
+      const partes = await this.saludPartes();
+
       return {
         generadoEn: new Date(ahora).toISOString(),
+        fuentes: await this.fuentesDatos(porTelar, telares, partes, ahora),
         telares,
         cuarentena,
-        partes: await this.saludPartes(),
+        partes,
       };
     });
+  }
+
+  /**
+   * Las tablas que alimentan Fabric, con su origen y su salud. El veredicto y el
+   * diagnóstico se derivan de los datos (fiabilidad, cobertura); el resto es
+   * descripción fija de la fuente. Cada consulta extra va protegida: si una
+   * fuente no se puede leer, su tarjeta degrada a null/"—" sin tumbar la página.
+   */
+  private async fuentesDatos(
+    porTelar: Map<number, LecturaInterna[]>,
+    telares: SaludTelar[],
+    partes: SaludPartes,
+    ahora: number,
+  ): Promise<FuenteDato[]> {
+    return Promise.all([
+      // Máquinas: lo que emiten los telares y el disco puente.
+      this.fuenteLecturas(porTelar, telares, ahora),
+      this.fuentePartes(partes, ahora),
+      this.fuenteDiscoPuente(ahora),
+      this.fuenteReforzadora(ahora),
+      this.fuenteBloqueMaquinas(ahora),
+      // Inventario real: el stock de Odoo.
+      this.fuenteStockLot(ahora),
+      this.fuenteStockQuant(),
+      this.fuenteStockLocation(),
+      // Catálogo de productos: solo para resolver nombres de material.
+      this.fuenteProductTemplate(),
+      this.fuenteProductProduct(),
+      // Heredada: log antiguo con uso acotado.
+      this.fuenteInventario(ahora),
+    ]);
+  }
+
+  /** Envuelve una consulta opcional: si falla (permisos, tabla ausente), null. */
+  private async intentar<T>(thunk: () => Promise<T>, fallback: T): Promise<T> {
+    try {
+      return await thunk();
+    } catch {
+      return fallback;
+    }
+  }
+
+  /**
+   * Tarjeta de una tabla de la que solo damos un recuento y la última marca:
+   * maestros y catálogos sin un veredicto de fiabilidad rico (a diferencia de
+   * lecturas/partes). El estado es real: "al día" si tiene filas, "sin datos" si
+   * está vacía o no se pudo leer. Nada se estima.
+   */
+  private async fuenteConteo(args: {
+    grupo: GrupoFuente;
+    tabla: string;
+    nombre: string;
+    origen: string;
+    descripcion: string;
+    contar: () => Promise<number>;
+    ultima?: () => Promise<Date | null>;
+    diagnostico: (total: number) => string;
+  }): Promise<FuenteDato> {
+    const total = await this.intentar(args.contar, null as number | null);
+    const ultima = args.ultima
+      ? await this.intentar(args.ultima, null as Date | null)
+      : null;
+    return {
+      grupo: args.grupo,
+      tabla: args.tabla,
+      nombre: args.nombre,
+      origen: args.origen,
+      descripcion: args.descripcion,
+      registros: total,
+      ultimaActualizacion: ultima ? ultima.toISOString() : null,
+      estado: total === null || total === 0 ? 'sin-datos' : 'ok',
+      diagnostico:
+        total === null
+          ? 'No se pudo leer la tabla.'
+          : total === 0
+            ? 'Sin registros.'
+            : args.diagnostico(total),
+    };
+  }
+
+  private fuenteDiscoPuente(ahora: number): Promise<FuenteDato> {
+    return this.fuenteConteo({
+      grupo: 'maquinas',
+      tabla: 'parte_discopuente_mapeada',
+      nombre: 'Partes del disco puente',
+      origen: 'Máquina de disco puente (TotWare → Odoo)',
+      descripcion:
+        'Partes de la otra máquina de corte (disco puente): operaciones, paquetes, medidas de tablas y m² de entrada/salida con su eficiencia. Versión saneada de la tabla cruda, con fecha y hora reales.',
+      contar: () => this.prisma.parteDiscoPuenteMapeada.count(),
+      ultima: async () =>
+        (
+          await this.prisma.parteDiscoPuenteMapeada.findFirst({
+            where: { fechaHora: { not: null, lte: new Date(ahora) } },
+            orderBy: [{ fechaHora: 'desc' }, { id: 'desc' }],
+            select: { fechaHora: true },
+          })
+        )?.fechaHora ?? null,
+      diagnostico: (n) => `${n} partes del disco puente registrados.`,
+    });
+  }
+
+  private fuenteReforzadora(ahora: number): Promise<FuenteDato> {
+    return this.fuenteConteo({
+      grupo: 'maquinas',
+      tabla: 'reforzadora_mapeada',
+      nombre: 'Partes de la reforzadora',
+      origen: 'Máquina reforzadora de tablas (TotWare → Odoo)',
+      descripcion:
+        'Partes de la reforzadora de tablas (malla + resina): material, nº de tablas, medidas y m² reforzados (derivado). `n_reforzadora` solo trae 1 (no separa REFORZADORA 1 de REFORZADORA 2 SEI); acabado/eventos y la unidad de `consumo` pendientes de confirmar con TotWare.',
+      contar: () => this.prisma.reforzadoraMapeada.count(),
+      ultima: async () =>
+        (
+          await this.prisma.reforzadoraMapeada.findFirst({
+            where: { fechaHora: { not: null, lte: new Date(ahora) } },
+            orderBy: [{ fechaHora: 'desc' }, { id: 'desc' }],
+            select: { fechaHora: true },
+          })
+        )?.fechaHora ?? null,
+      diagnostico: (n) => `${n} partes de la reforzadora registrados.`,
+    });
+  }
+
+  private fuenteBloqueMaquinas(ahora: number): Promise<FuenteDato> {
+    return this.fuenteConteo({
+      grupo: 'maquinas',
+      tabla: 'bloque_maquinas',
+      nombre: 'Padrón de bloques de máquina',
+      origen: 'Sistema de máquinas (Odoo)',
+      descripcion:
+        'Censo de los números de bloque que conocen las máquinas (puente id ↔ nº de bloque). Sirve para validar si un PM/lote es conocido; no es el inventario de almacén.',
+      contar: () => this.prisma.bloqueMaquinas.count(),
+      ultima: async () =>
+        (
+          await this.prisma.bloqueMaquinas.findFirst({
+            where: { createDate: { not: null, lte: new Date(ahora) } },
+            orderBy: [{ createDate: 'desc' }, { id: 'desc' }],
+            select: { createDate: true },
+          })
+        )?.createDate ?? null,
+      diagnostico: (n) => `${n} bloques en el padrón de máquinas.`,
+    });
+  }
+
+  private fuenteStockLot(ahora: number): Promise<FuenteDato> {
+    return this.fuenteConteo({
+      grupo: 'inventario',
+      tabla: 'stock_lot',
+      nombre: 'Lotes / bloques en stock',
+      origen: 'Almacén de Odoo (recepción de compra)',
+      descripcion:
+        'Maestro real del inventario: cada bloque físico es un lote, con su medida de proveedor y, cuando se mide al procesar, la de fábrica. Es la fuente del inventario de bloques y del m³/merma por lote.',
+      contar: () => this.prisma.stockLot.count(),
+      ultima: async () =>
+        (
+          await this.prisma.stockLot.findFirst({
+            where: { writeDate: { not: null, lte: new Date(ahora) } },
+            orderBy: [{ writeDate: 'desc' }, { id: 'desc' }],
+            select: { writeDate: true },
+          })
+        )?.writeDate ?? null,
+      diagnostico: (n) =>
+        `${n} lotes en el maestro; las existencias reales salen del cruce con stock_quant.`,
+    });
+  }
+
+  private fuenteStockQuant(): Promise<FuenteDato> {
+    return this.fuenteConteo({
+      grupo: 'inventario',
+      tabla: 'stock_quant',
+      nombre: 'Existencias on-hand',
+      origen: 'Motor de inventario de Odoo (automático)',
+      descripcion:
+        'Cantidad de cada lote/producto en cada ubicación. El inventario cuenta como on-hand los quants en ubicación interna con cantidad mayor que cero; la cantidad va en unidades (1 unidad = 1 bloque).',
+      contar: () => this.prisma.stockQuant.count(),
+      diagnostico: (n) => `${n} registros de existencias.`,
+    });
+  }
+
+  private fuenteStockLocation(): Promise<FuenteDato> {
+    return this.fuenteConteo({
+      grupo: 'inventario',
+      tabla: 'stock_location',
+      nombre: 'Ubicaciones de almacén',
+      origen: 'Configuración de almacén en Odoo',
+      descripcion:
+        'Catálogo de ubicaciones de stock. El campo de uso distingue las internas (almacén) de proveedor, cliente o tránsito; el on-hand solo cuenta las internas.',
+      contar: () => this.prisma.stockLocation.count(),
+      diagnostico: (n) => `${n} ubicaciones de stock.`,
+    });
+  }
+
+  private fuenteProductTemplate(): Promise<FuenteDato> {
+    return this.fuenteConteo({
+      grupo: 'catalogo',
+      tabla: 'product_template',
+      nombre: 'Catálogo de productos',
+      origen: 'Maestro de productos de Odoo',
+      descripcion:
+        'Plantilla de producto. Resuelve el nombre del material (MARFIL, TRAVERTINO ALBINO…) a partir del id que guardan los lotes y las lecturas. Fabric solo la lee para nombres.',
+      contar: () => this.prisma.productTemplate.count(),
+      diagnostico: (n) => `${n} productos en el catálogo.`,
+    });
+  }
+
+  private fuenteProductProduct(): Promise<FuenteDato> {
+    return this.fuenteConteo({
+      grupo: 'catalogo',
+      tabla: 'product_product',
+      nombre: 'Variantes de producto',
+      origen: 'Maestro de productos de Odoo',
+      descripcion:
+        'Variante concreta que cuelga de una plantilla. Solo se usa como puente para resolver el nombre cuando el id de material es una variante en vez de la plantilla.',
+      contar: () => this.prisma.productProduct.count(),
+      diagnostico: (n) => `${n} variantes de producto.`,
+    });
+  }
+
+  private async fuenteLecturas(
+    porTelar: Map<number, LecturaInterna[]>,
+    telares: SaludTelar[],
+    ahora: number,
+  ): Promise<FuenteDato> {
+    const lecturas = TELAR_IDS.flatMap((id) => porTelar.get(id) ?? []);
+    const fiables = lecturas.filter((l) => !l.sospechosa).length;
+    const pct =
+      lecturas.length > 0 ? Math.round((fiables / lecturas.length) * 100) : 100;
+    const degradados = telares
+      .filter((t) => t.lecturas7d > 0 && t.pctFiables < 95)
+      .map((t) => t.nombre);
+
+    const total = await this.intentar(
+      () => this.prisma.produccionMapeada.count(),
+      null as number | null,
+    );
+    const ultimaFila = await this.intentar(
+      () =>
+        this.prisma.produccionMapeada.findFirst({
+          where: { fechaHora: { not: null, lte: new Date(ahora) } },
+          orderBy: [{ fechaHora: 'desc' }, { id: 'desc' }],
+          select: { fechaHora: true },
+        }),
+      null,
+    );
+
+    const ultimaMs = ultimaFila?.fechaHora ? ultimaFila.fechaHora.getTime() : null;
+    const desfasada = ultimaMs !== null && ahora - ultimaMs > FUENTE_FRESCA_MS;
+
+    let estado: EstadoFuente;
+    let diagnostico: string;
+    if (lecturas.length === 0) {
+      estado = ultimaMs !== null ? 'aviso' : 'sin-datos';
+      diagnostico =
+        ultimaMs !== null
+          ? 'No han entrado lecturas en los últimos 7 días: los telares pueden estar parados o la integración cortada.'
+          : 'Sin lecturas en la base de datos.';
+    } else {
+      estado = pct >= 98 ? 'ok' : pct >= 90 ? 'aviso' : 'mal';
+      if (desfasada) {
+        // La frescura manda sobre la fiabilidad del periodo: no afirmar que
+        // "llegan con normalidad" si la última lectura es de hace horas.
+        if (estado === 'ok') {
+          estado = 'aviso';
+        }
+        diagnostico = `No entran lecturas nuevas desde la última recibida (puede ser una parada o un corte de la integración); en los últimos 7 días, ${pct} % de lecturas fiables.`;
+      } else {
+        diagnostico =
+          estado === 'ok'
+            ? `Llegan con normalidad: ${pct} % de lecturas fiables en los últimos 7 días.`
+            : `${pct} % de lecturas fiables en los últimos 7 días; el resto queda en cuarentena.`;
+      }
+      if (degradados.length > 0) {
+        diagnostico += ` Las dudosas se concentran en ${listaEs(degradados)}.`;
+      }
+    }
+
+    return {
+      grupo: 'maquinas',
+      tabla: 'produccion_mapeada',
+      nombre: 'Lecturas de los telares',
+      origen: 'Autómata de cada telar — una lectura cada ~10 min',
+      descripcion:
+        'Estado, potencia (kW), consumo (A), golpes/min y altura del bastidor (mm) de los 4 telares. Es la base de la sala en vivo, el detalle de cada telar, la producción y esta misma salud del dato.',
+      registros: total,
+      ultimaActualizacion: ultimaFila?.fechaHora
+        ? ultimaFila.fechaHora.toISOString()
+        : null,
+      estado,
+      diagnostico,
+    };
+  }
+
+  private async fuentePartes(
+    partes: SaludPartes,
+    ahora: number,
+  ): Promise<FuenteDato> {
+    const ultimaFila = await this.intentar(
+      () =>
+        this.prisma.parteTrabajoMapeada.findFirst({
+          where: { createDate: { not: null, lte: new Date(ahora) } },
+          orderBy: [{ createDate: 'desc' }, { id: 'desc' }],
+          select: { createDate: true },
+        }),
+      null,
+    );
+
+    const pct =
+      partes.total > 0 ? Math.round((partes.sospechosos / partes.total) * 100) : 0;
+    let estado: EstadoFuente;
+    let diagnostico: string;
+    if (partes.total === 0) {
+      estado = 'sin-datos';
+      diagnostico = 'Sin partes registrados.';
+    } else if (partes.sospechosos === 0) {
+      estado = 'ok';
+      diagnostico = `Los ${partes.total} partes pasan las comprobaciones de formato.`;
+    } else {
+      estado = pct >= 10 ? 'mal' : 'aviso';
+      // Un recuento &gt; 0 que redondea a 0 % se muestra como "&lt;1 %": nunca
+      // "(0 %)" junto a un número de partes con problemas (se contradice).
+      const pctTxt = pct < 1 ? '<1' : String(pct);
+      diagnostico = `${partes.sospechosos} de ${partes.total} partes con problemas de formato (${pctTxt} %); el desglose, más abajo.`;
+    }
+
+    return {
+      grupo: 'maquinas',
+      tabla: 'parte_trabajo_mapeada',
+      nombre: 'Partes de trabajo de operario',
+      origen: 'Registro de los operarios (TotWare → Odoo)',
+      descripcion:
+        'Operaciones de cada turno: colocación, aserrado, salida y los paquetes con sus tablas y m² reales. Aporta los m², las tablas y el material por lote que las lecturas de máquina no traen.',
+      registros: partes.total,
+      ultimaActualizacion: ultimaFila?.createDate
+        ? ultimaFila.createDate.toISOString()
+        : null,
+      estado,
+      diagnostico,
+    };
+  }
+
+  private async fuenteInventario(ahora: number): Promise<FuenteDato> {
+    const total = await this.intentar(
+      () => this.prisma.lotBlockCreation.count(),
+      null as number | null,
+    );
+    const conFabrica = await this.intentar(
+      () => this.prisma.lotBlockCreation.count({ where: { largoMrp: { not: null } } }),
+      null as number | null,
+    );
+    const ultimaFila = await this.intentar(
+      () =>
+        this.prisma.lotBlockCreation.findFirst({
+          where: { createDate: { not: null, lte: new Date(ahora) } },
+          orderBy: [{ createDate: 'desc' }, { id: 'desc' }],
+          select: { createDate: true },
+        }),
+      null,
+    );
+
+    let estado: EstadoFuente;
+    let diagnostico: string;
+    if (total === null) {
+      estado = 'sin-datos';
+      diagnostico = 'No se pudo leer el inventario.';
+    } else if (total === 0) {
+      estado = 'sin-datos';
+      diagnostico = 'Sin altas de bloque.';
+    } else {
+      estado = 'ok';
+      const conFab =
+        conFabrica !== null ? `; ${conFabrica} con medida de fábrica` : '';
+      diagnostico = `${total} altas de recepción${conFab}. Log VIVO de recepción: los bloques recientes (aún sin existencias en el stock de Odoo) se cuentan en el inventario desde aquí.`;
+    }
+
+    return {
+      grupo: 'inventario',
+      tabla: 'lot_block_creation',
+      nombre: 'Altas de bloque (recepción reciente)',
+      origen: 'Recepción de almacén (Odoo)',
+      descripcion:
+        'Log vivo de recepción de bloques. Es la fuente de los bloques recientes del inventario que aún no han entrado al stock de Odoo (sin existencias en stock_quant); el inventario los une con el stock on-hand del snapshot. Aporta además la medida real del bloque por PM/lote para el m³ y el rendimiento (m²/m³) de Producción.',
+      registros: total,
+      ultimaActualizacion: ultimaFila?.createDate
+        ? ultimaFila.createDate.toISOString()
+        : null,
+      estado,
+      diagnostico,
+    };
   }
 
   /** Calidad de los partes de operario, con los motivos detectados. */
@@ -908,7 +1425,11 @@ export class PrismaFabricRepository implements FabricRepository {
       unidades_cm: number;
       sospechosos: number;
     };
-    const [resumen] = await this.prisma.$queryRawUnsafe<Resumen[]>(`
+    // Sin acceso a la tabla (permisos), la salud de partes degrada a vacío en
+    // vez de tumbar toda la página de Salud del dato.
+    const resumen = await this.intentar(
+      async () => {
+        const [fila] = await this.prisma.$queryRawUnsafe<Resumen[]>(`
       SELECT count(*)::int AS total,
         count(*) FILTER (WHERE fecha_hora IS NULL)::int AS sin_fecha,
         count(*) FILTER (WHERE fecha_hora > create_date + interval '1 day')::int AS fecha_futura,
@@ -919,6 +1440,10 @@ export class PrismaFabricRepository implements FabricRepository {
           OR n_telar IS NULL OR n_telar NOT IN ('1','2','3','4')
           OR (operacion = '4' AND largo_tablas > 10))::int AS sospechosos
       FROM parte_trabajo_mapeada`);
+        return fila;
+      },
+      { total: 0, sin_fecha: 0, fecha_futura: 0, telar_invalido: 0, unidades_cm: 0, sospechosos: 0 } as Resumen,
+    );
     return {
       total: resumen.total,
       sospechosos: resumen.sospechosos,
@@ -1102,6 +1627,7 @@ export class PrismaFabricRepository implements FabricRepository {
       fechaHora: new Date(fechaMs).toISOString(),
       tipo: 'paquetes',
       bloque: fila.nBloque,
+      pmLote: fila.nBloque,
       materialId: fila.material !== null ? String(fila.material) : null,
       paquetes: resumenDePartes([fila]),
       operario1: this.nombreOperario(
@@ -1130,6 +1656,7 @@ export class PrismaFabricRepository implements FabricRepository {
       // históricas) se usa la propia fecha declarada.
       recibidaEn: (fila.createDate ?? fila.fechaHora!).toISOString(),
       bloque: fila.nBloque,
+      pmLote: fila.nBloque,
       incidencia: incidenciaDeCodigo(fila.incidencia, potencia),
       potenciaKw: potencia,
       // consumo = amperios (≈ 2 × potencia, verificado en VERIFICACION.md §0).
@@ -1155,20 +1682,114 @@ export class PrismaFabricRepository implements FabricRepository {
     return ahora - ultimo.hastaMs <= UMBRAL_SIN_DATOS_MS * 2 ? ultimo : null;
   }
 
+  /**
+   * Volumen real y nº de bloques de cada lote (PM) desde el inventario
+   * `lot_block_creation`. La PM es la columna `name` (numérica), la misma que
+   * `n_bloque`. Para cada bloque toma la medida de FÁBRICA (mrp); si falta, la
+   * del proveedor como respaldo (marca el lote estimado). Un PM con varias filas
+   * = lote multibloque (raro): suma volúmenes y marca estimado. Los PM ausentes
+   * del inventario no aparecen en el mapa (→ m³ null en el ciclo).
+   */
+  private async inventarioPorPm(pms: number[]): Promise<Map<number, LoteInventario>> {
+    const numeros = [...new Set(pms.filter((n) => Number.isInteger(n) && n > 0))];
+    if (numeros.length === 0) {
+      return new Map();
+    }
+    const filas = await this.prisma.lotBlockCreation.findMany({
+      where: { name: { in: numeros.map(String) } },
+      select: {
+        name: true,
+        largoMrp: true,
+        altoMrp: true,
+        gruesoMrp: true,
+        largoSupplier: true,
+        altoSupplier: true,
+        gruesoSupplier: true,
+      },
+    });
+    const acum = new Map<
+      number,
+      { volumen: number; bloques: number; respaldo: boolean; imposible: boolean }
+    >();
+    for (const fila of filas) {
+      const pm = Number(fila.name?.trim());
+      if (!Number.isInteger(pm)) {
+        continue;
+      }
+      // Medida real de fábrica (mrp); si falta, respaldo a la del proveedor.
+      // El helper normaliza cm→m por dimensión (la tabla mezcla unidades).
+      const fabrica = volumenBloqueM3(
+        fila.largoMrp ?? 0,
+        fila.altoMrp ?? 0,
+        fila.gruesoMrp ?? 0,
+      );
+      const usaProveedor = fabrica <= 0;
+      const [largo, alto, grueso] = usaProveedor
+        ? [fila.largoSupplier, fila.altoSupplier, fila.gruesoSupplier]
+        : [fila.largoMrp ?? 0, fila.altoMrp ?? 0, fila.gruesoMrp ?? 0];
+      const volumen = usaProveedor
+        ? volumenBloqueM3(largo, alto, grueso)
+        : fabrica;
+      const previo = acum.get(pm) ?? {
+        volumen: 0,
+        bloques: 0,
+        respaldo: false,
+        imposible: false,
+      };
+      previo.volumen += volumen;
+      previo.bloques += 1;
+      previo.respaldo = previo.respaldo || usaProveedor;
+      previo.imposible = previo.imposible || bloqueImposible(largo, alto, grueso);
+      acum.set(pm, previo);
+    }
+    return new Map(
+      [...acum].map(([pm, v]) => [
+        pm,
+        {
+          bloques: v.bloques,
+          volumenM3: redondea(v.volumen, 2),
+          estimado: v.bloques > 1 || v.respaldo,
+          imposible: v.imposible,
+        },
+      ]),
+    );
+  }
+
   private aCicloBloque(
     run: RunBloque,
     ahora: number,
     enCurso: boolean,
     paquetes: ResumenPaquetes | null = null,
+    loteInv: LoteInventario | null = null,
   ): CicloBloque {
     const minutos = minutosPorIncidencia(run.lecturas, Math.min(run.hastaMs, ahora));
     const tramos = tramosDeParo(run.lecturas, Math.min(run.hastaMs, ahora));
     const bloque = this.bloqueDeRun(run);
     const m2 = m2PrevistosDe(bloque.medidasFabrica);
+    // m³ del lote desde la MEDIDA REAL del inventario por PM (no la de consola,
+    // que hereda del bloque anterior = ruido). null si el PM no está dado de
+    // alta en inventario O si su medida es imposible aun tras normalizar cm→m
+    // (corrupción real): no se muestra un m³ que sabemos falso. La medida de
+    // consola (bloque.medidasFabrica) se queda solo como punto de control
+    // (medidasIncoherentes).
+    const volumenImposible = loteInv ? loteInv.imposible : false;
+    const volumenM3 = loteInv && !volumenImposible ? loteInv.volumenM3 : null;
+    // Rendimiento solo con parte real sobre el m³ real del inventario.
+    const rendimientoM2M3 =
+      paquetes !== null && volumenM3 !== null && volumenM3 > 0
+        ? redondea(paquetes.metrosCuadrados / volumenM3, 2)
+        : null;
+    // Espesor de corte real del parte (grueso de tabla); null sin parte (no se
+    // asume el 2 cm de la estimación). Ver fabric.types.ts/CicloBloque.
+    const espesorCorteCm =
+      paquetes !== null && paquetes.gruesoTablaM > 0
+        ? redondea(paquetes.gruesoTablaM * 100, 1)
+        : null;
     return {
       id: `${run.telarId}-${run.bloque}-${run.desdeMs}`,
       telarId: run.telarId,
       bloque,
+      pmLote: run.bloque,
       colocacion: new Date(run.desdeMs).toISOString(),
       inicioCorte: new Date(run.desdeMs).toISOString(),
       finCorte: enCurso ? null : new Date(run.hastaMs).toISOString(),
@@ -1180,6 +1801,12 @@ export class PrismaFabricRepository implements FabricRepository {
       // Estimación (la UI la marca con "prev." / "≈").
       tablasPrevistas: tablasPrevistasDe(bloque.medidasFabrica),
       m2Previstos: m2 !== null ? redondea(m2) : null,
+      espesorCorteCm,
+      volumenM3,
+      rendimientoM2M3,
+      bloquesEnLote: loteInv ? loteInv.bloques : null,
+      volumenEstimado: loteInv ? loteInv.estimado : false,
+      volumenImposible,
       mermaVolumenPct: null,
       enCurso,
       medidasIncoherentes:
@@ -1216,6 +1843,7 @@ export class PrismaFabricRepository implements FabricRepository {
         : null;
     return {
       numero: run.bloque,
+      pmLote: run.bloque,
       materialId: delParte ?? lecturaFiable ?? 'desconocido',
       medidasProveedor: medidas,
       medidasFabrica: medidas,

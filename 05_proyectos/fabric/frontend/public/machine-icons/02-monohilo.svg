@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-labelledby="title-02-monohilo desc-02-monohilo">
+  <title id="title-02-monohilo">Monohilo</title>
+  <desc id="desc-02-monohilo">Icono SVG simple de Monohilo. Familia monohilo con silueta comun y color propio.</desc>
+  <defs>
+    <linearGradient id="accent-02-monohilo" x1="48" y1="44" x2="208" y2="212" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ff829a"/>
+      <stop offset="0.62" stop-color="#ff5f7d"/>
+      <stop offset="1" stop-color="#c24a65"/>
+    </linearGradient>
+    <filter id="shadow-02-monohilo" x="-22%" y="-22%" width="144%" height="144%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#020617" flood-opacity="0.26"/>
+    </filter>
+    <style>
+      .base{fill:#182235}
+      .frame{fill:#26344f}
+      .dark{fill:#0f172a}
+      .stone{fill:#b9aa86}
+      .stone-top{fill:#d1c39e}
+      .line{stroke:#e7f0ff;stroke-opacity:.24;stroke-linecap:round;stroke-linejoin:round}
+      .accent-stroke{stroke:url(#accent-02-monohilo);stroke-linecap:round;stroke-linejoin:round}
+    </style>
+  </defs>
+  <g filter="url(#shadow-02-monohilo)">
+    
+    <ellipse cx="128" cy="219" rx="84" ry="11" fill="#020617" opacity=".2"/>
+    <rect class="base" x="42" y="197" width="172" height="13" rx="6.5"/>
+    <rect class="frame" x="47" y="60" width="23" height="140" rx="9"/>
+    <rect class="frame" x="186" y="60" width="23" height="140" rx="9"/>
+    <rect class="base" x="47" y="53" width="162" height="20" rx="9"/>
+    <circle cx="67" cy="89" r="23" class="dark" stroke="url(#accent-02-monohilo)" stroke-width="8"/>
+    <circle cx="189" cy="162" r="23" class="dark" stroke="url(#accent-02-monohilo)" stroke-width="8"/>
+    <path class="accent-stroke" d="M82 104 174 147" stroke-width="4"/>
+    <rect class="stone" x="76" y="155" width="86" height="40" rx="8"/>
+    <path class="stone-top" d="M84 145h70l8 10H76z"/>
+  
+  </g>
+</svg>

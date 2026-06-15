@@ -109,6 +109,32 @@ model LotBlockCreation {
   @@map("lot_block_creation")
 }
 
+// Catálogo de productos de Odoo. Se usa para resolver el nombre del material del
+// inventario: `stock_lot.product_id` no guarda el nombre, solo un id que apunta
+// aquí (o a una variante `product_product` que cuelga de aquí). Conviven dos
+// familias — el producto de material (MARFIL, con `default_code` "100") y el
+// producto de compra a granel ("M3 BLOQUE MARFIL", sin `default_code`); ambos
+// nombres se normalizan quitando el prefijo "M3 BLOQUE". `name` es jsonb traducido
+// ({en_US, es_ES}). Ver bloque-inventario.entity.ts y 00_gestion/TAREAS.md.
+model ProductTemplate {
+  id          Int     @id @default(autoincrement())
+  name        Json?
+  defaultCode String? @map("default_code")
+
+  @@map("product_template")
+}
+
+// Variante concreta de Odoo. Solo se usa como puente de resolucion de nombres
+// cuando el id de producto del material (`stock_lot.product_id`) trae una variante
+// en vez de la plantilla, resolviendose por `product_tmpl_id`.
+model ProductProduct {
+  id            Int     @id @default(autoincrement())
+  productTmplId Int     @map("product_tmpl_id")
+  defaultCode   String? @map("default_code")
+
+  @@map("product_product")
+}
+
 // Partes del disco puente ya mapeados (tabla viva de TotWare→Odoo). Sustituye a
 // la cruda `parte_disco_puente` (fecha/hora como enteros DDMM/HMM, sin año, sin
 // cronología). La mapeada añade `fecha_hora` real, m² entrada/salida, eficiencia,
@@ -171,6 +197,36 @@ model ParteDiscoPuenteMapeada {
   @@map("parte_discopuente_mapeada")
 }
 
+// Partes de la reforzadora de tablas ya mapeados (tabla viva TotWare→Odoo). La
+// reforzadora refuerza las tablas con malla + resina. `n_reforzadora` llega como
+// texto y HOY solo trae '1' (no separa REFORZADORA 1 de REFORZADORA 2 SEI; ver
+// 00_gestion/TAREAS.md). `acabado` y `eventos` son códigos de texto sin tabla de
+// significados confirmada. Medidas en cm (largo/alto/grueso). Solo se mapean las
+// columnas que usa la vista (los consumibles malla/poliester/epoxi de la cruda no
+// se trasladan a la mapeada).
+model ReforzadoraMapeada {
+  id           Int       @id @default(autoincrement())
+  nReforzadora String?   @map("n_reforzadora")
+  operario1    Int?      @map("operario_1")
+  operario2    Int?      @map("operario_2")
+  nBloque      Int?      @map("n_bloque")
+  material     Int?
+  nTablas      Int?      @map("n_tablas")
+  largo        Float?
+  alto         Float?
+  grueso       Decimal?  @db.Decimal
+  consumo      Int?
+  acabado      String?
+  eventos      String?
+  fecha        DateTime? @db.Date
+  createDate   DateTime? @map("create_date") @db.Timestamp(6)
+  writeDate    DateTime? @map("write_date") @db.Timestamp(6)
+  hora         Float?
+  fechaHora    DateTime? @map("fecha_hora") @db.Timestamp(6)
+
+  @@map("reforzadora_mapeada")
+}
+
 // Padrón real de bloques de máquina (puente id ↔ n_bloque). `parte_*.id_bloque`
 // apunta aquí. Es la fuente correcta para saber si un n_bloque es conocido.
 // OJO: NO es el inventario de Odoo (`lot_block_creation`) que mira el flag
@@ -184,4 +240,64 @@ model BloqueMaquinas {
   writeDate  DateTime? @map("write_date") @db.Timestamp(6)
 
   @@map("bloque_maquinas")
+}
+
+// Maestro REAL de lotes/bloques de Odoo (stock_lot). Es la fuente correcta del
+// inventario: `lot_block_creation` es un log parcial y obsoleto disjunto del stock
+// actual (verificado contra BD 2026-06-14). Cada bloque físico es un lote con su
+// medida de proveedor (`*_supplier`) y de fábrica (`*_mrp`, casi siempre NULL on-hand,
+// se mide al procesar). `type_product_lot` clasifica el lote: 'block'/'othermaterial'
+// = bloques; 'tables'/'slabs' = tablas/losas. Las existencias salen del cruce con
+// `stock_quant` (on-hand). Solo se mapean las columnas que usa el inventario.
+model StockLot {
+  id             Int          @id @default(autoincrement())
+  productId      Int          @map("product_id")
+  locationId     Int?         @map("location_id")
+  name           String
+  ref            String?
+  typeProductLot String?      @map("type_product_lot")
+  finished       String?
+  packagesTables Float?       @map("packages_tables")
+  qtyCreation    Int?         @map("qty_creation")
+  qtyCreationMrp Int?         @map("qty_creation_mrp")
+  largoSupplier  Float?       @map("largo_supplier")
+  altoSupplier   Float?       @map("alto_supplier")
+  gruesoSupplier Float?       @map("grueso_supplier")
+  largoMrp       Float?       @map("largo_mrp")
+  altoMrp        Float?       @map("alto_mrp")
+  gruesoMrp      Float?       @map("grueso_mrp")
+  priceLot       Float?       @map("price_lot")
+  createDate     DateTime?    @map("create_date") @db.Timestamp(6)
+  writeDate      DateTime?    @map("write_date") @db.Timestamp(6)
+  quants         StockQuant[]
+
+  @@map("stock_lot")
+}
+
+// Existencias físicas de Odoo (stock_quant): cantidad de cada producto/lote en cada
+// ubicación. On-hand = ubicación interna (`stock_location.usage='internal'`) con
+// `quantity > 0`. La cantidad está en Unidades (= nº de bloques, 1 ud/lote); el m³
+// se deriva de las medidas del lote, no de aquí. Solo se mapea lo que usa el inventario.
+model StockQuant {
+  id         Int           @id @default(autoincrement())
+  productId  Int           @map("product_id")
+  locationId Int           @map("location_id")
+  lotId      Int?          @map("lot_id")
+  quantity   Decimal?      @db.Decimal
+  lot        StockLot?     @relation(fields: [lotId], references: [id])
+  location   StockLocation @relation(fields: [locationId], references: [id])
+
+  @@map("stock_quant")
+}
+
+// Ubicaciones de stock de Odoo (stock_location). `usage` distingue internas (almacén)
+// de proveedor/cliente/tránsito; `complete_name` es el nombre legible (p. ej. "WH/Stock").
+model StockLocation {
+  id           Int          @id @default(autoincrement())
+  name         String
+  completeName String?      @map("complete_name")
+  usage        String
+  quants       StockQuant[]
+
+  @@map("stock_location")
 }

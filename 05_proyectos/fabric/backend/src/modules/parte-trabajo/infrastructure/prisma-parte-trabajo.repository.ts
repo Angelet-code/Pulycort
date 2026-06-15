@@ -99,6 +99,7 @@ export class PrismaParteTrabajoRepository implements ParteTrabajoRepository {
       operario1: fila.operario1,
       operario2: fila.operario2,
       nBloque: fila.nBloque,
+      pmLote: fila.nBloque,
       material: fila.material,
       largo: fila.largo,
       alto: fila.alto,

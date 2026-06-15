@@ -1,0 +1,5 @@
+telar_n;filas;sin_pm;incidencia_no_mapeada_por_backend;potencia_fuera_rango;consumo_desacoplado;golpes_fuera_rango;velocidad_fuera_rango;altura_sobre_tope;primera;ultima
+1;25375;0;239;2506;1429;438;0;1592;Mon May 05 2025 03:59:00 GMT+0200 (hora de verano de Europa central);Sat Jun 13 2026 10:39:00 GMT+0200 (hora de verano de Europa central)
+2;23358;0;638;129;0;472;0;362;Wed Jun 04 2025 06:39:00 GMT+0200 (hora de verano de Europa central);Sat Jun 13 2026 10:43:00 GMT+0200 (hora de verano de Europa central)
+3;21407;0;236;1416;3;605;0;1198;Wed Jun 04 2025 06:39:00 GMT+0200 (hora de verano de Europa central);Sat Jun 13 2026 10:43:00 GMT+0200 (hora de verano de Europa central)
+4;38300;0;0;4153;13446;3137;0;5;Tue Dec 31 2024 23:01:00 GMT+0100 (hora estándar de Europa central);Sun Jun 14 2026 19:15:00 GMT+0200 (hora de verano de Europa central)

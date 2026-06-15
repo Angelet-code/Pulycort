@@ -89,8 +89,10 @@ Visor de **solo lectura** de los 4 telares (corte de bloques en tablas): sala en
 (`/partes`, las lecturas de la tabla real `produccion_mapeada`, paginadas), partes de
 trabajo de operario (`/partes-trabajo`, tabla real `parte_trabajo_mapeada`: operaciones,
 paquetes, tablas y m² reales), producción y paros (`/produccion`), inventario de bloques
-(`/inventario`, tabla real `lot_block_creation`: altas de bloque en almacén con medida del
-proveedor frente a medida de fábrica/mrp, m³ y merma derivados), salud del dato
+(`/inventario`, bloques en existencias del stock real de Odoo: lote `stock_lot` con
+existencias on-hand vía `stock_quant`, con medida del proveedor frente a medida de
+fábrica/mrp, m³ y merma derivados; `lot_block_creation` quedó descartada por ser un log
+obsoleto disjunto del stock real), salud del dato
 (`/datos`, cuarentena de lecturas corruptas con su motivo) y salud del sistema
 (`/sistema`, registro curado de problemas de máquinas/datos/cálculos con evidencia,
 solución recomendada y responsable; mantener a mano junto a `00_gestion/TAREAS.md`).

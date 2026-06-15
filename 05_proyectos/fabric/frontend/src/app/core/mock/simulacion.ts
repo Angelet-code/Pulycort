@@ -11,6 +11,7 @@ import { MATERIALES } from '../materiales';
 import {
   ALTURA_BASTIDOR_REPOSO_MM,
   ESPESOR_TABLA_CM,
+  ESPESORES_TABLA_CM,
   KERF_FLEJE_CM,
   TELAR_IDS
 } from '../dominio';
@@ -177,14 +178,30 @@ function generarMedidas(rng: () => number): { proveedor: Medidas; fabrica: Medid
   return { proveedor, fabrica };
 }
 
-export function tablasPrevistas(medidasFabrica: Medidas): number {
-  return Math.max(1, Math.floor(medidasFabrica.gruesoCm / (ESPESOR_TABLA_CM + KERF_FLEJE_CM)));
+export function tablasPrevistas(
+  medidasFabrica: Medidas,
+  espesorCm: number = ESPESOR_TABLA_CM
+): number {
+  return Math.max(1, Math.floor(medidasFabrica.gruesoCm / (espesorCm + KERF_FLEJE_CM)));
 }
 
-function generarResumenPaquetes(rng: () => number, medidas: Medidas): ResumenPaquetes {
+/**
+ * Espesor de corte de un bloque en la demo. Determinista por número de bloque
+ * (no consume el rng global, para no descuadrar el resto de la simulación):
+ * recorre 1 / 1,5 / 2 / 3 cm. En el modo real el espesor lo trae el parte.
+ */
+function espesorTablaDeBloque(numeroBloque: number): number {
+  return ESPESORES_TABLA_CM[numeroBloque % ESPESORES_TABLA_CM.length];
+}
+
+function generarResumenPaquetes(
+  rng: () => number,
+  medidas: Medidas,
+  espesorCm: number
+): ResumenPaquetes {
   // Las tablas reales difieren de las previstas: roturas al manipular o
-  // alguna lámina extra si el kerf real fue menor.
-  const numTablas = Math.max(1, tablasPrevistas(medidas) + enteroEntre(rng, -3, 1));
+  // alguna lámina extra si el kerf real fue menor. A menor espesor, más tablas.
+  const numTablas = Math.max(1, tablasPrevistas(medidas, espesorCm) + enteroEntre(rng, -3, 1));
   const largoTablaM = (medidas.largoCm - enteroEntre(rng, 8, 18)) / 100;
   const altoTablaM = (medidas.altoCm - enteroEntre(rng, 10, 22)) / 100;
   const metrosCuadrados = numTablas * largoTablaM * altoTablaM;
@@ -193,7 +210,7 @@ function generarResumenPaquetes(rng: () => number, medidas: Medidas): ResumenPaq
     numTablas,
     largoTablaM: Math.round(largoTablaM * 100) / 100,
     altoTablaM: Math.round(altoTablaM * 100) / 100,
-    gruesoTablaM: ESPESOR_TABLA_CM / 100,
+    gruesoTablaM: espesorCm / 100,
     metrosCuadrados: Math.round(metrosCuadrados * 10) / 10
   };
 }
@@ -261,8 +278,10 @@ function generarCiclosTelar(ctx: ContextoGeneracion, telarId: number): CicloSim[
   while (cursor < finVentana) {
     const { proveedor, fabrica } = generarMedidas(rng);
     const material = MATERIALES[enteroEntre(rng, 0, MATERIALES.length - 1)];
+    const numeroBloque = ctx.siguienteNumeroBloque();
     const bloque: Bloque = {
-      numero: ctx.siguienteNumeroBloque(),
+      numero: numeroBloque,
+      pmLote: numeroBloque,
       materialId: material.id,
       medidasProveedor: proveedor,
       medidasFabrica: fabrica
@@ -294,7 +313,7 @@ function generarCiclosTelar(ctx: ContextoGeneracion, telarId: number): CicloSim[
       // Máx. 138+7 de ruido = 145 A → 73 kW, bajo el tope real de 76 kW.
       amperiosBase: enteroEntre(rng, 92, 138),
       paros,
-      resumenPaquetes: generarResumenPaquetes(rng, fabrica)
+      resumenPaquetes: generarResumenPaquetes(rng, fabrica, espesorTablaDeBloque(bloque.numero))
     });
 
     // Hueco corto entre bloques: así los telares pasan la mayor parte del
@@ -399,6 +418,7 @@ function generarLecturasTelar(
       lectura = {
         ...base,
         bloque: null,
+        pmLote: null,
         incidencia: 'cambio-bloque',
         potenciaKw: 0,
         amperios: 0,
@@ -419,6 +439,7 @@ function generarLecturasTelar(
         lectura = {
           ...base,
           bloque: ciclo.bloque.numero,
+          pmLote: ciclo.bloque.pmLote,
           incidencia: causa,
           potenciaKw: Math.round(residual / 2),
           amperios: residual,
@@ -434,6 +455,7 @@ function generarLecturasTelar(
         lectura = {
           ...base,
           bloque: ciclo.bloque.numero,
+          pmLote: ciclo.bloque.pmLote,
           incidencia: 'marcha',
           potenciaKw: Math.round(amperios / 2),
           amperios,
@@ -471,6 +493,7 @@ function generarEventos(ctx: ContextoGeneracion, ciclos: CicloSim[]): EventoPart
       fechaHora: new Date(t).toISOString(),
       tipo,
       bloque: ciclo.bloque.numero,
+      pmLote: ciclo.bloque.pmLote,
       materialId: ciclo.bloque.materialId,
       paquetes,
       operario1: operario1 ?? OPERARIOS_MANANA[0],
@@ -513,6 +536,7 @@ function generarEventos(ctx: ContextoGeneracion, ciclos: CicloSim[]): EventoPart
           fechaHora: new Date(t).toISOString(),
           tipo: 'fin-jornada',
           bloque: null,
+          pmLote: null,
           materialId: null,
           paquetes: null,
           operario1: operarios[0],

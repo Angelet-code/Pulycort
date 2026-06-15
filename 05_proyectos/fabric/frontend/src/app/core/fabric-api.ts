@@ -1,13 +1,19 @@
 import { Observable } from 'rxjs';
 import {
+  CoberturaMaquinas,
   DetalleTelar,
   Estadisticas,
   FiltrosInventario,
   FiltrosLecturas,
+  FiltrosPartesDiscoPuente,
+  FiltrosPartesReforzadora,
   FiltrosPartesTrabajo,
+  InventarioVistaConjunta,
   PaginaInventario,
   PaginaLecturas,
   PaginaPartes,
+  PaginaPartesDiscoPuente,
+  PaginaPartesReforzadora,
   PaginaPartesTrabajo,
   RangoEstadisticas,
   SaludDatos,
@@ -36,6 +42,18 @@ export abstract class FabricApi {
   abstract getPartesTrabajo(
     filtros: FiltrosPartesTrabajo
   ): Observable<PaginaPartesTrabajo>;
-  /** Inventario de bloques de almacén (la tabla `lot_block_creation` real). */
+  /** Partes del disco puente en crudo (la tabla `parte_discopuente_mapeada` real). */
+  abstract getPartesDiscoPuente(
+    filtros: FiltrosPartesDiscoPuente
+  ): Observable<PaginaPartesDiscoPuente>;
+  /** Partes de la reforzadora de tablas en crudo (la tabla `reforzadora_mapeada` real). */
+  abstract getPartesReforzadora(
+    filtros: FiltrosPartesReforzadora
+  ): Observable<PaginaPartesReforzadora>;
+  /** Bloques en existencias del stock real (`stock_lot` on-hand vía `stock_quant`). */
   abstract getInventario(filtros: FiltrosInventario): Observable<PaginaInventario>;
+  /** Existencias por material para el mapa de inventario (bloques en m³; tablas/losas pendientes). */
+  abstract getResumenInventario(): Observable<InventarioVistaConjunta>;
+  /** Mapa de cobertura: catálogo de planta + volumen real de cada máquina conectada. */
+  abstract getCoberturaMaquinas(): Observable<CoberturaMaquinas>;
 }

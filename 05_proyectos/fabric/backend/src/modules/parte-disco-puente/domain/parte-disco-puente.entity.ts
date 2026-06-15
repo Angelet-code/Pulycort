@@ -14,7 +14,10 @@ export type ParteDiscoPuente = {
   discoPuenteN: string | null;
   operario1: number | null;
   operario2: number | null;
+  /** Columna fuente heredada `n_bloque`; se conserva por compatibilidad. */
   nBloque: number | null;
+  /** Matricula operativa confirmada para partes/maquinas. */
+  pmLote: number | null;
   idBloque: number | null;
   /** Si el bloque está dado de alta en el inventario de Odoo (lot_block_creation). */
   enInventarioOdoo: boolean | null;
@@ -29,6 +32,8 @@ export type ParteDiscoPuente = {
   grueso: number | null;
   nPaquete: number | null;
   nTablas: number | null;
+  /** Deriva de `pm_losa`: palet/cajon de salida, no losa individual. */
+  contenedorSalida: number | null;
   /** Medidas de las hasta 8 tablas del parte (índice 0 = tabla 1). */
   largoTablas: (number | null)[];
   altoTablas: (number | null)[];

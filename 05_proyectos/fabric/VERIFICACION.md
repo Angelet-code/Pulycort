@@ -15,6 +15,11 @@
 > volverse permanente. El backend ya no tiene modo mock (retirado 2026-06-13). Este documento
 > es la lista de control para pasar de "maqueta creíble" a "app fiable".
 
+> **Regla PM/lote (2026-06-14).** PM / lote es la matrícula operativa; bloque físico solo
+> cuando la fuente lo identifica como tal. Fabric sigue leyendo la columna fuente
+> `n_bloque`, pero la expone como `pmLote` y la UI la presenta como PM/lote en telares,
+> partes y producción. No se crean sub-bloques ni se usan las medidas como identificador.
+
 Leyenda de estado:
 
 - ✅ **Real** — se muestra o calcula directamente con columnas que ya existen en los datos. Solo falta confirmar unidad/semántica.
@@ -51,11 +56,11 @@ Toda métrica de **tiempo** (utilización, minutos de paro, horas de marcha, MTB
 | Valor | Cómo se obtiene | Estado | Qué falta |
 |---|---|---|---|
 | Estado del telar (marcha/paro/rotura) | mapeo de la columna `Incidencia` de la última lectura | ✅ | Confirmar lista cerrada de incidencias reales y su mapeo |
-| Estado **"Cambio de bloque"** | lecturas sin nº de bloque | ⛔ | El sistema real no tiene esta incidencia; me la inventé para los huecos entre bloques. Hay que confirmar **cómo representa el sistema real un telar sin bloque** (¿incidencia concreta? ¿bloque vacío?) o quitar el estado |
+| Estado **"Cambio de lote"** | lecturas sin PM/lote (`n_bloque`) | ⛔ | El sistema real no tiene esta incidencia; me la inventé para los huecos entre lotes. Hay que confirmar **cómo representa el sistema real un telar sin lote en corte** (¿incidencia concreta? ¿`n_bloque` vacío?) o quitar el estado |
 | Estado **"Sin señal"** | sin lectura válida en 25 min | ⚠️ | El umbral de 25 min es inventado; depende de la cadencia real |
 | Círculo de color del material | nombre real, **color asignado por mí** | ⚠️ | El color es diseño (aceptable), pero hay que fijar el **catálogo real de materiales y sus códigos** que usan los telares (ver §2) |
-| Medidas del bloque (fábrica) | columnas largo/alto/grueso | ⚠️ | Confirmar **qué columnas son "proveedor" y cuáles "fábrica"** y la unidad (se asume cm) |
-| **Avance del corte (%)** | (altura_inicial − altura_actual) / altura_inicial | ⚠️ | Depende de que "altura actual" llegue a ~0 al terminar y de cuál es la altura inicial (1ª lectura del bloque). Verificar el ciclo completo de un bloque |
+| Medidas del lote (fuente) | columnas largo/alto/grueso | ⚠️ | Son atributos/verificación del PM/lote, no identificador físico. Confirmar unidad (se asume cm) y semántica |
+| **Avance del corte (%)** | (altura_inicial − altura_actual) / altura_inicial | ⚠️ | Depende de que "altura actual" llegue a ~0 al terminar y de cuál es la altura inicial (1ª lectura del lote). Verificar el ciclo completo de un PM/lote |
 | **ETA "Termina ~…"** | ahora + altura_actual / velocidad | ✅ | Cálculo trazable con columnas reales (altura mm ÷ velocidad mm/h). Solo confirmar unidades |
 | Golpes / Potencia / Descenso | columnas directas | ✅ | Solo display |
 | Desvío de ritmo (real vs consigna) | Δaltura / Δt frente a velocidad | ✅ | Cálculo trazable |
@@ -71,7 +76,7 @@ Toda métrica de **tiempo** (utilización, minutos de paro, horas de marcha, MTB
 |---|---|---|---|
 | Doble medida proveedor / fábrica | dos juegos de columnas | ⚠️ | Mapear qué columna es cada una |
 | **Δ volumen (merma de compra) %** | (m³prov − m³fab) / m³prov | ✅ | Trazable si tenemos las dos medidas; confirmar si usamos la columna "Metros cúbicos" real o la calculamos |
-| Bloque Vivo (sección SVG) | dibuja la altura real | ✅* | El descenso es real; el dibujo de "tablas con kerf" es decorativo (espesor/kerf inventados, ver abajo) |
+| Corte en curso (sección SVG) | dibuja la altura real | ✅* | El descenso es real; el dibujo de "tablas con kerf" es decorativo (espesor/kerf inventados, ver abajo) |
 | Gráficos altura / potencia / golpes | series de columnas reales | ✅ | Solo display |
 | Proyección del ETA (línea discontinua) | altura / velocidad | ✅ | Trazable |
 | **Tablas previstas** | ⌊grueso / (2 cm + 0,8 cm)⌋ | ⛔ | Espesor de tabla (2 cm) y kerf del fleje (8 mm) **inventados**. Además el "Nº de Tablas" real ya viene en el parte. Confirmar espesor/kerf estándar **o eliminar la previsión** y mostrar solo tablas reales |
@@ -82,16 +87,17 @@ Toda métrica de **tiempo** (utilización, minutos de paro, horas de marcha, MTB
 | **MTBF del fleje (7 d)** | horas marcha / nº roturas | ⚠️ | Las roturas SÍ se identifican ("Paro telar por rotura…"); las horas de marcha dependen de la cadencia |
 | Gantt de jornada | tramos por incidencia | ✅ | Real |
 | Tabla de últimas lecturas | columnas directas | ✅ | Real |
-| Ciclo del bloque (partes) | eventos reales | ✅ | Real |
-| Últimos bloques: corte (h), paros | duraciones | ⚠️ | Cadencia |
-| Últimos bloques: tablas prev→real, m², merma | mezcla | ⚠️/⛔ | "prev" hereda el problema de tablas previstas |
+| Ciclo del lote (partes) | eventos reales agrupados por `n_bloque` | ✅ | Real a nivel PM/lote |
+| Últimos lotes aserrados: corte (h), paros | duraciones | ⚠️ | Cadencia |
+| Últimos lotes aserrados: tablas prev→real, m², merma | mezcla | ⚠️/⛔ | "prev" hereda el problema de tablas previstas |
 
 ### Vista `/produccion`
 
 | Valor | Estado | Qué falta |
 |---|---|---|
 | m² de tablas, tablas, paquetes, m³ aserrados | ✅ | Sumas de columnas reales de partes |
-| **Rendimiento m²/m³** | ✅ | m² / m³, ambos reales. (Es justo el dato que comentaste que podréis aportar/validar — el de los audios, 38–40 m²/m³) |
+| **Rendimiento m²/m³** | ✅ | m² / m³ a nivel PM/lote cuando la agrupación viene de `n_bloque`. No promete rendimiento por bloque físico si no hay identificador físico separado |
+| **m³ y Rendimiento POR LOTE** (tabla "Últimos lotes aserrados") | ✅/⚠️ | [IMPLEMENTADO 2026-06-14] El m³ sale de la medida REAL del bloque en `lot_block_creation` por PM (no de la consola): 1 bloque → **exacto**; multibloque (PM repetido, 1:N confirmado por Ángel) → suma marcada **≈ "estimación"**; respaldo a medida de proveedor → ≈; PM sin alta en inventario → **"—" con ⚠**. La consola queda como **punto de control** (`medidasIncoherentes`). PENDIENTE de verificar contra datos reales (no bloquea entrega): cobertura PM telar↔inventario y calidad de medidas (0×0×0 se muestra tal cual, decisión de negocio) |
 | Merma media % | ✅ | Si tenemos las dos medidas |
 | m²/día por telar | ✅ | Real |
 | Producción por material | ✅ | Real |
@@ -101,11 +107,11 @@ Toda métrica de **tiempo** (utilización, minutos de paro, horas de marcha, MTB
 | Roturas de fleje (listado) | ✅ | Identificables por incidencia |
 | Jornada Gantt | ✅ | Real |
 
-### Vista `/partes` — Partes de trabajo
+### Vista `/partes-trabajo` — Partes de trabajo
 
 Es el registro "en crudo" de los partes de operario, con las mismas columnas del sistema
 antiguo. No introduce cálculos nuevos: muestra los campos de cada evento. Por tanto hereda las
-verificaciones de medidas de bloque, m³ y datos de paquetes ya listadas arriba. Específico de
+verificaciones de medidas de lote, m³ y datos de paquetes ya listadas arriba. Específico de
 esta vista:
 
 | Elemento | Estado | Qué falta |
@@ -113,22 +119,41 @@ esta vista:
 | Operación (colocación/aserrado/salida/paquetes) | ✅ | Mapeo de las operaciones reales del parte |
 | **"Fin de jornada"** | ⛔ | Hoy el mock **sintetiza** un fin de jornada por telar a las 14:00 y 22:00. En el sistema real es un registro que mete el operario. Confirmar que ese evento existe en los partes reales y cuándo/quién lo genera |
 | Operario en partes de noche | ⚠️ | Cuando no hay turno (noche, marcha automática) el mock rellena con el equipo de mañana. Confirmar qué operario figura realmente en un parte nocturno |
-| Medidas de bloque / m³ / datos de tabla por fila | ⚠️/✅ | Mismas verificaciones que en las otras vistas (mapeo de columnas, unidades) |
+| Medidas de lote / m³ / datos de tabla por fila | ⚠️/✅ | Mismas verificaciones que en las otras vistas (mapeo de columnas, unidades). Medidas = atributo, no identificador |
 
-### Vista `/inventario` — Inventario de bloques
+### Vista `/partes/bloques` (lista) y `/inventario` (treemap) — Inventario de bloques
 
-Registro "en crudo" de las altas de bloque en almacén (tabla `lot_block_creation` de Odoo).
-Las medidas y los flags se muestran tal cual están en la tabla; las únicas cifras derivadas
-son el m³ y la merma, y ambas dependen del supuesto de unidad:
+Los bloques que **realmente hay ahora** en el almacén. El inventario UNE **dos eras de datos
+disjuntas** (verificado contra BD el 2026-06-14; ninguna sola es completa):
+
+- **Era `stock`** — lote `stock_lot` on-hand (`stock_quant.quantity > 0` en ubicación interna,
+  `stock_location.usage = 'internal'`). Es un **snapshot histórico** de Odoo (nº de bloque ≤ 45999,
+  cargado el 2025-08-29): `stock_quant` dejó de recibir bloques nuevos, así que **por sí solo
+  infracuenta** (134 bloques).
+- **Era `alta`** — bloque recibido reciente (nº ≥ 46003) de `lot_block_creation` (el log VIVO de
+  recepción) que **no consta consumido**: sin aserrado/salida (`parte_trabajo_mapeada` op 2/3), ni en
+  `produccion_mapeada`/`parte_discopuente_mapeada`, ni `delivery_done`. Son los bloques sin cortar en
+  patio (~151) que el stock de Odoo todavía no refleja.
+
+Las dos series de nº de bloque son disjuntas, así que unirlas **no duplica** (además se deduplica por
+nº por seguridad). Solo cuentan los bloques (`type_product_lot` ∈ {`block`, `othermaterial`} en el
+stock; las altas son bloques por definición); `tables`/`slabs` quedan fuera. El m³ se deriva de las
+medidas del propio lote/alta.
 
 | Valor | Cómo se obtiene | Estado | Qué falta |
 |---|---|---|---|
-| Medidas proveedor / fábrica | columnas `largo/alto/grueso_supplier` y `_mrp` directas ("—" si mrp es NULL) | ✅ | Confirmar la **unidad** (se asume cm, como en las tablas de máquina) |
-| m³ prov. / m³ fáb. | largo × alto × grueso / 10⁶ **asumiendo cm** (señalado en el tooltip de la columna) | ⚠️ | La cifra solo vale si la unidad es cm; confirmar antes de entregar |
-| Merma % | (m³ prov − m³ fáb) / m³ prov × 100, solo con ambos juegos de medidas | ⚠️ | Hereda el supuesto de unidad; confirmar también que `_supplier` es la medida declarada y `_mrp` la de fábrica |
-| Material | `product_id_tmpl` resuelto contra el catálogo confirmado de códigos | ⚠️ | Códigos no catalogados se enseñan como "Material N"; completar el catálogo (TAREAS.md) |
-| Proveedor | nombre legible directo de la columna `ref` (texto) | ✅ | El FK `supplier` (`res_partner`) viene **vacío** en real; el nombre del proveedor está en `ref`. Texto libre: algún valor suelto no es proveedor (visto `654645`). El operario (`hr_employee`) sigue sin pintarse |
-| Estado entrada/lote | `delivery_done` / `create_lot_done` ("✓" hecho, "·" no, "—" NULL) | ⚠️ | Confirmar la semántica exacta de ambos flags y de `thir_party_material` (TAREAS.md) |
+| Procedencia | `fuente` = `stock` (on-hand de Odoo) o `alta` (recepción reciente, sin existencias aún en Odoo) | ✅ | Confirmar por qué los bloques nuevos no entran en `stock_quant` (recepción no validada desde ~ago-2025) |
+| Medidas proveedor / fábrica | columnas `largo/alto/grueso_supplier` y `_mrp` ("—" si NULL) | ✅ | Unidad **metros**; la de fábrica (`_mrp`) casi siempre falta (se mide al procesar el bloque) |
+| m³ prov. / m³ fáb. | largo × alto × grueso (metros → m³ directo; `volumenBloqueM3` normaliza algún cm suelto) | ✅ | — |
+| Merma % | (m³ prov − m³ fáb) / m³ prov × 100, solo con ambas medidas | ⚠️ | Casi nunca disponible (falta la medida de fábrica) |
+| Material | nombre real de `product_template` por `product_id` (stock) o `product_id` ?? `product_id_tmpl` (altas); resuelve plantilla y variante; sin "M3 BLOQUE" | ✅ | Id sin nombre en Odoo → "Material N" |
+| Tipo | `type_product_lot` (`block` / `othermaterial`) en el stock; `block` en las altas | ⚠️ | Confirmar qué distingue ambos en el stock |
+| Ubicación | `stock_location.complete_name` del quant on-hand (p. ej. "WH/Stock"); "—" en las altas (aún sin ubicación Odoo) | ✅ | — |
+
+Comprobado contra el endpoint real (2026-06-14): **285 bloques / 26 materiales** (134 on-hand +
+~151 altas no consumidas), ~1.313 m³. m³ y merma salen de las medidas del propio lote/alta; no se
+inventa nada. Incertidumbres registradas en `00_gestion/TAREAS.md` (snapshot congelado ~9,5 meses;
+15 altas sin medida usable; `othermaterial`).
 
 ### Vista `/datos` — Salud del dato
 
@@ -145,6 +170,12 @@ La vista es valiosa y conceptualmente correcta, pero las **reglas concretas del 
 | Salto de altura imposible | sube en corte, o baja > 1,5× velocidad máx | Confirmar velocidad máxima real (asumí 310 mm/h) |
 | % lecturas fiables por telar | — | Es un % real una vez acordadas las reglas de arriba |
 
+**Pestaña "Fuentes"** (Salud → Fuentes): lista **las 11 tablas reales que lee Fabric**, agrupadas por origen, con su descripción, quién las introduce y un veredicto de salud **derivado del dato real**, no supuesto: nº de registros (`count`), última actualización (registro más reciente) y el diagnóstico. Lo calcula el backend (`getSaludDatos` → `fuentesDatos`); si una tabla no se puede leer, su tarjeta degrada a "—"/"sin datos" sin tumbar la página. Los grupos:
+
+- **Máquinas** — `produccion_mapeada` (lecturas de telar, veredicto = fiabilidad en 7 días), `parte_trabajo_mapeada` (partes de operario, veredicto = % con problemas de formato), `parte_discopuente_mapeada` (partes del disco puente), `reforzadora_mapeada` (partes de la reforzadora de tablas), `bloque_maquinas` (padrón de nº de bloque de máquina).
+- **Inventario** — dos eras que se unen: `stock_lot` (maestro de lotes, snapshot on-hand histórico) + `stock_quant` (existencias on-hand) + `stock_location` (ubicaciones), y **`lot_block_creation`** (log VIVO de recepción de los bloques recientes que aún no entran al stock de Odoo). El inventario suma las dos; `lot_block_creation` aporta además la medida de bloque por PM/lote para el m³ y el rendimiento de Producción (`inventarioPorPm`).
+- **Catálogo de productos (Odoo)** — `product_template` y `product_product` (solo resuelven el nombre del material).
+
 ---
 
 ## 2. Datos que pedimos a la empresa / a quien gestione el servidor
@@ -156,7 +187,7 @@ Para poder marcar en verde lo que hoy está en ámbar o rojo, necesitaríamos co
 3. **Mapeo de columnas de medidas**: cuáles son la medida del proveedor y cuáles la de fábrica.
 4. **Unidades oficiales** de: altura del bastidor, velocidad de descenso, dimensiones de bloque, potencia, amperios. (Tengo cruzado que velocidad es mm/h y amperios≈2·kW, pero conviene confirmarlo formalmente.)
 5. **Semántica de "Altura actual"**: ¿es la posición del bastidor que baja hasta 0 al acabar el corte? ¿Cuál es la altura máxima (reposo) real?
-6. **Lista cerrada de incidencias** que emite la máquina y cuáles significan parada real vs. rutina. Y cómo se representa un telar **sin bloque / entre bloques** (para sustituir mi estado inventado "Cambio de bloque").
+6. **Lista cerrada de incidencias** que emite la máquina y cuáles significan parada real vs. rutina. Y cómo se representa un telar **sin PM/lote en corte / entre lotes** (para sustituir mi estado inventado "Cambio de lote").
 7. **Calendario de turnos** real (horas de inicio/fin, si hay turno de noche, festivos) y si la utilización debe medirse sobre 24 h, sobre horas de turno o sobre horas planificadas de corte. **Decisión de negocio.**
 8. **Catálogo real de materiales** que se cortan en telar, con sus códigos (¿son los mismos códigos 100–903 de PulyTrack?), para fijar nombre y color de forma oficial.
 9. **Espesor de tabla y kerf (anchura de corte) del fleje** estándar — solo si queremos mantener "tablas/m² previstos"; si no, los quitamos y mostramos solo el dato real del parte.
@@ -172,7 +203,7 @@ Para cumplir el principio de "ningún dato supuesto en la entrega", si llegado e
 
 - **Tablas previstas / m² previstos** → quitar; mostrar solo tablas y m² reales del parte.
 - **Vigía del fleje** → ~~quitar~~ **hecho (2026-06-13): retirado del modo Real** (`vigiaFleje: null`); solo se calcula en Demo. **Retirada temporal: reintroducir en cuanto se pueda**, en cuanto haya histórico de roturas que valide el ratio/umbral.
-- **Estado "Cambio de bloque"** → sustituir por lo que diga el dato real, o fundir en "Sin bloque".
+- **Estado "Cambio de lote"** → sustituir por lo que diga el dato real, o fundir en "Sin lote".
 - **Utilización / % en marcha** → no mostrar hasta acordar el denominador; alternativamente mostrar solo **horas de marcha absolutas** (dato duro) en vez de un % cuyo 100% es discutible.
 - **Cualquier métrica de minutos/horas** → recalcular por diferencia de marcas de tiempo antes de mostrarse.
 

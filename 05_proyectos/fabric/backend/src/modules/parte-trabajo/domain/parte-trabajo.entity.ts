@@ -12,7 +12,10 @@ export type ParteTrabajo = {
   nTelar: string | null;
   operario1: number | null;
   operario2: number | null;
+  /** Columna fuente heredada `n_bloque`; se conserva por compatibilidad. */
   nBloque: number | null;
+  /** Matricula operativa confirmada para partes/maquinas. */
+  pmLote: number | null;
   material: number | null;
   largo: number | null;
   alto: number | null;

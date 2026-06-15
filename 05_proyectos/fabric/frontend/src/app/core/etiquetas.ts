@@ -4,12 +4,12 @@ export const ETIQUETA_INCIDENCIA: Record<TipoIncidencia, string> = {
   marcha: 'Marcha telar',
   paro: 'Paro telar',
   'rotura-fleje': 'Rotura de fleje',
-  'cambio-bloque': 'Cambio de bloque',
+  'cambio-bloque': 'Cambio de lote',
   desconocida: 'Desconocida'
 };
 
 export const ETIQUETA_EVENTO: Record<TipoEvento, string> = {
-  colocacion: 'Colocación de bloque',
+  colocacion: 'Colocación de lote',
   aserrado: 'Aserrado en curso',
   salida: 'Salida del telar',
   paquetes: 'Paquetes hechos',

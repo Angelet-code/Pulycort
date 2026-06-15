@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { GetBloquesInventarioUseCase } from './application/get-bloques-inventario.use-case';
+import { GetResumenInventarioUseCase } from './application/get-resumen-inventario.use-case';
 import { BloqueInventarioRepository } from './domain/bloque-inventario.repository';
 import { PrismaBloqueInventarioRepository } from './infrastructure/prisma-bloque-inventario.repository';
 import { BloqueInventarioController } from './presentation/bloque-inventario.controller';
@@ -11,6 +12,7 @@ import { PrismaService } from '../../shared/infrastructure/database/prisma/prism
   controllers: [BloqueInventarioController],
   providers: [
     GetBloquesInventarioUseCase,
+    GetResumenInventarioUseCase,
     {
       provide: BloqueInventarioRepository,
       inject: [PrismaService],

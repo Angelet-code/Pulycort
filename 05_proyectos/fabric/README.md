@@ -1,7 +1,7 @@
 # Fabric — visor de producción de telares
 
 App **core** de Pulycort / INDASEL: visor de **solo lectura** de los 4 telares (corte de
-bloques de piedra en tablas). Qué corta cada máquina, cuánto le queda, cuánto se ha
+PM/lotes de piedra en tablas). Qué corta cada máquina, cuánto le queda, cuánto se ha
 producido y qué lecturas llegan corruptas del sistema antiguo. Es la "sala de máquinas"
 que complementa a **PulyTrack** (pedidos/trazabilidad).
 
@@ -22,6 +22,23 @@ fabric/
 - **backend/** — la API real. `PrismaFabricRepository` deriva todo desde la tabla real
   `produccion_mapeada` y devuelve `null` / "—" para lo que la tabla no contiene
   (no inventa). Ver [`backend/README.md`](./backend/README.md).
+
+## Regla PM/lote
+
+**PM / lote es la matrícula operativa; bloque físico solo cuando la fuente lo identifica
+como tal.** Fabric sigue leyendo la columna fuente heredada `n_bloque`, pero la API añade
+`pmLote` y la UI lo presenta como PM/lote en telares, partes y producción. Los campos
+antiguos (`bloque`, `nBloque`) se conservan por compatibilidad.
+
+No se crean sub-bloques (`PM47177-01`, etc.) ni se usa el tamaño como identificador. Si dos
+bloques físicos comparten el mismo PM/lote y la fuente no los diferencia, los cálculos de
+rendimiento se interpretan a nivel PM/lote. Las medidas son atributos/verificación, no una
+matrícula.
+
+En disco puente, `pm_losa` se expone como `contenedorSalida`: palet/cajón de salida
+pendiente de confirmación final con Indasel, no una losa individual. La capa confirmada es
+`PM/lote -> palet/cajón`; no se enlaza todavía con pulidora de losas hasta tener campo
+fuente confirmado.
 
 ## Arranque
 

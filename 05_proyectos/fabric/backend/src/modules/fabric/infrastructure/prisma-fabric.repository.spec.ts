@@ -121,6 +121,20 @@ describe('PrismaFabricRepository · estado del telar', () => {
     expect(await estadoTelar(filas, 1)).toBe('marcha');
   });
 
+  it('expone pmLote derivado de n_bloque sin retirar los campos heredados', async () => {
+    const filas = [
+      fila({ telar: 1, haceMs: 20 * MIN, incidencia: '1', alturaMm: 1810 }),
+      fila({ telar: 1, haceMs: 10 * MIN, incidencia: '1', alturaMm: 1805 }),
+    ];
+    const planta = await repoCon(filas).getSnapshotPlanta();
+    const telar = planta.telares.find((t) => t.telarId === 1)!;
+
+    expect(telar.ultimaLectura?.bloque).toBe(47177);
+    expect(telar.ultimaLectura?.pmLote).toBe(47177);
+    expect(telar.bloque?.numero).toBe(47177);
+    expect(telar.bloque?.pmLote).toBe(47177);
+  });
+
   it('marca "paro" con código 2 reciente', async () => {
     const filas = [fila({ telar: 1, haceMs: 10 * MIN, incidencia: '2', potencia: 13 })];
     expect(await estadoTelar(filas, 1)).toBe('paro');
@@ -160,5 +174,503 @@ describe('PrismaFabricRepository · estado del telar', () => {
   it('declara fuente "postgres" en el snapshot de planta', async () => {
     const planta = await repoCon([]).getSnapshotPlanta();
     expect(planta.fuente).toBe('postgres');
+  });
+});
+
+/**
+ * m³/rendimiento POR LOTE: la medida REAL del bloque sale del inventario
+ * (`lot_block_creation`) por PM, no de la consola de `produccion_mapeada`
+ * (que hereda del bloque anterior = ruido). Un PM con varias filas = lote
+ * multibloque (raro): se suma y se marca estimación.
+ */
+function repoConInventario(
+  filas: FilaPrueba[],
+  inventario: Array<Record<string, unknown>>,
+): PrismaFabricRepository {
+  const prisma = {
+    produccionMapeada: { findMany: jest.fn().mockResolvedValue(filas) },
+    parteTrabajoMapeada: { findMany: jest.fn().mockResolvedValue([]) },
+    lotBlockCreation: { findMany: jest.fn().mockResolvedValue(inventario) },
+    $queryRawUnsafe: jest.fn().mockRejectedValue(new Error('permission denied')),
+  } as unknown as PrismaService;
+  return new PrismaFabricRepository(prisma);
+}
+
+async function cicloDe(
+  filas: FilaPrueba[],
+  inventario: Array<Record<string, unknown>>,
+  pm: number,
+) {
+  const est = await repoConInventario(filas, inventario).getEstadisticas('7d');
+  return est.ciclosCompletados.find((c) => c.pmLote === pm);
+}
+
+// Run ya completado (no es el actual): última lectura 3 h atrás.
+function runCompletado(): FilaPrueba[] {
+  return [
+    fila({ telar: 1, haceMs: 3 * HORA, incidencia: '1', alturaMm: 1810 }),
+    fila({ telar: 1, haceMs: 3 * HORA - 10 * MIN, incidencia: '1', alturaMm: 1805 }),
+  ];
+}
+
+describe('PrismaFabricRepository · m³/rendimiento por lote desde inventario', () => {
+  beforeEach(() => {
+    jest.spyOn(Date, 'now').mockReturnValue(AHORA);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('1 bloque en el lote: m³ exacto desde la medida de fábrica, sin estimación', async () => {
+    const ciclo = await cicloDe(
+      runCompletado(),
+      [
+        {
+          name: '47177',
+          largoMrp: 2.8,
+          altoMrp: 1.6,
+          gruesoMrp: 1.9,
+          largoSupplier: 3,
+          altoSupplier: 1.6,
+          gruesoSupplier: 2,
+        },
+      ],
+      47177,
+    );
+    expect(ciclo?.volumenM3).toBeCloseTo(8.51, 2); // 2,8 × 1,6 × 1,9 (metros)
+    expect(ciclo?.bloquesEnLote).toBe(1);
+    expect(ciclo?.volumenEstimado).toBe(false);
+  });
+
+  it('lote multibloque (PM repetido): suma los volúmenes y marca estimación', async () => {
+    const ciclo = await cicloDe(
+      runCompletado(),
+      [
+        { name: '47177', largoMrp: 2, altoMrp: 1, gruesoMrp: 1, largoSupplier: 2, altoSupplier: 1, gruesoSupplier: 1 },
+        { name: '47177', largoMrp: 3, altoMrp: 1, gruesoMrp: 1, largoSupplier: 3, altoSupplier: 1, gruesoSupplier: 1 },
+      ],
+      47177,
+    );
+    expect(ciclo?.volumenM3).toBeCloseTo(5, 2); // 2 + 3
+    expect(ciclo?.bloquesEnLote).toBe(2);
+    expect(ciclo?.volumenEstimado).toBe(true);
+  });
+
+  it('PM sin alta en inventario: m³, rendimiento y nº de bloques a null, sin estimación', async () => {
+    const ciclo = await cicloDe(runCompletado(), [], 47177);
+    expect(ciclo?.volumenM3).toBeNull();
+    expect(ciclo?.bloquesEnLote).toBeNull();
+    expect(ciclo?.volumenEstimado).toBe(false);
+    expect(ciclo?.rendimientoM2M3).toBeNull();
+  });
+
+  it('sin medida de fábrica: respaldo a la del proveedor, marcado como estimación', async () => {
+    const ciclo = await cicloDe(
+      runCompletado(),
+      [
+        {
+          name: '47177',
+          largoMrp: null,
+          altoMrp: null,
+          gruesoMrp: null,
+          largoSupplier: 2,
+          altoSupplier: 1.5,
+          gruesoSupplier: 1,
+        },
+      ],
+      47177,
+    );
+    expect(ciclo?.volumenM3).toBeCloseTo(3, 2); // 2 × 1,5 × 1 (proveedor)
+    expect(ciclo?.bloquesEnLote).toBe(1);
+    expect(ciclo?.volumenEstimado).toBe(true);
+  });
+});
+
+/**
+ * Unidades mezcladas en `lot_block_creation` (~4,6 % de filas reales): el m³ se
+ * normaliza por umbral cm→m (igual que `tablaAMetros` para los partes), no se
+ * multiplica a ciegas. Caso real que disparó la corrección: PM 47220, grueso 85
+ * (cm) → 216,75 m³ imposible y rendimiento 0,41 m²/m³ en vez de ~40.
+ */
+describe('PrismaFabricRepository · m³ con unidades mezcladas (cm/m) del inventario', () => {
+  beforeEach(() => {
+    jest.spyOn(Date, 'now').mockReturnValue(AHORA);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('grueso en cm (caso PM 47220): normaliza a metros, no infla el m³ ×100', async () => {
+    const ciclo = await cicloDe(
+      runCompletado(),
+      [
+        {
+          name: '47177',
+          largoMrp: 1.7,
+          altoMrp: 1.5,
+          gruesoMrp: 85,
+          largoSupplier: 1.7,
+          altoSupplier: 1.5,
+          gruesoSupplier: 85,
+        },
+      ],
+      47177,
+    );
+    expect(ciclo?.volumenM3).toBeCloseTo(2.17, 2); // 1,7 × 1,5 × 0,85, no 216,75
+    expect(ciclo?.volumenImposible).toBe(false);
+  });
+
+  it('las tres dimensiones en cm: las normaliza a un m³ plausible', async () => {
+    const ciclo = await cicloDe(
+      runCompletado(),
+      [
+        {
+          name: '47177',
+          largoMrp: 285,
+          altoMrp: 160,
+          gruesoMrp: 180,
+          largoSupplier: 285,
+          altoSupplier: 160,
+          gruesoSupplier: 180,
+        },
+      ],
+      47177,
+    );
+    expect(ciclo?.volumenM3).toBeCloseTo(8.21, 2); // 2,85 × 1,6 × 1,8
+    expect(ciclo?.volumenImposible).toBe(false);
+  });
+
+  it('medida imposible aun tras normalizar: anula m³ y rendimiento y marca ⚠', async () => {
+    const ciclo = await cicloDe(
+      runCompletado(),
+      [
+        {
+          name: '47177',
+          largoMrp: 7,
+          altoMrp: 2,
+          gruesoMrp: 2,
+          largoSupplier: 7,
+          altoSupplier: 2,
+          gruesoSupplier: 2,
+        },
+      ],
+      47177,
+    );
+    expect(ciclo?.volumenImposible).toBe(true);
+    expect(ciclo?.volumenM3).toBeNull();
+    expect(ciclo?.rendimientoM2M3).toBeNull();
+  });
+});
+
+/**
+ * Apartado "Fuentes" de Salud del dato: cada tabla que alimenta Fabric con su
+ * salud derivada de los datos. Una fuente ilegible degrada a "sin-datos"/null,
+ * nunca tumba la página (mismo principio que hr_employee sin permisos).
+ */
+interface FuentesMock {
+  lecturas: FilaPrueba[];
+  prodCount?: number;
+  prodUltima?: Date | null;
+  parteUltima?: Date | null;
+  inventarioCount?: number;
+  inventarioConFabrica?: number;
+  inventarioUltima?: Date | null;
+  partes?: {
+    total: number;
+    sin_fecha: number;
+    fecha_futura: number;
+    telar_invalido: number;
+    unidades_cm: number;
+    sospechosos: number;
+  };
+  prismaExtra?: Record<string, unknown>;
+}
+
+function repoConFuentes(opts: FuentesMock): PrismaFabricRepository {
+  const partes = opts.partes ?? {
+    total: 0,
+    sin_fecha: 0,
+    fecha_futura: 0,
+    telar_invalido: 0,
+    unidades_cm: 0,
+    sospechosos: 0,
+  };
+  const prodUltima =
+    opts.prodUltima === undefined ? new Date(AHORA - 10 * MIN) : opts.prodUltima;
+  const prisma = {
+    produccionMapeada: {
+      findMany: jest.fn().mockResolvedValue(opts.lecturas),
+      count: jest.fn().mockResolvedValue(opts.prodCount ?? opts.lecturas.length),
+      findFirst: jest
+        .fn()
+        .mockResolvedValue(prodUltima ? { fechaHora: prodUltima } : null),
+    },
+    parteTrabajoMapeada: {
+      findMany: jest.fn().mockResolvedValue([]),
+      findFirst: jest
+        .fn()
+        .mockResolvedValue(opts.parteUltima ? { createDate: opts.parteUltima } : null),
+    },
+    lotBlockCreation: {
+      // Dos count() seguidos: total y luego los que tienen medida de fábrica.
+      count: jest
+        .fn()
+        .mockResolvedValueOnce(opts.inventarioCount ?? 0)
+        .mockResolvedValueOnce(opts.inventarioConFabrica ?? 0),
+      findFirst: jest
+        .fn()
+        .mockResolvedValue(
+          opts.inventarioUltima ? { createDate: opts.inventarioUltima } : null,
+        ),
+    },
+    $queryRawUnsafe: jest.fn().mockResolvedValue([partes]),
+    ...opts.prismaExtra,
+  } as unknown as PrismaService;
+  return new PrismaFabricRepository(prisma);
+}
+
+/** Dos lecturas de corte, fiables (pasan el validador). */
+function lecturasFiables(): FilaPrueba[] {
+  return [
+    fila({ telar: 1, haceMs: 20 * MIN, incidencia: '1', alturaMm: 1810 }),
+    fila({ telar: 1, haceMs: 10 * MIN, incidencia: '1', alturaMm: 1805 }),
+  ];
+}
+
+describe('PrismaFabricRepository · fuentes de Salud del dato', () => {
+  beforeEach(() => {
+    jest.spyOn(Date, 'now').mockReturnValue(AHORA);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('describe las once tablas reales como fuentes, agrupadas y en orden', async () => {
+    const salud = await repoConFuentes({ lecturas: lecturasFiables() }).getSaludDatos();
+    expect(salud.fuentes.map((f) => f.tabla)).toEqual([
+      'produccion_mapeada',
+      'parte_trabajo_mapeada',
+      'parte_discopuente_mapeada',
+      'reforzadora_mapeada',
+      'bloque_maquinas',
+      'stock_lot',
+      'stock_quant',
+      'stock_location',
+      'product_template',
+      'product_product',
+      'lot_block_creation',
+    ]);
+    // Cada tabla cae en su familia para que la vista las agrupe.
+    const grupo = (tabla: string) =>
+      salud.fuentes.find((f) => f.tabla === tabla)!.grupo;
+    expect(grupo('produccion_mapeada')).toBe('maquinas');
+    expect(grupo('stock_lot')).toBe('inventario');
+    expect(grupo('product_template')).toBe('catalogo');
+    // lot_block_creation pasó a 'inventario' (es la era reciente del inventario).
+    expect(grupo('lot_block_creation')).toBe('inventario');
+  });
+
+  it('produccion_mapeada: estado ok con lecturas fiables; registros del count y última actualización', async () => {
+    const salud = await repoConFuentes({
+      lecturas: lecturasFiables(),
+      prodCount: 1234,
+    }).getSaludDatos();
+    const fuente = salud.fuentes.find((f) => f.tabla === 'produccion_mapeada')!;
+    expect(fuente.estado).toBe('ok');
+    expect(fuente.registros).toBe(1234);
+    expect(fuente.ultimaActualizacion).toBe(new Date(AHORA - 10 * MIN).toISOString());
+  });
+
+  it('produccion_mapeada: pasa a "mal" cuando la mayoría de lecturas están en cuarentena', async () => {
+    // 1 fiable + 3 con incidencia sin mapear (cuarentena) = 25 % fiables.
+    const salud = await repoConFuentes({
+      lecturas: [
+        fila({ telar: 1, haceMs: 40 * MIN, incidencia: '1', alturaMm: 1810 }),
+        fila({ telar: 1, haceMs: 30 * MIN, incidencia: '5', alturaMm: 1808 }),
+        fila({ telar: 1, haceMs: 20 * MIN, incidencia: '5', alturaMm: 1806 }),
+        fila({ telar: 1, haceMs: 10 * MIN, incidencia: '5', alturaMm: 1804 }),
+      ],
+    }).getSaludDatos();
+    const fuente = salud.fuentes.find((f) => f.tabla === 'produccion_mapeada')!;
+    expect(fuente.estado).toBe('mal');
+    expect(fuente.diagnostico).toContain('25 %');
+  });
+
+  it('parte_trabajo_mapeada: registros del total y aviso con partes sospechosos', async () => {
+    const salud = await repoConFuentes({
+      lecturas: lecturasFiables(),
+      partes: {
+        total: 100,
+        sin_fecha: 0,
+        fecha_futura: 5,
+        telar_invalido: 0,
+        unidades_cm: 0,
+        sospechosos: 5,
+      },
+      parteUltima: new Date(AHORA - 2 * HORA),
+    }).getSaludDatos();
+    const fuente = salud.fuentes.find((f) => f.tabla === 'parte_trabajo_mapeada')!;
+    expect(fuente.registros).toBe(100);
+    expect(fuente.estado).toBe('aviso');
+    expect(fuente.diagnostico).toContain('5 de 100');
+    expect(fuente.ultimaActualizacion).toBe(new Date(AHORA - 2 * HORA).toISOString());
+  });
+
+  it('lot_block_creation: registros y cobertura de medida de fábrica en el diagnóstico', async () => {
+    const salud = await repoConFuentes({
+      lecturas: lecturasFiables(),
+      inventarioCount: 50,
+      inventarioConFabrica: 30,
+      inventarioUltima: new Date(AHORA - 3 * HORA),
+    }).getSaludDatos();
+    const fuente = salud.fuentes.find((f) => f.tabla === 'lot_block_creation')!;
+    expect(fuente.estado).toBe('ok');
+    expect(fuente.registros).toBe(50);
+    expect(fuente.diagnostico).toContain('30 con medida de fábrica');
+  });
+
+  it('produccion_mapeada: avisa por falta de frescura aunque las lecturas del periodo sean fiables', async () => {
+    // Lecturas del periodo todas fiables (100 %), pero la última es de hace 8 h.
+    const salud = await repoConFuentes({
+      lecturas: [
+        fila({ telar: 1, haceMs: 8 * HORA + 10 * MIN, incidencia: '1', alturaMm: 1810 }),
+        fila({ telar: 1, haceMs: 8 * HORA, incidencia: '1', alturaMm: 1805 }),
+      ],
+      prodUltima: new Date(AHORA - 8 * HORA),
+    }).getSaludDatos();
+    const fuente = salud.fuentes.find((f) => f.tabla === 'produccion_mapeada')!;
+    expect(fuente.estado).toBe('aviso');
+    expect(fuente.diagnostico).toContain('No entran lecturas nuevas');
+  });
+
+  it('produccion_mapeada: "sin datos" sin lecturas ni marca previa; "aviso" si hay marca anterior', async () => {
+    const sinNada = await repoConFuentes({ lecturas: [], prodUltima: null }).getSaludDatos();
+    expect(sinNada.fuentes.find((f) => f.tabla === 'produccion_mapeada')!.estado).toBe(
+      'sin-datos',
+    );
+
+    const conMarca = await repoConFuentes({
+      lecturas: [],
+      prodUltima: new Date(AHORA - 30 * 86_400_000),
+    }).getSaludDatos();
+    const fuente = conMarca.fuentes.find((f) => f.tabla === 'produccion_mapeada')!;
+    expect(fuente.estado).toBe('aviso');
+    expect(fuente.diagnostico).toContain('No han entrado lecturas');
+  });
+
+  it('parte_trabajo_mapeada: "al día" sin problemas y "mal" cuando superan el 10 %', async () => {
+    const limpio = await repoConFuentes({
+      lecturas: lecturasFiables(),
+      partes: { total: 50, sin_fecha: 0, fecha_futura: 0, telar_invalido: 0, unidades_cm: 0, sospechosos: 0 },
+    }).getSaludDatos();
+    const ok = limpio.fuentes.find((f) => f.tabla === 'parte_trabajo_mapeada')!;
+    expect(ok.estado).toBe('ok');
+    expect(ok.diagnostico).toContain('Los 50 partes');
+
+    const roto = await repoConFuentes({
+      lecturas: lecturasFiables(),
+      partes: { total: 100, sin_fecha: 0, fecha_futura: 0, telar_invalido: 20, unidades_cm: 0, sospechosos: 20 },
+    }).getSaludDatos();
+    expect(roto.fuentes.find((f) => f.tabla === 'parte_trabajo_mapeada')!.estado).toBe('mal');
+  });
+
+  it('parte_trabajo_mapeada: muestra "<1 %" con pocos problemas sobre un total grande, nunca "(0 %)"', async () => {
+    const salud = await repoConFuentes({
+      lecturas: lecturasFiables(),
+      partes: { total: 1000, sin_fecha: 0, fecha_futura: 3, telar_invalido: 0, unidades_cm: 0, sospechosos: 3 },
+    }).getSaludDatos();
+    const fuente = salud.fuentes.find((f) => f.tabla === 'parte_trabajo_mapeada')!;
+    expect(fuente.estado).toBe('aviso');
+    expect(fuente.diagnostico).toContain('3 de 1000');
+    expect(fuente.diagnostico).toContain('<1 %');
+    expect(fuente.diagnostico).not.toContain('(0 %)');
+  });
+
+  it('lot_block_creation: "sin datos" cuando no hay altas', async () => {
+    const salud = await repoConFuentes({
+      lecturas: lecturasFiables(),
+      inventarioCount: 0,
+    }).getSaludDatos();
+    const fuente = salud.fuentes.find((f) => f.tabla === 'lot_block_creation')!;
+    expect(fuente.estado).toBe('sin-datos');
+    expect(fuente.diagnostico).toContain('Sin altas de bloque');
+  });
+
+  it('una fuente ilegible degrada a "sin-datos"/null sin tumbar la página', async () => {
+    const salud = await repoConFuentes({
+      lecturas: lecturasFiables(),
+      prismaExtra: {
+        lotBlockCreation: {
+          count: jest.fn().mockRejectedValue(new Error('permission denied')),
+          findFirst: jest.fn().mockRejectedValue(new Error('permission denied')),
+        },
+      },
+    }).getSaludDatos();
+    const inventario = salud.fuentes.find((f) => f.tabla === 'lot_block_creation')!;
+    expect(inventario.registros).toBeNull();
+    expect(inventario.estado).toBe('sin-datos');
+    // Las demás fuentes siguen presentes.
+    expect(salud.fuentes).toHaveLength(11);
+  });
+});
+
+/**
+ * Rango del gráfico de producción: cada periodo se agrega a una granularidad
+ * (día/semana/mes) que decide el backend. Mes y 3 meses → semana; un año e
+ * histórico → mes. 'todo' arranca en el primer registro, no en epoch 0.
+ */
+describe('PrismaFabricRepository · rango y granularidad del gráfico', () => {
+  beforeEach(() => {
+    jest.spyOn(Date, 'now').mockReturnValue(AHORA);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('hoy y 7 días agregan por día', async () => {
+    const repo = repoConInventario(runCompletado(), []);
+    expect((await repo.getEstadisticas('hoy')).granularidad).toBe('dia');
+    expect((await repo.getEstadisticas('7d')).granularidad).toBe('dia');
+  });
+
+  it('mes (30d) y 3 meses (90d) agregan por semana', async () => {
+    const repo = repoConInventario(runCompletado(), []);
+    expect((await repo.getEstadisticas('30d')).granularidad).toBe('semana');
+    expect((await repo.getEstadisticas('90d')).granularidad).toBe('semana');
+  });
+
+  it('un año e histórico agregan por mes', async () => {
+    const repo = repoConInventario(runCompletado(), []);
+    expect((await repo.getEstadisticas('1a')).granularidad).toBe('mes');
+    expect((await repo.getEstadisticas('todo')).granularidad).toBe('mes');
+  });
+
+  it('"hoy" produce un único bucket', async () => {
+    const est = await repoConInventario(runCompletado(), []).getEstadisticas('hoy');
+    expect(est.produccionPorDia).toHaveLength(1);
+  });
+
+  it('las barras de semana arrancan en lunes', async () => {
+    const est = await repoConInventario(runCompletado(), []).getEstadisticas('30d');
+    for (const periodo of est.produccionPorDia) {
+      expect(new Date(periodo.fecha).getDay()).toBe(1); // 1 = lunes
+    }
+  });
+
+  it('las barras de mes arrancan el día 1', async () => {
+    const est = await repoConInventario(runCompletado(), []).getEstadisticas('1a');
+    for (const periodo of est.produccionPorDia) {
+      expect(new Date(periodo.fecha).getDate()).toBe(1);
+    }
+  });
+
+  it('"histórico" arranca en el primer registro real, no en 1970', async () => {
+    const est = await repoConInventario(runCompletado(), []).getEstadisticas('todo');
+    expect(est.produccionPorDia.length).toBeGreaterThan(0);
+    expect(new Date(est.produccionPorDia[0].fecha).getFullYear()).toBe(2026);
   });
 });

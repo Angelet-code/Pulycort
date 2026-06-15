@@ -1,0 +1,5 @@
+telar;lectura_id;ultima_lectura;horas_antiguedad;pm;material_en_produccion;material_ultimo_parte;ultima_operacion_parte;n_tablas;metros_cuadrados_tablas;largo;alto;grueso;incidencia;potencia;velocidad;consumo;golpesxminuto;altura_actual;aparece_en_stock_onhand_bloques;aparece_en_lot_block_creation;aparece_en_bloque_maquinas
+1;190038;Sat Jun 13 2026 10:39:00 GMT+0200 (hora de verano de Europa central);32.7975381816666667;47177;114;99;2;0;;190;160;100.000;2;13;0;27;845;806;false;true;true
+2;190039;Sat Jun 13 2026 10:43:00 GMT+0200 (hora de verano de Europa central);32.7308715150000000;47220;114;117;4;41;88.150;190;150;80.000;2;41;0;82;845;1482;false;true;true
+3;190040;Sat Jun 13 2026 10:43:00 GMT+0200 (hora de verano de Europa central);32.7308715150000000;47194;71;71;2;0;;190;150;80.000;2;70;0;141;1013;1028;false;true;true
+4;190234;Sun Jun 14 2026 19:15:00 GMT+0200 (hora de verano de Europa central);0.19753818166666666667;47187;71;72;2;0;;315;145;105.000;0;0;0;0;311;702;false;true;true

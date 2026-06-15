@@ -14,7 +14,7 @@ const ETIQUETA_POR_INCIDENCIA: Record<TipoIncidencia, string> = {
   marcha: 'En marcha',
   paro: 'Paro',
   'rotura-fleje': 'Rotura de fleje',
-  'cambio-bloque': 'Cambio de bloque',
+  'cambio-bloque': 'Cambio de lote',
   desconocida: 'Desconocida'
 };
 
@@ -55,7 +55,7 @@ interface TramoPintado {
       position: relative;
       background: var(--surface-soft);
       border: 1px solid var(--line);
-      border-radius: 7px;
+      border-radius: var(--radius-sm);
       overflow: hidden;
     }
     .seg {

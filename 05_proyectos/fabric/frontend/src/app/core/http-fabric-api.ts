@@ -3,14 +3,20 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { FabricApi } from './fabric-api';
 import {
+  CoberturaMaquinas,
   DetalleTelar,
   Estadisticas,
   FiltrosInventario,
   FiltrosLecturas,
+  FiltrosPartesDiscoPuente,
+  FiltrosPartesReforzadora,
   FiltrosPartesTrabajo,
+  InventarioVistaConjunta,
   PaginaInventario,
   PaginaLecturas,
   PaginaPartes,
+  PaginaPartesDiscoPuente,
+  PaginaPartesReforzadora,
   PaginaPartesTrabajo,
   RangoEstadisticas,
   SaludDatos,
@@ -106,18 +112,66 @@ export class HttpFabricApi extends FabricApi {
     });
   }
 
+  override getPartesDiscoPuente(
+    filtros: FiltrosPartesDiscoPuente
+  ): Observable<PaginaPartesDiscoPuente> {
+    let params = new HttpParams()
+      .set('limit', String(filtros.limit))
+      .set('offset', String(filtros.offset));
+    if (filtros.disco) {
+      params = params.set('disco', filtros.disco);
+    }
+    if (filtros.material) {
+      params = params.set('material', filtros.material);
+    }
+    if (filtros.operacion) {
+      params = params.set('operacion', filtros.operacion);
+    }
+    if (filtros.desde) {
+      params = params.set('desde', filtros.desde);
+    }
+    if (filtros.hasta) {
+      params = params.set('hasta', filtros.hasta);
+    }
+    return this.http.get<PaginaPartesDiscoPuente>(
+      `${FABRIC_API_BASE}/partes-disco-puente`,
+      { params }
+    );
+  }
+
+  override getPartesReforzadora(
+    filtros: FiltrosPartesReforzadora
+  ): Observable<PaginaPartesReforzadora> {
+    let params = new HttpParams()
+      .set('limit', String(filtros.limit))
+      .set('offset', String(filtros.offset));
+    if (filtros.reforzadora) {
+      params = params.set('reforzadora', filtros.reforzadora);
+    }
+    if (filtros.material) {
+      params = params.set('material', filtros.material);
+    }
+    if (filtros.acabado) {
+      params = params.set('acabado', filtros.acabado);
+    }
+    if (filtros.desde) {
+      params = params.set('desde', filtros.desde);
+    }
+    if (filtros.hasta) {
+      params = params.set('hasta', filtros.hasta);
+    }
+    return this.http.get<PaginaPartesReforzadora>(
+      `${FABRIC_API_BASE}/partes-reforzadora`,
+      { params }
+    );
+  }
+
   override getInventario(filtros: FiltrosInventario): Observable<PaginaInventario> {
     let params = new HttpParams()
       .set('limit', String(filtros.limit))
       .set('offset', String(filtros.offset));
     if (filtros.material) {
       params = params.set('material', filtros.material);
-    }
-    if (filtros.proveedor) {
-      params = params.set('proveedor', filtros.proveedor);
-    }
-    if (filtros.estado) {
-      params = params.set('estado', filtros.estado);
     }
     if (filtros.q) {
       params = params.set('q', filtros.q);
@@ -129,5 +183,13 @@ export class HttpFabricApi extends FabricApi {
       params = params.set('hasta', filtros.hasta);
     }
     return this.http.get<PaginaInventario>(`${FABRIC_API_BASE}/bloques`, { params });
+  }
+
+  override getResumenInventario(): Observable<InventarioVistaConjunta> {
+    return this.http.get<InventarioVistaConjunta>(`${FABRIC_API_BASE}/bloques/resumen`);
+  }
+
+  override getCoberturaMaquinas(): Observable<CoberturaMaquinas> {
+    return this.http.get<CoberturaMaquinas>(`${FABRIC_API_BASE}/cobertura-maquinas`);
   }
 }

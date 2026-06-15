@@ -97,6 +97,19 @@ export function formatDiaSemanaCorto(iso: string | null | undefined): string {
   return new Intl.DateTimeFormat('es-ES', { weekday: 'short' }).format(new Date(iso));
 }
 
+/**
+ * "ene 2025": mes con año de 4 dígitos, para barras agrupadas por mes. El año
+ * va completo a propósito: "ene 25" se confunde con el día 25 de enero.
+ */
+export function formatMesAnio(iso: string | null | undefined): string {
+  if (!iso) {
+    return SIN_DATO;
+  }
+  return new Intl.DateTimeFormat('es-ES', { month: 'short', year: 'numeric' }).format(
+    new Date(iso)
+  );
+}
+
 /** "hace 4 min", "hace 2 h", "hace 3 días". */
 export function formatRelativo(iso: string | null | undefined, ahora = Date.now()): string {
   if (!iso) {

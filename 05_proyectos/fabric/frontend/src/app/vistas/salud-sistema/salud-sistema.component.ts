@@ -20,15 +20,6 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [KpiTileComponent],
   template: `
-    <div class="cabecera-vista">
-      <div>
-        <h1>Salud del sistema</h1>
-        <p class="muted subtitulo">
-          problemas detectados en máquinas, datos y cálculos: qué hacer y de quién depende
-        </p>
-      </div>
-    </div>
-
     <section class="kpi-grid">
       <fabric-kpi
         etiqueta="Problemas registrados"

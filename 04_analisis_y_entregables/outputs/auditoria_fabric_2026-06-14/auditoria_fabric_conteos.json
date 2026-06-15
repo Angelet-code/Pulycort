@@ -1,0 +1,39 @@
+{
+  "conteo_mismatch_material_prod_partes": [
+    {
+      "grupos_pm_telar_comparables": 588,
+      "grupos_con_material_distinto": 438
+    }
+  ],
+  "conteo_mismatch_medidas_prod_partes": [
+    {
+      "grupos_pm_telar_comparables": 588,
+      "grupos_con_medidas_distintas": 588
+    }
+  ],
+  "conteo_pm_multi_fuente": [
+    {
+      "pm_en_mas_de_una_fuente": 1423
+    }
+  ],
+  "conteo_stock_onhand_con_actividad": [
+    {
+      "filas_stock_onhand_con_actividad": 4,
+      "pm_stock_onhand_con_actividad": 3
+    }
+  ],
+  "conteo_lbc_vs_stock_lot": [
+    {
+      "pm_en_ambas": 504,
+      "medidas_distintas": 21,
+      "productos_distintos": 114
+    }
+  ],
+  "conteo_pm_reutilizados_solapes": [
+    {
+      "pm_span_mayor_60d": 5,
+      "pm_en_mas_de_un_telar": 57,
+      "pm_con_solape_entre_telares": 55
+    }
+  ]
+}

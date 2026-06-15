@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-labelledby="title-04-telar-2 desc-04-telar-2">
+  <title id="title-04-telar-2">Telar 2</title>
+  <desc id="desc-04-telar-2">Icono SVG simple de Telar 2. Familia telar con silueta comun y color propio.</desc>
+  <defs>
+    <linearGradient id="accent-04-telar-2" x1="48" y1="44" x2="208" y2="212" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#61e1b3"/>
+      <stop offset="0.62" stop-color="#35d99d"/>
+      <stop offset="1" stop-color="#29a67d"/>
+    </linearGradient>
+    <filter id="shadow-04-telar-2" x="-22%" y="-22%" width="144%" height="144%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#020617" flood-opacity="0.26"/>
+    </filter>
+    <style>
+      .base{fill:#182235}
+      .frame{fill:#26344f}
+      .dark{fill:#0f172a}
+      .stone{fill:#b9aa86}
+      .stone-top{fill:#d1c39e}
+      .line{stroke:#e7f0ff;stroke-opacity:.24;stroke-linecap:round;stroke-linejoin:round}
+      .accent-stroke{stroke:url(#accent-04-telar-2);stroke-linecap:round;stroke-linejoin:round}
+    </style>
+  </defs>
+  <g filter="url(#shadow-04-telar-2)">
+    
+    <ellipse cx="128" cy="219" rx="86" ry="11" fill="#020617" opacity=".2"/>
+    <rect class="base" x="44" y="195" width="168" height="14" rx="7"/>
+    <rect class="frame" x="50" y="66" width="25" height="132" rx="9"/>
+    <rect class="frame" x="181" y="66" width="25" height="132" rx="9"/>
+    <rect class="base" x="44" y="54" width="168" height="24" rx="10"/>
+    <rect class="dark" x="64" y="91" width="128" height="64" rx="12" stroke="url(#accent-04-telar-2)" stroke-width="7"/>
+    <path class="line" d="M92 95v56M128 95v56M164 95v56" stroke-width="4"/>
+    <rect class="stone" x="73" y="157" width="110" height="38" rx="7"/>
+    <path class="stone-top" d="M82 148h92l9 9H73z"/>
+  
+  </g>
+</svg>

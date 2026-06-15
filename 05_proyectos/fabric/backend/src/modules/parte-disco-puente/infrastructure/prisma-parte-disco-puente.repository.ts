@@ -134,6 +134,7 @@ export class PrismaParteDiscoPuenteRepository
       operario1: fila.operario1,
       operario2: fila.operario2,
       nBloque: fila.nBloque,
+      pmLote: fila.nBloque,
       idBloque: fila.idBloque,
       enInventarioOdoo: fila.bloqueExiste,
       bloqueConocido: BloqueRegistroService.esConocido(fila.nBloque, conocidos),
@@ -146,6 +147,7 @@ export class PrismaParteDiscoPuenteRepository
       grueso: dec(fila.grueso),
       nPaquete: fila.nPaquete,
       nTablas: fila.nTablas,
+      contenedorSalida: fila.pmLosa,
       largoTablas: [
         dec(fila.largoTablas1),
         fila.largoTablas2,

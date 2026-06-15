@@ -1,12 +1,17 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { EMPTY, timer } from 'rxjs';
-import { catchError, switchMap } from 'rxjs/operators';
+import { catchError, switchMap, tap } from 'rxjs/operators';
 import { FabricApi } from '../../core/fabric-api';
 import { FuenteDatosService } from '../../core/fuente-datos.service';
 import { ETIQUETA_INCIDENCIA } from '../../core/etiquetas';
-import { formatFechaHora, formatFechaHoraAnio, formatNumero } from '../../core/format';
-import { LecturaTelar, SaludTelar } from '../../core/models';
+import {
+  formatFechaHora,
+  formatFechaHoraAnio,
+  formatNumero,
+  formatRelativo
+} from '../../core/format';
+import { EstadoFuente, FuenteDato, GrupoFuente, LecturaTelar, SaludTelar } from '../../core/models';
 import { KpiTileComponent } from '../../shared/kpi-tile.component';
 import { DataBadgeComponent } from '../../shared/data-badge.component';
 import { MetricaComponent } from '../../shared/metrica.component';
@@ -21,34 +26,82 @@ import { MetricaComponent } from '../../shared/metrica.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [KpiTileComponent, DataBadgeComponent, MetricaComponent],
   template: `
-    <div class="cabecera-vista">
-      <div>
-        <h1>Salud del dato</h1>
-        <p class="muted subtitulo">
-          lecturas en cuarentena de los últimos 7 días y por qué se descartaron
-        </p>
+    @if (error()) {
+      <div class="banner-error" role="alert">
+        ⚠ No se pudo actualizar desde la fuente ({{ error() }}). Reintentando cada 15 s…
       </div>
-    </div>
+    }
 
     @if (salud(); as s) {
-      <section class="kpi-grid">
-        @for (telar of s.telares; track telar.telarId) {
-          <fabric-kpi
-            [etiqueta]="telar.nombre + ' · lecturas fiables'"
-            [valor]="telar.pctFiables"
-            unidad="%"
-            [decimales]="1"
-            [nota]="notaTelar(telar)"
-            [tono]="tono(telar.pctFiables)"
-          />
-        }
-      </section>
+      @if (vista() === 'fuentes') {
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Fuentes</h2>
+            <span class="soft">de dónde sale cada dato y cómo está funcionando</span>
+          </div>
+          @if (s.fuentes && s.fuentes.length > 0) {
+            @for (grupo of gruposFuentes(s.fuentes); track grupo.titulo) {
+              <div class="fuente-grupo">
+                <div class="fuente-grupo-cab">
+                  <h3>{{ grupo.titulo }}</h3>
+                  @if (grupo.subtitulo) {
+                    <span class="soft">{{ grupo.subtitulo }}</span>
+                  }
+                </div>
+                <div class="fuentes-grid">
+                  @for (fuente of grupo.fuentes; track fuente.tabla) {
+                    <article class="fuente-card" [class]="'fuente-' + fuente.estado">
+                      <div class="fuente-cab">
+                        <span class="punto-fuente"></span>
+                        <div class="fuente-id">
+                          <h4>{{ fuente.nombre }}</h4>
+                          <code>{{ fuente.tabla }}</code>
+                        </div>
+                        <span class="fuente-badge">{{ etiquetaEstado(fuente.estado) }}</span>
+                      </div>
+                      <p class="fuente-origen"><span class="soft">Lo introduce:</span> {{ fuente.origen }}</p>
+                      <p class="fuente-desc">{{ fuente.descripcion }}</p>
+                      <div class="fuente-metricas">
+                        <span><span class="num">{{ numero(fuente.registros) }}</span> registros</span>
+                        <span class="sep">·</span>
+                        <span>actualizada {{ actualizacion(fuente.ultimaActualizacion) }}</span>
+                      </div>
+                      <p class="fuente-diag">{{ fuente.diagnostico }}</p>
+                    </article>
+                  }
+                </div>
+              </div>
+            }
+            <p class="nota-metodo pie-metodo">
+              Todas las tablas de la base de datos que lee Fabric, agrupadas por origen.
+              El backend lo calcula todo a partir de ellas y deja en "—" lo que la fuente
+              no contiene; nada se estima ni se inventa.
+            </p>
+          } @else {
+            <div class="estado-vacio">
+              La fuente actual no informa del estado de sus tablas.
+            </div>
+          }
+        </section>
+      } @else {
+        <section class="kpi-grid">
+          @for (telar of s.telares; track telar.telarId) {
+            <fabric-kpi
+              [etiqueta]="telar.nombre + ' · lecturas fiables'"
+              [valor]="telar.pctFiables"
+              unidad="%"
+              [decimales]="1"
+              [nota]="notaTelar(telar)"
+              [tono]="tono(telar.pctFiables)"
+            />
+          }
+        </section>
 
-      <section class="panel">
-        <div class="panel-head">
-          <h2>Cuarentena</h2>
-          <span class="soft">{{ s.cuarentena.length }} lecturas retenidas (máx. 60)</span>
-        </div>
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Cuarentena</h2>
+            <span class="soft">{{ s.cuarentena.length }} lecturas retenidas (máx. 60)</span>
+          </div>
         @if (s.cuarentena.length > 0) {
           <div class="tabla-scroll">
             <table class="tabla tabla-cuarentena">
@@ -142,11 +195,13 @@ import { MetricaComponent } from '../../shared/metrica.component';
           <p class="nota-metodo pie-metodo">
             Problemas detectados en los partes de operario, pendientes de revisar con
             TotWare (ver 00_gestion/TAREAS.md). Los partes con fecha corrupta se cruzan
-            con los bloques por nº de bloque, no por fecha, así que no contaminan los KPIs.
+            con las lecturas por el PM/lote (<code>n_bloque</code>), no por fecha, así que
+            no contaminan los KPIs.
           </p>
         </section>
+        }
       }
-    } @else {
+    } @else if (!error()) {
       <div class="cargando"></div>
     }
   `,
@@ -191,23 +246,242 @@ import { MetricaComponent } from '../../shared/metrica.component';
     .pie-metodo {
       margin-top: 12px;
     }
+
+    /* ── Fuentes ──────────────────────────────────────────── */
+    .fuente-grupo {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .fuente-grupo + .fuente-grupo {
+      margin-top: 20px;
+    }
+    .fuente-grupo-cab {
+      display: flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--line);
+    }
+    .fuente-grupo-cab h3 {
+      margin: 0;
+      font-size: 12.5px;
+      font-weight: 750;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text);
+    }
+    .fuente-grupo-cab .soft {
+      font-size: 12px;
+    }
+    .fuentes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 12px;
+    }
+    .fuente-id h4 {
+      margin: 0;
+      font-size: 14.5px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--text);
+    }
+    .fuente-card {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: var(--surface-soft);
+      border: 1px solid var(--line);
+      border-left: 3px solid var(--text-soft);
+      border-radius: var(--radius-row);
+      padding: 14px 16px;
+    }
+    .fuente-ok {
+      border-left-color: var(--green);
+    }
+    .fuente-aviso {
+      border-left-color: var(--amber);
+    }
+    .fuente-mal {
+      border-left-color: var(--red);
+    }
+    .fuente-sin-datos {
+      border-left-style: dashed;
+    }
+    .fuente-cab {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+    .punto-fuente {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      flex: none;
+      background: var(--text-soft);
+    }
+    .fuente-ok .punto-fuente {
+      background: var(--green);
+    }
+    .fuente-aviso .punto-fuente {
+      background: var(--amber);
+    }
+    .fuente-mal .punto-fuente {
+      background: var(--red);
+    }
+    .fuente-id {
+      display: flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 8px;
+      flex: 1;
+      min-width: 0;
+    }
+    .fuente-id code {
+      font-size: 11px;
+      color: var(--text-muted);
+      background: var(--surface-soft);
+      padding: 1px 6px;
+      border-radius: 6px;
+    }
+    .fuente-badge {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      color: var(--text-soft);
+      white-space: nowrap;
+    }
+    .fuente-ok .fuente-badge {
+      color: var(--green);
+    }
+    .fuente-aviso .fuente-badge {
+      color: var(--amber);
+    }
+    .fuente-mal .fuente-badge {
+      color: var(--red);
+    }
+    .fuente-origen {
+      font-size: 12.5px;
+      color: var(--text);
+    }
+    .fuente-desc {
+      font-size: 12.5px;
+      line-height: 1.5;
+      color: var(--text-muted);
+    }
+    .fuente-metricas {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 12.5px;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .fuente-metricas .num {
+      color: var(--text);
+      font-weight: 750;
+    }
+    .fuente-metricas .sep {
+      color: var(--text-soft);
+    }
+    .fuente-diag {
+      margin-top: auto;
+      padding-top: 2px;
+      font-size: 12.5px;
+      line-height: 1.45;
+      color: var(--text-muted);
+    }
+    .fuente-ok .fuente-diag {
+      color: var(--green-text);
+    }
+    .fuente-aviso .fuente-diag {
+      color: var(--amber-text);
+    }
+    .fuente-mal .fuente-diag {
+      color: var(--red-text);
+    }
   `
 })
 export class SaludDatosComponent {
   private readonly api = inject(FabricApi);
   private readonly fuenteDatos = inject(FuenteDatosService);
 
+  /** Sub-pestaña activa de Salud, fijada por `data.vista` de la ruta. */
+  readonly vista = input<'fuentes' | 'cuarentena'>('cuarentena');
+
+  /** Mensaje del último fallo de lectura; null mientras la fuente responda. */
+  readonly error = signal<string | null>(null);
+
   readonly salud = toSignal(
     // La fuente entra en el stream para refrescar al instante con el switch.
     toObservable(this.fuenteDatos.fuente).pipe(
       switchMap(() =>
         timer(0, 15_000).pipe(
-          switchMap(() => this.api.getSaludDatos().pipe(catchError(() => EMPTY)))
+          switchMap(() =>
+            this.api.getSaludDatos().pipe(
+              tap(() => this.error.set(null)),
+              catchError((err: unknown) => {
+                this.error.set(
+                  err && typeof err === 'object' && 'status' in err
+                    ? `HTTP ${(err as { status: number }).status}`
+                    : 'sin conexión'
+                );
+                return EMPTY;
+              })
+            )
+          )
         )
       )
     ),
     { initialValue: null }
   );
+
+  /** Orden y rótulos de las familias de tablas en la pestaña Fuentes. */
+  private readonly ordenGrupos: { clave: GrupoFuente; titulo: string; subtitulo: string }[] = [
+    {
+      clave: 'maquinas',
+      titulo: 'Máquinas',
+      subtitulo: 'lecturas y partes que emiten los telares y el disco puente'
+    },
+    {
+      clave: 'inventario',
+      titulo: 'Inventario (stock real de Odoo)',
+      subtitulo: 'existencias, lotes y ubicaciones del almacén'
+    },
+    {
+      clave: 'catalogo',
+      titulo: 'Catálogo de productos (Odoo)',
+      subtitulo: 'solo para resolver el nombre del material'
+    },
+    {
+      clave: 'heredada',
+      titulo: 'Heredada',
+      subtitulo: 'tabla antigua con uso acotado; no fiarse como inventario'
+    }
+  ];
+
+  /**
+   * Reparte las fuentes en sus familias, en orden fijo, descartando los grupos
+   * vacíos. Lo que no traiga grupo (backend antiguo) cae en "Otras fuentes".
+   */
+  gruposFuentes(
+    fuentes: FuenteDato[]
+  ): { titulo: string; subtitulo: string; fuentes: FuenteDato[] }[] {
+    const grupos = this.ordenGrupos.map((g) => ({
+      titulo: g.titulo,
+      subtitulo: g.subtitulo,
+      fuentes: fuentes.filter((f) => f.grupo === g.clave)
+    }));
+    const restantes = fuentes.filter(
+      (f) => !this.ordenGrupos.some((g) => g.clave === f.grupo)
+    );
+    if (restantes.length > 0) {
+      grupos.push({ titulo: 'Otras fuentes', subtitulo: '', fuentes: restantes });
+    }
+    return grupos.filter((g) => g.fuentes.length > 0);
+  }
 
   tono(pct: number): '' | 'ok' | 'aviso' | 'mal' {
     if (pct >= 98) {
@@ -228,8 +502,25 @@ export class SaludDatosComponent {
     return formatFechaHoraAnio(iso);
   }
 
-  numero(valor: number): string {
+  numero(valor: number | null | undefined): string {
     return formatNumero(valor);
+  }
+
+  etiquetaEstado(estado: EstadoFuente): string {
+    switch (estado) {
+      case 'ok':
+        return 'Al día';
+      case 'aviso':
+        return 'Con avisos';
+      case 'mal':
+        return 'Con problemas';
+      default:
+        return 'Sin datos';
+    }
+  }
+
+  actualizacion(iso: string | null): string {
+    return iso ? formatRelativo(iso) : 'sin marca de tiempo';
   }
 
   incidencia(lectura: LecturaTelar): string {

@@ -1,0 +1,21 @@
+{
+  "name": "Fabric - Produccion Pulycort",
+  "short_name": "Fabric",
+  "description": "Visor de produccion de Pulycort",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a1120",
+  "theme_color": "#0a1120",
+  "icons": [
+    {
+      "src": "pulycort-app-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "pulycort-app-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

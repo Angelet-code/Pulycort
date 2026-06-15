@@ -9,7 +9,7 @@ const PAD_TOP = 22;
 const PAD_BOTTOM = 14;
 
 /**
- * Bloque Vivo: sección transversal a escala (grueso × alto) del bloque en el
+ * Corte en curso: sección transversal a escala (grueso × alto) del lote en el
  * telar. La línea del bastidor desciende con el corte; por encima quedan las
  * tablas ya cortadas con el kerf del fleje visible. Convierte la columna
  * "altura actual" del sistema viejo en algo que se entiende a 10 metros.
@@ -138,7 +138,7 @@ export class BloqueVivoComponent {
     () => `0 0 ${this.anchoCm() + PAD_X * 2} ${this.altoCm() + PAD_TOP + PAD_BOTTOM}`
   );
 
-  /** Profundidad ya cortada, en cm de bloque. */
+  /** Profundidad ya cortada, en cm de lote. */
   readonly cortadoCm = computed(() => {
     const cortadoMm = this.alturaInicialMm() - this.alturaActualMm();
     return Math.max(0, Math.min(this.altoCm(), cortadoMm / 10));
@@ -147,7 +147,7 @@ export class BloqueVivoComponent {
   readonly macizoCm = computed(() => this.altoCm() - this.cortadoCm());
   readonly bastidorY = computed(() => PAD_TOP + this.cortadoCm());
 
-  /** Offsets X de cada tabla dentro del bloque (espesor + kerf). */
+  /** Offsets X de cada tabla dentro del lote (espesor + kerf). */
   readonly tablas = computed(() => {
     const offsets: number[] = [];
     const paso = ESPESOR_TABLA_CM + KERF_FLEJE_CM;

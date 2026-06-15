@@ -1,8 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { EMPTY, combineLatest, timer } from 'rxjs';
-import { catchError, map, switchMap } from 'rxjs/operators';
+import { catchError, map, switchMap, tap } from 'rxjs/operators';
 import { FabricApi } from '../../core/fabric-api';
 import { FuenteDatosService } from '../../core/fuente-datos.service';
 import { TELAR_IDS } from '../../core/dominio';
@@ -42,7 +42,13 @@ import { DataBadgeComponent } from '../../shared/data-badge.component';
     DataBadgeComponent
   ],
   template: `
-    <a class="volver muted" routerLink="/telares">← Sala de telares</a>
+    <a class="volver muted" routerLink="/telares">← Máquinas</a>
+
+    @if (error()) {
+      <div class="banner-error" role="alert">
+        ⚠ No se pudo actualizar desde la fuente ({{ error() }}). Reintentando cada 5 s…
+      </div>
+    }
 
     @if (detalle(); as d) {
       <div class="cabecera-vista">
@@ -53,7 +59,7 @@ import { DataBadgeComponent } from '../../shared/data-badge.component';
             @if (d.snapshot.bloque; as bloque) {
               <span class="bloque-info">
                 <fabric-material-dot [materialId]="bloque.materialId" [tam]="15" />
-                {{ nombreMaterial(bloque) }} · Bloque {{ bloque.numero }}
+                {{ nombreMaterial(bloque) }} · PM/lote {{ bloque.pmLote }}
               </span>
             }
           </div>
@@ -88,7 +94,7 @@ import { DataBadgeComponent } from '../../shared/data-badge.component';
         <section class="dos-columnas">
           <div class="panel">
             <div class="panel-head">
-              <h2>Bloque vivo</h2>
+              <h2>Corte en curso</h2>
               <span class="soft">sección a escala · grueso × alto</span>
             </div>
             @if (d.snapshot.alturaInicialMm !== null) {
@@ -155,7 +161,7 @@ import { DataBadgeComponent } from '../../shared/data-badge.component';
       } @else {
         <section class="panel">
           <div class="estado-vacio">
-            Sin bloque en la bancada — el telar está entre ciclos (cambio de bloque).
+            Sin PM/lote en la bancada — el telar está entre ciclos.
           </div>
         </section>
       }
@@ -263,7 +269,7 @@ import { DataBadgeComponent } from '../../shared/data-badge.component';
       <section class="dos-columnas">
         <div class="panel">
           <div class="panel-head">
-            <h2>Ciclo del bloque actual</h2>
+            <h2>Ciclo del lote actual</h2>
             <span class="soft">partes de trabajo</span>
           </div>
           @if (d.eventosCicloActual.length > 0) {
@@ -286,20 +292,20 @@ import { DataBadgeComponent } from '../../shared/data-badge.component';
               }
             </ol>
           } @else {
-            <div class="estado-vacio">Sin partes para el bloque actual todavía</div>
+            <div class="estado-vacio">Sin partes para el lote actual todavía</div>
           }
         </div>
 
         <div class="panel">
           <div class="panel-head">
-            <h2>Últimos bloques cortados</h2>
+            <h2>Últimos lotes aserrados</h2>
             <span class="soft">previsto frente a real</span>
           </div>
           <div class="tabla-scroll">
             <table class="tabla">
               <thead>
                 <tr>
-                  <th>Bloque</th>
+                  <th>PM / lote</th>
                   <th>Colocación</th>
                   <th class="derecha">Corte</th>
                   <th class="derecha">Paros</th>
@@ -314,7 +320,7 @@ import { DataBadgeComponent } from '../../shared/data-badge.component';
                     <td>
                       <span class="celda-bloque">
                         <fabric-material-dot [materialId]="ciclo.bloque.materialId" [tam]="11" />
-                        {{ ciclo.bloque.numero }}
+                        {{ ciclo.pmLote }}
                       </span>
                     </td>
                     <td>{{ fechaHora(ciclo.colocacion) }}</td>
@@ -347,7 +353,7 @@ import { DataBadgeComponent } from '../../shared/data-badge.component';
           </div>
         </div>
       </section>
-    } @else {
+    } @else if (!error()) {
       <div class="cargando"></div>
       <div class="cargando"></div>
     }
@@ -381,8 +387,10 @@ import { DataBadgeComponent } from '../../shared/data-badge.component';
       display: inline-flex;
       align-items: center;
       gap: 7px;
-      font-size: 14px;
-      font-weight: 650;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
     }
     .hero-progreso {
       display: flex;
@@ -403,7 +411,7 @@ import { DataBadgeComponent } from '../../shared/data-badge.component';
     }
     .medida-valor {
       font-size: 16.5px;
-      font-weight: 720;
+      font-weight: 750;
     }
     .micro-etiqueta {
       font-size: 10.5px;
@@ -473,6 +481,9 @@ export class DetalleTelarComponent {
   private readonly reloj = inject(RelojService);
   private readonly fuenteDatos = inject(FuenteDatosService);
 
+  /** Mensaje del último fallo de lectura; null mientras la fuente responda. */
+  readonly error = signal<string | null>(null);
+
   readonly detalle = toSignal(
     // La fuente entra en el stream para refrescar al instante con el switch.
     combineLatest([
@@ -486,8 +497,21 @@ export class DetalleTelarComponent {
           return EMPTY;
         }
         return timer(0, 5000).pipe(
-          // Un fallo puntual no mata el polling: se reintenta al siguiente tick.
-          switchMap(() => this.api.getDetalleTelar(id).pipe(catchError(() => EMPTY)))
+          // Un fallo puntual no mata el polling: se reintenta al siguiente tick,
+          // y entretanto se mantiene el último detalle bueno con su banner.
+          switchMap(() =>
+            this.api.getDetalleTelar(id).pipe(
+              tap(() => this.error.set(null)),
+              catchError((err: unknown) => {
+                this.error.set(
+                  err && typeof err === 'object' && 'status' in err
+                    ? `HTTP ${(err as { status: number }).status}`
+                    : 'sin conexión'
+                );
+                return EMPTY;
+              })
+            )
+          )
         );
       })
     ),
@@ -523,7 +547,7 @@ export class DetalleTelarComponent {
     };
   });
 
-  /** Altura continua para el Bloque Vivo (entre lecturas también baja). */
+  /** Altura continua para el Corte en curso (entre lecturas también baja). */
   readonly alturaActualMm = computed(() => {
     const d = this.detalle();
     if (!d || d.snapshot.alturaInicialMm === null || d.snapshot.progresoPct === null) {
@@ -549,7 +573,8 @@ export class DetalleTelarComponent {
     const velocidad = snapshot.ultimaLectura?.velocidadMmH ?? 0;
     return (
       `El bastidor baja a ${formatNumero(velocidad)} mm/h. ` +
-      `Cada lámina es una tabla de 2 cm; el hueco entre ellas, el kerf del fleje (8 mm).`
+      `Cada lámina es una tabla de ~2 cm (espesor estándar; el real lo trae el parte); ` +
+      `el hueco entre ellas, el kerf del fleje (8 mm).`
     );
   });
 
