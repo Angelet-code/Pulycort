@@ -2,9 +2,10 @@
  * Parte de trabajo registrado por los operarios, tal y como llega en la
  * tabla `parte_trabajo_mapeada` (datos reales de TotWare mapeados a Odoo).
  *
- * `operacion` y `accion` son códigos sin tabla de significados confirmada
- * (solo se deduce de los datos que la operación '4' es "hacer paquetes",
- * la única con m²/tablas). `material`, `operario_1/2`, `material_recibido`
+ * `operacion` 1-4 está confirmada por Pulycort (1 colocar, 2 aserrar,
+ * 3 salida, 4 paquetes; la 4 es la única con m²/tablas); la op. 0 no es fase
+ * y su detalle está en `accion`, código aún sin decodificar (igual que los
+ * `operacion` 5/10/11). `material`, `operario_1/2`, `material_recibido`
  * e `id_bloque` son FKs de Odoo; se exponen en crudo, sin resolver.
  */
 export type ParteTrabajo = {
@@ -32,7 +33,16 @@ export type ParteTrabajo = {
   /** Si el n_bloque existe en el padrón de máquina (bloque_maquinas); false = avisar. */
   bloqueConocido: boolean;
   accion: string | null;
+  /**
+   * `fecha_hora` efectiva. Si la fila venía con el año mal estampado (+1, el
+   * lote de backfill del 31-dic-2025), aquí va ya corregida (−1 año) y se usa
+   * para ordenar, filtrar y mostrar. Ver `shared/.../fecha-remapeo`.
+   */
   fechaHora: Date | null;
+  /** Valor original de `fecha_hora` tal cual en la tabla, antes de corregir el año. */
+  fechaHoraOriginal: Date | null;
+  /** true si se corrigió el año (señal de alerta: la fecha está remapeada). */
+  fechaRemapeada: boolean;
   createDate: Date | null;
   idBloque: number | null;
   metrosCubicos: number | null;
@@ -42,6 +52,8 @@ export type ParteTrabajo = {
 
 /** Filtros y paginación para el listado de partes. */
 export type FiltrosParteTrabajo = {
+  /** Nº de lote (n_bloque) exacto; null = todos. */
+  lote: number | null;
   telarN: string | null;
   material: number | null;
   operacion: string | null;

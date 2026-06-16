@@ -59,7 +59,7 @@ import { DataBadgeComponent } from '../../shared/data-badge.component';
             @if (d.snapshot.bloque; as bloque) {
               <span class="bloque-info">
                 <fabric-material-dot [materialId]="bloque.materialId" [tam]="15" />
-                {{ nombreMaterial(bloque) }} · PM/lote {{ bloque.pmLote }}
+                {{ nombreMaterial(bloque) }} · Nº de lote {{ bloque.pmLote }}
               </span>
             }
           </div>
@@ -118,12 +118,26 @@ import { DataBadgeComponent } from '../../shared/data-badge.component';
               </div>
               <fabric-grafico-lineas
                 [serie]="d.serieAltura"
-                [desde]="inicioJornadaIso()"
-                [hasta]="finDominioAltura()"
+                [desde]="inicio24hIso()"
+                [hasta]="finDominio()"
                 [bandas]="d.segmentosJornada"
                 [proyeccion]="proyeccionAltura()"
                 color="var(--stone)"
                 unidad="mm"
+              />
+            </div>
+            <div class="panel">
+              <div class="panel-head">
+                <h2>Velocidad de descenso</h2>
+                <span class="soft">mm/h · {{ velocidadActualTexto() }} · baja a 0 en los paros</span>
+              </div>
+              <fabric-grafico-lineas
+                [serie]="d.serieVelocidad"
+                [desde]="inicio24hIso()"
+                [hasta]="finDominio()"
+                [bandas]="d.segmentosJornada"
+                color="var(--green)"
+                unidad="mm/h"
               />
             </div>
             <div class="panel">
@@ -133,8 +147,8 @@ import { DataBadgeComponent } from '../../shared/data-badge.component';
               </div>
               <fabric-grafico-lineas
                 [serie]="d.seriePotencia"
-                [desde]="inicioJornadaIso()"
-                [hasta]="ahoraIso()"
+                [desde]="inicio24hIso()"
+                [hasta]="finDominio()"
                 [bandas]="d.segmentosJornada"
                 [yMaxFijo]="76"
                 [area]="true"
@@ -149,8 +163,8 @@ import { DataBadgeComponent } from '../../shared/data-badge.component';
               </div>
               <fabric-grafico-lineas
                 [serie]="d.serieGolpes"
-                [desde]="inicioJornadaIso()"
-                [hasta]="ahoraIso()"
+                [desde]="inicio24hIso()"
+                [hasta]="finDominio()"
                 [yMaxFijo]="1000"
                 color="var(--violet)"
                 unidad="golpes/min"
@@ -305,7 +319,7 @@ import { DataBadgeComponent } from '../../shared/data-badge.component';
             <table class="tabla">
               <thead>
                 <tr>
-                  <th>PM / lote</th>
+                  <th>Nº de lote</th>
                   <th>Colocación</th>
                   <th class="derecha">Corte</th>
                   <th class="derecha">Paros</th>
@@ -518,15 +532,25 @@ export class DetalleTelarComponent {
     { initialValue: null }
   );
 
-  readonly ahoraIso = computed(() => new Date(this.reloj.ahoraMs()).toISOString());
-
   readonly inicioJornadaIso = computed(() => {
     const ahora = new Date(this.reloj.ahoraMs());
     return new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate()).toISOString();
   });
 
-  /** Dominio del gráfico de altura: hasta el ETA si cae más tarde que ahora. */
-  readonly finDominioAltura = computed(() => {
+  /**
+   * Inicio de la ventana rodante de 24 h de los gráficos (no el día natural):
+   * así no se quedan en blanco al cruzar medianoche. El Gantt sigue siendo diario.
+   */
+  readonly inicio24hIso = computed(() =>
+    new Date(this.reloj.ahoraMs() - 24 * 3_600_000).toISOString()
+  );
+
+  /**
+   * Fin del dominio temporal compartido por toda la columna de gráficos:
+   * hasta el ETA si cae más tarde que ahora, para que el corte proyectado
+   * quepa en el eje y los cuatro gráficos queden alineados en el tiempo.
+   */
+  readonly finDominio = computed(() => {
     const d = this.detalle();
     const ahora = this.reloj.ahoraMs();
     const eta = d?.snapshot.etaFinCorte ? new Date(d.snapshot.etaFinCorte).getTime() : 0;
@@ -576,6 +600,15 @@ export class DetalleTelarComponent {
       `Cada lámina es una tabla de ~2 cm (espesor estándar; el real lo trae el parte); ` +
       `el hueco entre ellas, el kerf del fleje (8 mm).`
     );
+  });
+
+  /** Velocidad de descenso de la última lectura, para el subtítulo del gráfico. */
+  readonly velocidadActualTexto = computed(() => {
+    const lectura = this.detalle()?.snapshot.ultimaLectura;
+    if (!lectura) {
+      return 'sin lecturas';
+    }
+    return `ahora ${formatNumero(lectura.velocidadMmH)} mm/h`;
   });
 
   readonly notaTablas = computed(() => {

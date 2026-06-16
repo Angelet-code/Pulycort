@@ -19,6 +19,21 @@
 > cuando la fuente lo identifica como tal. Fabric sigue leyendo la columna fuente
 > `n_bloque`, pero la expone como `pmLote` y la UI la presenta como PM/lote en telares,
 > partes y producción. No se crean sub-bloques ni se usan las medidas como identificador.
+>
+> **Corrección (2026-06-15).** Confirmado por Pulycort que la PM es un identificador **ÚNICO**
+> de bloque (1:1): un PM repetido (dos altas con el mismo nº en `lot_block_creation`, o
+> reutilizado en el tiempo) es un **ERROR de dato**, no un lote multibloque. Fabric ya no suma
+> volúmenes por PM repetido: lo marca como PM duplicado (⚠ en /producción) y no calcula su
+> m³/rendimiento (no inventa cuál de los bloques es).
+
+> **Regla de verificación (2026-06-15).** Toda comprobación se hace **primero contra los datos
+> reales** (fabric-backend en `127.0.0.1:3000` sobre `produccion_mapeada`: `GET /api/telares/:id`,
+> `/api/salud-datos`, `/api/partes`, `/api/estadisticas`; o la BD). La **Demo solo sirve para
+> confirmar un supuesto _después_** de haberlo medido en real — nunca como fuente de diagnóstico.
+> Motivo: demo y real difieren en forma. Ejemplo medido este día: los telares 3 y 4 **descartan**
+> la mayoría de sus lecturas (telar 4: llegan 999, fiables 162 → 84 % en cuarentena por valores
+> imposibles), dejando huecos de horas en `produccion_mapeada` que la demo (lecturas densas cada
+> ~10 min) no reproduce. Diagnosticar sobre la demo lleva a conclusiones falsas.
 
 Leyenda de estado:
 
@@ -55,7 +70,7 @@ Toda métrica de **tiempo** (utilización, minutos de paro, horas de marcha, MTB
 
 | Valor | Cómo se obtiene | Estado | Qué falta |
 |---|---|---|---|
-| Estado del telar (marcha/paro/rotura) | mapeo de la columna `Incidencia` de la última lectura | ✅ | Confirmar lista cerrada de incidencias reales y su mapeo |
+| Estado del telar (marcha/paro/rotura) | mapeo de la columna `Incidencia` de la última lectura | ✅ | `1`=marcha, `2`=paro, `3`=paro por rotura de material (rojo), `4`=modo manual (azul), `5`=modo automático (azul) confirmados (Pulycort 2026-06-16); solo el código `0` sigue sin mapear (telar 4 lo infiere por potencia) |
 | Estado **"Cambio de lote"** | lecturas sin PM/lote (`n_bloque`) | ⛔ | El sistema real no tiene esta incidencia; me la inventé para los huecos entre lotes. Hay que confirmar **cómo representa el sistema real un telar sin lote en corte** (¿incidencia concreta? ¿`n_bloque` vacío?) o quitar el estado |
 | Estado **"Sin señal"** | sin lectura válida en 25 min | ⚠️ | El umbral de 25 min es inventado; depende de la cadencia real |
 | Círculo de color del material | nombre real, **color asignado por mí** | ⚠️ | El color es diseño (aceptable), pero hay que fijar el **catálogo real de materiales y sus códigos** que usan los telares (ver §2) |
@@ -97,7 +112,7 @@ Toda métrica de **tiempo** (utilización, minutos de paro, horas de marcha, MTB
 |---|---|---|
 | m² de tablas, tablas, paquetes, m³ aserrados | ✅ | Sumas de columnas reales de partes |
 | **Rendimiento m²/m³** | ✅ | m² / m³ a nivel PM/lote cuando la agrupación viene de `n_bloque`. No promete rendimiento por bloque físico si no hay identificador físico separado |
-| **m³ y Rendimiento POR LOTE** (tabla "Últimos lotes aserrados") | ✅/⚠️ | [IMPLEMENTADO 2026-06-14] El m³ sale de la medida REAL del bloque en `lot_block_creation` por PM (no de la consola): 1 bloque → **exacto**; multibloque (PM repetido, 1:N confirmado por Ángel) → suma marcada **≈ "estimación"**; respaldo a medida de proveedor → ≈; PM sin alta en inventario → **"—" con ⚠**. La consola queda como **punto de control** (`medidasIncoherentes`). PENDIENTE de verificar contra datos reales (no bloquea entrega): cobertura PM telar↔inventario y calidad de medidas (0×0×0 se muestra tal cual, decisión de negocio) |
+| **m³ y Rendimiento POR LOTE** (tabla "Últimos lotes aserrados") | ✅/⚠️ | [IMPLEMENTADO 2026-06-14, CORREGIDO 2026-06-15] El m³ sale de la medida REAL del bloque en `lot_block_creation` por PM (no de la consola). La PM es identificador **ÚNICO** de bloque (1:1, confirmado por Pulycort): 1 bloque con medida de fábrica → **exacto**; respaldo a medida de proveedor → **≈ "estimación"**; PM **duplicado** (repetido en inventario) → **error de dato**, marcado ⚠ y sin m³/rendimiento (no se inventa cuál es); PM sin alta en inventario → **"—" con ⚠**. La consola queda como **punto de control** (`medidasIncoherentes`). PENDIENTE de verificar contra datos reales (no bloquea entrega): cobertura PM telar↔inventario y calidad de medidas (0×0×0 se muestra tal cual, decisión de negocio) |
 | Merma media % | ✅ | Si tenemos las dos medidas |
 | m²/día por telar | ✅ | Real |
 | Producción por material | ✅ | Real |
@@ -157,18 +172,22 @@ inventa nada. Incertidumbres registradas en `00_gestion/TAREAS.md` (snapshot con
 
 ### Vista `/datos` — Salud del dato
 
-La vista es valiosa y conceptualmente correcta, pero las **reglas concretas del validador** las fijé yo y hay que acordarlas con producción/informática. Reglas actuales y lo que cada una necesita:
+La vista es valiosa y conceptualmente correcta. **Modelo de dos niveles (v2, 2026-06-16):**
+solo el dato inservible se **descarta** (cuarentena, fuera de KPIs); lo que pinta raro pero es
+real se marca como **aviso** y **sigue contando** en los KPIs. Reglas actuales y lo que cada una
+necesita confirmar con producción/informática:
 
-| Regla del validador | Umbral actual | Qué confirmar |
-|---|---|---|
-| Fecha declarada imposible | difiere >15 min del sello de recepción | **Que exista un sello de recepción fiable** distinto de la fecha de la máquina (§2). Sin él, no se pueden cazar las "fechas imposibles" |
-| Incidencia sin mapear | texto = "Sin nombre" | Confirmar la lista cerrada de incidencias válidas |
-| Potencia fuera de rango | <0 o >76 kW | Confirmar el máximo real de cada telar |
-| Amperios desacoplados | |A − 2·kW| > 35% | Confirmar la relación A↔kW por telar (puede variar) |
-| Golpes fuera de rango | ≠0 y fuera de 700–1000 | Confirmar rango real por telar |
-| Altura sobre el tope físico | > 2.250 mm | Confirmar la **altura máxima real del bastidor** (asumí 2.150 + margen) |
-| Salto de altura imposible | sube en corte, o baja > 1,5× velocidad máx | Confirmar velocidad máxima real (asumí 310 mm/h) |
-| % lecturas fiables por telar | — | Es un % real una vez acordadas las reglas de arriba |
+| Regla del validador | Tipo | Umbral actual | Qué confirmar |
+|---|---|---|---|
+| Fecha declarada imposible | Descarte | difiere >30 min del sello de recepción | **Que exista un sello de recepción fiable** distinto de la fecha de la máquina (§2). Es el ÚNICO motivo de cuarentena del validador |
+| Incidencia sin mapear | Aviso | texto = "Sin nombre" | Confirmar la lista cerrada de incidencias válidas |
+| Consumo atípico | Aviso | cae en la cola alta del propio telar por **percentil** sobre lecturas en marcha ≥ 5 kW: top 16 % = alto, top 2,3 % = inusual, top 0,13 % = MUY alto | Antes techo fijo (>76 kW) y luego μ+1/2/3σ; ambos fallaban porque la potencia del telar **no es normal** (en los telares 2/3 μ+2σ caía sobre el máximo y no saltaba nunca; en el 1, de cola pesada, μ+3σ aún marcaba el ~4 %). El percentil fija la tasa sea cual sea la forma. Confirmar que las tasas elegidas son útiles |
+| Velocidad de descenso inusual | Aviso | supera μ+1σ / +2σ / +3σ del propio telar (lecturas en marcha) | Antes era techo fijo (>310 mm/h); ahora escalonado por desviación típica |
+| Altura sobre el tope físico | Aviso | > 2.250 mm | Confirmar la **altura máxima real del bastidor** (asumí 2.150 + margen) |
+| Salto de altura imposible | Aviso | sube en corte, o baja > 1,5× velocidad máx | Confirmar velocidad máxima real (asumí 310 mm/h) |
+| % lecturas limpias por telar | KPI | lecturas sin descarte **y** sin ningún aviso | Es el indicador de calidad del telar (más estricto que "no descartada"); baja en cuanto hay avisos |
+
+**Retirados el 2026-06-16 a la espera de aclararlos** (ver `00_gestion/TAREAS.md`): "amperios desacoplados de la potencia" (`|A − 2·kW| > 35%`, se apoyaba en la inferencia sin confirmar `consumo` = amperios), "amperios sin potencia que los justifique" y "golpes fuera de rango" (≠0 y fuera de 700–1000; el rango habitual ronda ~150 gpm pero las 4 máquinas emiten golpes de forma incoherente). Mientras no se aclaren, **no descartan ni avisan**.
 
 **Pestaña "Fuentes"** (Salud → Fuentes): lista **las 11 tablas reales que lee Fabric**, agrupadas por origen, con su descripción, quién las introduce y un veredicto de salud **derivado del dato real**, no supuesto: nº de registros (`count`), última actualización (registro más reciente) y el diagnóstico. Lo calcula el backend (`getSaludDatos` → `fuentesDatos`); si una tabla no se puede leer, su tarjeta degrada a "—"/"sin datos" sin tumbar la página. Los grupos:
 

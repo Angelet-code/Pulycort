@@ -335,13 +335,18 @@ def main() -> None:
     (out_dir / "metadata.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
     write_text(out_dir / "metadata.ffmpeg.txt", metadata_probe.stderr)
 
-    screenshots = extract_screenshots(
-        ffmpeg,
-        args.video,
-        out_dir,
-        args.screenshot_every,
-        args.screenshot_width,
-        args.screenshot_threshold,
+    has_video = any(str(stream.get("kind", "")).lower() == "video" for stream in metadata.get("streams", []))
+    screenshots = (
+        extract_screenshots(
+            ffmpeg,
+            args.video,
+            out_dir,
+            args.screenshot_every,
+            args.screenshot_width,
+            args.screenshot_threshold,
+        )
+        if has_video
+        else []
     )
     (out_dir / "screenshots.json").write_text(json.dumps(screenshots, ensure_ascii=False, indent=2), encoding="utf-8")
 

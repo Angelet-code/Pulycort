@@ -27,7 +27,7 @@ const ETIQUETA_EVENTO: Record<TipoEvento, string> = {
             <span class="detalle muted">
               @if (evento.bloque !== null) {
                 <fabric-material-dot [materialId]="evento.materialId" [tam]="10" />
-                PM/lote {{ evento.pmLote ?? evento.bloque }}
+                Nº de lote {{ evento.pmLote ?? evento.bloque }}
               }
               @if (evento.paquetes; as paquetes) {
                 · {{ resumen(paquetes.numTablas, paquetes.metrosCuadrados) }}

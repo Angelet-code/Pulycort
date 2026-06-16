@@ -16,8 +16,8 @@ export type SeccionPlanta = 'M3' | 'M2';
 /**
  * Estado de integración de la máquina en Fabric:
  * - `integrada`: su dato se lee y se atribuye a esta máquina concreta.
- * - `parcial`: existe dato pero no se puede atribuir a esta máquina (p. ej. los
- *   3 discopuentes comparten un único `disco_puente_n`).
+ * - `parcial`: existe dato pero no se puede atribuir a esta máquina física (p. ej.
+ *   REFORZADORA 1 y 2 SEI comparten un único `n_reforzadora`).
  * - `pendiente`: aún sin fuente de datos conectada.
  */
 export type EstadoIntegracion = 'integrada' | 'parcial' | 'pendiente';
@@ -50,6 +50,17 @@ export type CoberturaMaquina = {
   lotes: number | null;
   /** Última actividad registrada (ISO); null si no aplica/sin datos. */
   ultimaActividad: Date | null;
+  /**
+   * Material (id de `product_template`) del último parte con fecha sana; null si
+   * no aplica/sin dato. Hoy solo lo rellena el disco puente Gómez.
+   */
+  ultimoMaterial: number | null;
+  /**
+   * m² de entrada acumulados de los partes de HOY (suma de `metro2_entrada`);
+   * null si no aplica o si no hubo partes hoy. Hoy solo el disco puente Gómez.
+   * La semántica de los m² del disco puente está pendiente de validar con TotWare.
+   */
+  m2EntradaHoy: number | null;
   /** Nota de integración (p. ej. la discrepancia 3 máquinas físicas vs 1 flujo). */
   nota: string | null;
 };

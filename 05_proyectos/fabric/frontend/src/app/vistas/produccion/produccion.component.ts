@@ -36,6 +36,14 @@ import { MetricaComponent } from '../../shared/metrica.component';
   ],
   template: `
     <div class="barra-periodo">
+      <input
+        type="search"
+        class="control control-busqueda"
+        placeholder="Nº de lote"
+        aria-label="Buscar por nº de lote"
+        [value]="lote() ?? ''"
+        (change)="setLote(valorDe($event) || null)"
+      />
       <fabric-selector-periodo [valor]="rango()" (cambio)="rango.set($event)" />
     </div>
 
@@ -241,20 +249,20 @@ import { MetricaComponent } from '../../shared/metrica.component';
             <h2>Roturas de fleje</h2>
             <span class="soft">{{ notaRoturas() }}</span>
           </div>
-          @if (e.roturas.length > 0) {
+          @if (roturasFiltradas().length > 0) {
             <div class="tabla-scroll">
               <table class="tabla tabla-compacta">
                 <thead>
                   <tr>
                     <th>Fecha</th>
                     <th>Telar</th>
-                    <th>PM / lote</th>
+                    <th>Nº de lote</th>
                     <th>Material</th>
                     <th class="derecha">Duración</th>
                   </tr>
                 </thead>
                 <tbody>
-                  @for (rotura of e.roturas.slice(0, 10); track rotura.fechaHora) {
+                  @for (rotura of roturasFiltradas().slice(0, 10); track rotura.fechaHora) {
                     <tr>
                       <td>{{ formatFechaHora(rotura.fechaHora) }}</td>
                       <td><span [style.color]="'var(--t' + rotura.telarId + ')'">T{{ rotura.telarId }}</span></td>
@@ -289,7 +297,7 @@ import { MetricaComponent } from '../../shared/metrica.component';
             <thead>
               <tr>
                 <th>Telar</th>
-                <th>PM / lote</th>
+                <th>Nº de lote</th>
                 <th>Material</th>
                 <th class="derecha">Espesor</th>
                 <th class="derecha">Tiempo</th>
@@ -300,7 +308,7 @@ import { MetricaComponent } from '../../shared/metrica.component';
               </tr>
             </thead>
             <tbody>
-              @for (ciclo of e.ciclosCompletados; track ciclo.id) {
+              @for (ciclo of ciclosFiltrados(); track ciclo.id) {
                 <tr>
                   <td><span [style.color]="'var(--t' + ciclo.telarId + ')'">T{{ ciclo.telarId }}</span></td>
                   <td>
@@ -412,7 +420,9 @@ import { MetricaComponent } from '../../shared/metrica.component';
     }
     .barra-periodo {
       display: flex;
-      justify-content: flex-end;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
     }
     .contenido {
       display: flex;
@@ -501,6 +511,9 @@ export class ProduccionComponent {
   readonly rango = signal<RangoEstadisticas>('7d');
   readonly telares = [1, 2, 3, 4];
 
+  /** Búsqueda por nº de lote; filtra las tablas de roturas y de lotes aserrados. */
+  readonly lote = signal<string | null>(null);
+
   /** Mensaje del último fallo de lectura; null mientras la fuente responda. */
   readonly error = signal<string | null>(null);
 
@@ -534,6 +547,40 @@ export class ProduccionComponent {
     const e = this.estadisticas();
     return e !== null && e.rango !== this.rango();
   });
+
+  /** Roturas de fleje filtradas por el buscador de nº de lote. */
+  readonly roturasFiltradas = computed(() => {
+    const e = this.estadisticas();
+    if (!e) {
+      return [];
+    }
+    const q = this.lote()?.trim();
+    if (!q) {
+      return e.roturas;
+    }
+    return e.roturas.filter((r) => String(r.pmLote ?? r.bloque ?? '').includes(q));
+  });
+
+  /** Lotes aserrados filtrados por el buscador de nº de lote. */
+  readonly ciclosFiltrados = computed(() => {
+    const e = this.estadisticas();
+    if (!e) {
+      return [];
+    }
+    const q = this.lote()?.trim();
+    if (!q) {
+      return e.ciclosCompletados;
+    }
+    return e.ciclosCompletados.filter((c) => String(c.pmLote ?? '').includes(q));
+  });
+
+  valorDe(evento: Event): string {
+    return (evento.target as HTMLInputElement).value;
+  }
+
+  setLote(l: string | null): void {
+    this.lote.set(l);
+  }
 
   readonly formatNumero = formatNumero;
   readonly formatFechaHora = formatFechaHora;

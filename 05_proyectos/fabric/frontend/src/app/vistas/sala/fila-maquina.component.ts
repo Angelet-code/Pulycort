@@ -14,7 +14,7 @@ import {
   formatEta,
   formatMedidasCm,
   formatNumero,
-  formatRelativo
+  formatRelativoFino
 } from '../../core/format';
 import { RelojService } from '../../core/reloj.service';
 import { EstadoChipComponent } from '../../shared/estado-chip.component';
@@ -60,15 +60,21 @@ import { DataBadgeComponent } from '../../shared/data-badge.component';
         <span class="cuerpo">
           <span class="titulo-linea">
             <span class="nombre">{{ telar().nombre }}</span>
-            @if (telar().datosSospechosos) {
+            @if (telar().datosSospechosos || telar().datosConAvisos) {
               <fabric-data-badge
-                [sospechosa]="true"
+                [sospechosa]="telar().datosSospechosos"
                 [motivos]="['Hay lecturas en cuarentena en las últimas 24 h (ver Salud → Cuarentena)']"
+                [alertas]="
+                  telar().datosConAvisos
+                    ? ['Hay lecturas con avisos en las últimas 24 h (ver Salud → Avisos)']
+                    : []
+                "
               />
             }
           </span>
           @if (telar().bloque; as bloque) {
             <span class="meta">
+              <span class="meta-corte">{{ etiquetaCorte() }}:</span>
               <fabric-material-dot [materialId]="bloque.materialId" [tam]="11" />
               <span class="meta-material">{{ nombreMaterial() }}</span>
             </span>
@@ -78,8 +84,23 @@ import { DataBadgeComponent } from '../../shared/data-badge.component';
         </span>
 
         <span class="estado">
-          <span class="estado-resumen" [class]="'tono-' + tonoResumen()">{{ resumenEstado() }}</span>
-          <fabric-estado-chip [estado]="telar().estado" [causa]="telar().causaParo" />
+          <span class="estado-top">
+            <span class="estado-resumen" [class]="'tono-' + tonoResumen()">{{
+              resumenEstado()
+            }}</span>
+            <fabric-estado-chip
+              [estado]="telar().estado"
+              [causa]="telar().causaParo"
+              [inactivoMin]="inactivoMin()"
+              [actividad]="telar().actividadParte"
+            />
+          </span>
+          <span
+            class="ultima-lectura soft"
+            [class.fresca]="tonoLectura() === 'fresca'"
+            [class.tibia]="tonoLectura() === 'tibia'"
+            >{{ ultimaLecturaTexto() }}</span
+          >
         </span>
 
         <span class="chevron" aria-hidden="true">
@@ -104,7 +125,7 @@ import { DataBadgeComponent } from '../../shared/data-badge.component';
         <div class="detalle" [id]="'detalle-telar-' + telar().telarId">
           @if (telar().bloque; as bloque) {
             <div class="ficha-lote">
-              <span class="ficha-etiqueta">PM/lote</span>
+              <span class="ficha-etiqueta">Nº de lote</span>
               <span class="ficha-pm num">{{ bloque.pmLote }}</span>
               @if (medidasFabrica(); as m) {
                 <span class="punto-sep" aria-hidden="true">·</span>
@@ -156,12 +177,9 @@ import { DataBadgeComponent } from '../../shared/data-badge.component';
 
           <div class="pie">
             <span class="operarios muted">{{ operariosTexto() }}</span>
-            <span class="separa">
-              <span class="ultima soft">{{ ultimaLecturaTexto() }}</span>
-              <a class="enlace-detalle" [routerLink]="['/telares', telar().telarId]">
-                Ver telar completo →
-              </a>
-            </span>
+            <a class="enlace-detalle" [routerLink]="['/telares', telar().telarId]">
+              Ver telar completo →
+            </a>
           </div>
         </div>
       }
@@ -263,6 +281,11 @@ import { DataBadgeComponent } from '../../shared/data-badge.component';
     .meta fabric-material-dot {
       flex: none;
     }
+    .meta-corte {
+      flex: none;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
     .meta-material {
       flex: 0 1 auto;
       min-width: 0;
@@ -281,6 +304,18 @@ import { DataBadgeComponent } from '../../shared/data-badge.component';
       flex: none;
       color: var(--text-soft);
     }
+    /* "Hace cuánto" llegó el último dato: siempre visible bajo el estado, a la
+       derecha. Verde <10 min, ámbar <2 h, gris (.soft) a partir de 2 h. */
+    .ultima-lectura {
+      font-size: 11px;
+      white-space: nowrap;
+    }
+    .ultima-lectura.fresca {
+      color: var(--green-text);
+    }
+    .ultima-lectura.tibia {
+      color: var(--amber-text);
+    }
 
     .estado {
       display: flex;
@@ -290,6 +325,11 @@ import { DataBadgeComponent } from '../../shared/data-badge.component';
       flex: none;
       text-align: right;
       align-self: flex-start;
+    }
+    .estado-top {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
     }
     .estado-resumen {
       font-size: 12px;
@@ -439,12 +479,6 @@ import { DataBadgeComponent } from '../../shared/data-badge.component';
       font-size: 12px;
       padding-top: 2px;
     }
-    .separa {
-      display: inline-flex;
-      align-items: center;
-      gap: 14px;
-      flex-wrap: wrap;
-    }
     .enlace-detalle {
       font-weight: 700;
       color: var(--acento);
@@ -476,6 +510,17 @@ export class FilaMaquinaComponent {
   readonly lectura = computed(() => this.telar().ultimaLectura);
 
   readonly nombreMaterial = computed(() => materialPorId(this.telar().bloque?.materialId).nombre);
+
+  /** "Cortando" mientras el telar está en marcha; si no, "Último corte". */
+  readonly etiquetaCorte = computed(() =>
+    this.telar().estado === 'marcha' ? 'Cortando' : 'Último corte'
+  );
+
+  /** Minutos desde la última lectura recibida; para En pausa / Descansando. */
+  readonly inactivoMin = computed(() => {
+    const en = this.telar().ultimaLecturaEn;
+    return en ? Math.max(0, (this.reloj.ahoraMs() - new Date(en).getTime()) / 60_000) : null;
+  });
 
   readonly medidasFabrica = computed(() => {
     const medidas = this.telar().bloque?.medidasFabrica;
@@ -570,11 +615,40 @@ export class FilaMaquinaComponent {
       .join(' · ');
   });
 
+  /**
+   * "Hace cuánto" llegó el último dato del telar, SIEMPRE visible: usa la marca
+   * de última lectura recibida (`ultimaLecturaEn`), que persiste aunque el telar
+   * lleve horas o días callado y `ultimaLectura` sea null por «sin señal». Con
+   * minutos hasta las 2 h ("hace 1 h 35 min") para que la frescura se lea fina.
+   */
   readonly ultimaLecturaTexto = computed(() => {
-    const lectura = this.lectura();
-    return lectura ? `Lectura ${formatRelativo(lectura.recibidaEn, this.reloj.ahoraMs())}` : '';
+    const en = this.telar().ultimaLecturaEn;
+    return en
+      ? `Última lectura ${formatRelativoFino(en, this.reloj.ahoraMs())}`
+      : 'Sin lecturas registradas';
+  });
+
+  /**
+   * Tono de la marca de última lectura según su antigüedad, para leer la
+   * frescura de un vistazo: verde si llegó hace menos de 10 min, ámbar entre
+   * 10 min y 2 h, gris (por defecto, `.soft`) a partir de 2 h o sin lecturas.
+   */
+  readonly tonoLectura = computed<'fresca' | 'tibia' | 'fria'>(() => {
+    const en = this.telar().ultimaLecturaEn;
+    if (en === null) {
+      return 'fria';
+    }
+    const minutos = (this.reloj.ahoraMs() - new Date(en).getTime()) / 60_000;
+    if (minutos < LECTURA_FRESCA_MIN) {
+      return 'fresca';
+    }
+    return minutos < LECTURA_TIBIA_MIN ? 'tibia' : 'fria';
   });
 }
+
+/** Cortes de frescura de la última lectura: verde <10 min, ámbar <2 h, gris ≥2 h. */
+const LECTURA_FRESCA_MIN = 10;
+const LECTURA_TIBIA_MIN = 120;
 
 function minutosDesde(iso: string, ahora: number): string {
   const minutos = Math.max(0, Math.round((ahora - new Date(iso).getTime()) / 60_000));

@@ -20,7 +20,11 @@ export type DescriptorMaquina = {
   estado: EstadoIntegracion;
   /** Valor de `telar_n` en `produccion_mapeada` cuando la máquina es un telar. */
   telarN?: string;
-  /** true si la máquina vuelca al flujo compartido `parte_discopuente_mapeada`. */
+  /**
+   * true SOLO para el disco puente Gómez: es el único con PLC, así que todo
+   * `parte_discopuente_mapeada` es suyo y su volumen se le atribuye directamente.
+   * Terzago y Cáñigo aún no están integrados (sin fuente).
+   */
   esDiscoPuente?: boolean;
   /** true si la máquina vuelca al flujo compartido `reforzadora_mapeada`. */
   esReforzadora?: boolean;
@@ -31,6 +35,8 @@ export type DescriptorMaquina = {
 const SIN_FUENTE = 'Sin fuente de datos conectada.';
 const DATO_SIN_INTEGRAR =
   'Existe tabla de datos del sistema antiguo; pendiente de confirmar columnas con TotWare e integrar.';
+const SIN_PLC =
+  'Sin PLC ni integración todavía; no envía datos. De los tres discos puente solo Gómez está conectado.';
 
 /**
  * Catálogo de planta: 19 máquinas en dos secciones — M3 (aserrado de bloque a
@@ -146,17 +152,18 @@ export const CATALOGO_MAQUINAS: readonly DescriptorMaquina[] = [
     nombre: 'DISCOPUENTE 1 TERZAGO',
     seccion: 'M2',
     familia: 'disco_puente',
-    fuenteDatos: 'parte_discopuente_mapeada',
-    estado: 'parcial',
-    esDiscoPuente: true,
+    fuenteDatos: null,
+    estado: 'pendiente',
+    notaBase: SIN_PLC,
   },
   {
+    // Único disco puente con PLC: todo `parte_discopuente_mapeada` es suyo.
     codigo: 13,
     nombre: 'DISCOPUENTE 2 GOMEZ',
     seccion: 'M2',
     familia: 'disco_puente',
     fuenteDatos: 'parte_discopuente_mapeada',
-    estado: 'parcial',
+    estado: 'integrada',
     esDiscoPuente: true,
   },
   {
@@ -164,9 +171,9 @@ export const CATALOGO_MAQUINAS: readonly DescriptorMaquina[] = [
     nombre: 'DISCOPUENTE 3 CANIGO',
     seccion: 'M2',
     familia: 'disco_puente',
-    fuenteDatos: 'parte_discopuente_mapeada',
-    estado: 'parcial',
-    esDiscoPuente: true,
+    fuenteDatos: null,
+    estado: 'pendiente',
+    notaBase: SIN_PLC,
   },
   {
     codigo: 15,

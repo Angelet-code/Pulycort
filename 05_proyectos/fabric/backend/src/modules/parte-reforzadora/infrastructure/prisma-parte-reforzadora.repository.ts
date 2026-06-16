@@ -31,6 +31,9 @@ export class PrismaParteReforzadoraRepository
     filtros: FiltrosParteReforzadora,
   ): Promise<PaginaParteReforzadora> {
     const where: Prisma.ReforzadoraMapeadaWhereInput = {};
+    if (filtros.lote !== null) {
+      where.nBloque = filtros.lote;
+    }
     if (filtros.nReforzadora) {
       where.nReforzadora = filtros.nReforzadora;
     }

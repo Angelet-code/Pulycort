@@ -1,3 +1,5 @@
+import { BandaConsumo, UmbralConsumo } from '../../../shared/domain/consumo-atipico';
+
 /**
  * Lectura de producción de un telar tal y como llega en la tabla
  * `produccion_mapeada` (datos reales de TotWare mapeados a Odoo).
@@ -37,10 +39,19 @@ export type ProduccionMapeada = {
   dato5: number | null;
   dato6: number | null;
   fechaHora: Date | null;
+  /**
+   * Banda de consumo atípico (percentil de la cola del propio telar) o null si
+   * el consumo es normal o la lectura está en paro. Calculado en el backend.
+   */
+  consumoBanda: BandaConsumo | null;
+  /** Intensidad 0..1 dentro de la cola, para el degradado amarillo→rojo de la UI. */
+  consumoIntensidad: number;
 };
 
 /** Filtros y paginación para el listado de lecturas. */
 export type FiltrosProduccionMapeada = {
+  /** Nº de lote (n_bloque) exacto; null = todos. */
+  lote: number | null;
   telarN: string | null;
   /** Código de material (FK product_template); null = todos. */
   material: number | null;
@@ -59,4 +70,9 @@ export type PaginaProduccionMapeada = {
   items: ProduccionMapeada[];
   /** Materiales distintos de toda la tabla, para el filtro de la UI. */
   materiales: number[];
+  /**
+   * Cortes de consumo (kW) por telar usados para colorear la potencia atípica
+   * (top 16/2,3/0,13 % de la cola, últimos 30 días), para los tooltips de la UI.
+   */
+  umbralesConsumo: Record<string, UmbralConsumo>;
 };

@@ -17,7 +17,9 @@ import {
   EstadisticasTelar,
   EstadoFuente,
   EstadoTelar,
+  ActividadParte,
   EventoParte,
+  TipoEvento,
   FiltrosInventario,
   FormaInventario,
   FuenteDato,
@@ -31,6 +33,7 @@ import {
   JornadaTelar,
   KpisPlanta,
   LecturaCruda,
+  LecturaAviso,
   LecturaCuarentena,
   LecturaTelar,
   PaginaInventario,
@@ -87,6 +90,8 @@ import {
 
 const MINUTOS_POR_LECTURA = INTERVALO_LECTURA_MS / 60_000;
 const UMBRAL_SIN_DATOS_MS = 25 * 60_000;
+/** Ventana del badge de actividad del operario (20 min; fin de jornada no caduca). */
+const VENTANA_ACTIVIDAD_MS = 20 * 60_000;
 /** Frescura de la fuente de lecturas (igual que en el backend real). */
 const FUENTE_FRESCA_MS = 3 * 3_600_000;
 const SEED = 20260611;
@@ -218,7 +223,7 @@ interface DescriptorMaquinaDemo {
   estado: EstadoIntegracion;
   /** Telar de la simulación (1–4) cuando la máquina es un telar. */
   telarId?: number;
-  /** true si vuelca al flujo compartido del disco puente. */
+  /** true SOLO para el disco puente Gómez (el único con PLC); el flujo es suyo. */
   esDiscoPuente?: boolean;
   /** true si vuelca al flujo compartido de la reforzadora de tablas. */
   esReforzadora?: boolean;
@@ -228,6 +233,8 @@ interface DescriptorMaquinaDemo {
 const SIN_FUENTE_MAQUINA = 'Sin fuente de datos conectada.';
 const DATO_SIN_INTEGRAR_MAQUINA =
   'Existe tabla de datos del sistema antiguo; pendiente de confirmar columnas con TotWare e integrar.';
+const SIN_PLC_MAQUINA =
+  'Sin PLC ni integración todavía; no envía datos. De los tres discos puente solo Gómez está conectado.';
 
 /**
  * Catálogo de planta (mismo orden y nombres que el backend; fuente:
@@ -246,9 +253,9 @@ const CATALOGO_MAQUINAS_DEMO: readonly DescriptorMaquinaDemo[] = [
   { codigo: 9, nombre: 'REFORZADORA 1', seccion: 'M2', familia: 'reforzadora', fuenteDatos: 'reforzadora_mapeada', estado: 'parcial', esReforzadora: true },
   { codigo: 10, nombre: 'REFORZADORA 2 SEI', seccion: 'M2', familia: 'reforzadora', fuenteDatos: 'reforzadora_mapeada', estado: 'parcial', esReforzadora: true },
   { codigo: 11, nombre: 'PULIDORA TABLA SIMEC', seccion: 'M2', familia: 'pulidora', fuenteDatos: null, estado: 'pendiente', notaBase: DATO_SIN_INTEGRAR_MAQUINA },
-  { codigo: 12, nombre: 'DISCOPUENTE 1 TERZAGO', seccion: 'M2', familia: 'disco_puente', fuenteDatos: 'parte_discopuente_mapeada', estado: 'parcial', esDiscoPuente: true },
-  { codigo: 13, nombre: 'DISCOPUENTE 2 GOMEZ', seccion: 'M2', familia: 'disco_puente', fuenteDatos: 'parte_discopuente_mapeada', estado: 'parcial', esDiscoPuente: true },
-  { codigo: 14, nombre: 'DISCOPUENTE 3 CANIGO', seccion: 'M2', familia: 'disco_puente', fuenteDatos: 'parte_discopuente_mapeada', estado: 'parcial', esDiscoPuente: true },
+  { codigo: 12, nombre: 'DISCOPUENTE 1 TERZAGO', seccion: 'M2', familia: 'disco_puente', fuenteDatos: null, estado: 'pendiente', notaBase: SIN_PLC_MAQUINA },
+  { codigo: 13, nombre: 'DISCOPUENTE 2 GOMEZ', seccion: 'M2', familia: 'disco_puente', fuenteDatos: 'parte_discopuente_mapeada', estado: 'integrada', esDiscoPuente: true },
+  { codigo: 14, nombre: 'DISCOPUENTE 3 CANIGO', seccion: 'M2', familia: 'disco_puente', fuenteDatos: null, estado: 'pendiente', notaBase: SIN_PLC_MAQUINA },
   { codigo: 15, nombre: 'CONTROL NUMERICO DONATONI', seccion: 'M2', familia: 'cnc', fuenteDatos: null, estado: 'pendiente', notaBase: 'También realiza corte de disco puente (catálogo). Sin fuente de datos conectada.' },
   { codigo: 16, nombre: 'PULIDORA LOSA', seccion: 'M2', familia: 'pulidora', fuenteDatos: null, estado: 'pendiente', notaBase: DATO_SIN_INTEGRAR_MAQUINA },
   { codigo: 17, nombre: 'BISELADORA', seccion: 'M2', familia: 'acabado', fuenteDatos: null, estado: 'pendiente', notaBase: SIN_FUENTE_MAQUINA },
@@ -308,8 +315,10 @@ export class MockFabricApi extends FabricApi {
     const ahora = this.reloj.ahora();
     this.asegurarVentana(ahora);
     const snapshot = this.snapshotTelar(telarId, ahora);
-    const desdeDia = inicioDia(ahora);
-    const validasJornada = this.lecturasValidas(telarId, desdeDia, ahora);
+    // Ventana rodante de 24 h (no día natural): el detalle no se queda en blanco
+    // al cruzar medianoche. El Gantt "Jornada de hoy" recorta estos segmentos al día.
+    const desdeVentana = ahora - 24 * 3_600_000;
+    const validasJornada = this.lecturasValidas(telarId, desdeVentana, ahora);
     const ciclo = cicloEn(this.mundo.ciclos, telarId, ahora);
 
     const detalle: DetalleTelar = {
@@ -317,6 +326,7 @@ export class MockFabricApi extends FabricApi {
       serieAltura: validasJornada.map((l) => ({ t: l.recibidaEn, v: l.alturaActualMm })),
       seriePotencia: validasJornada.map((l) => ({ t: l.recibidaEn, v: l.potenciaKw })),
       serieGolpes: validasJornada.map((l) => ({ t: l.recibidaEn, v: l.golpesPorMinuto })),
+      serieVelocidad: validasJornada.map((l) => ({ t: l.recibidaEn, v: l.velocidadMmH })),
       segmentosJornada: this.segmentos(validasJornada),
       disponibilidadTurnoPct: this.disponibilidadTurno(telarId, ahora),
       ...this.mtbfFleje(telarId, ahora),
@@ -431,34 +441,47 @@ export class MockFabricApi extends FabricApi {
     this.asegurarVentana(ahora);
     const desde = ahora - 7 * 86_400_000;
 
+    const enVentana = (l: LecturaTelar): boolean =>
+      epoch(l.recibidaEn) >= desde && epoch(l.recibidaEn) <= ahora;
+
     const telares: SaludTelar[] = TELAR_IDS.map((telarId) => {
-      const lecturas = this.lecturas(telarId).filter(
-        (l) => epoch(l.recibidaEn) >= desde && epoch(l.recibidaEn) <= ahora
-      );
+      const lecturas = this.lecturas(telarId).filter(enVentana);
       const fiables = lecturas.filter((l) => !l.sospechosa).length;
+      const conAvisos = lecturas.filter((l) => !l.sospechosa && l.alertas.length > 0).length;
+      const limpias = lecturas.filter((l) => !l.sospechosa && l.alertas.length === 0).length;
       return {
         telarId,
         nombre: NOMBRES_TELAR.get(telarId) ?? `Telar ${telarId}`,
         lecturas7d: lecturas.length,
         fiables7d: fiables,
-        pctFiables: lecturas.length > 0 ? (fiables / lecturas.length) * 100 : 100
+        pctFiables: lecturas.length > 0 ? (fiables / lecturas.length) * 100 : 100,
+        conAvisos7d: conAvisos,
+        limpias7d: limpias,
+        pctLimpias: lecturas.length > 0 ? (limpias / lecturas.length) * 100 : 100
       };
     });
 
     const cuarentena: LecturaCuarentena[] = TELAR_IDS.flatMap((telarId) =>
-      this.lecturas(telarId).filter(
-        (l) => l.sospechosa && epoch(l.recibidaEn) >= desde && epoch(l.recibidaEn) <= ahora
-      )
+      this.lecturas(telarId).filter((l) => l.sospechosa && enVentana(l))
     )
       .sort((a, b) => epoch(b.recibidaEn) - epoch(a.recibidaEn))
       .slice(0, 60)
       .map((lectura) => ({ lectura, motivos: lectura.motivosSospecha }));
+
+    // Avisos: lecturas que NO se descartan (siguen en KPIs) pero pintan raro.
+    const avisos: LecturaAviso[] = TELAR_IDS.flatMap((telarId) =>
+      this.lecturas(telarId).filter((l) => !l.sospechosa && l.alertas.length > 0 && enVentana(l))
+    )
+      .sort((a, b) => epoch(b.recibidaEn) - epoch(a.recibidaEn))
+      .slice(0, 60)
+      .map((lectura) => ({ lectura, alertas: lectura.alertas }));
 
     return this.conLatencia({
       generadoEn: new Date(ahora).toISOString(),
       fuentes: this.fuentesDatos(ahora, telares),
       telares,
       cuarentena,
+      avisos,
       // La salud de partes solo aplica a la tabla real.
       partes: null
     });
@@ -696,6 +719,9 @@ export class MockFabricApi extends FabricApi {
       ? new Date(`${filtros.hasta}T00:00:00`).getTime() + 86_400_000
       : null;
     const filtradas = filas.filter((f) => {
+      if (filtros.lote && String(f.pmLote ?? f.nBloque ?? '') !== filtros.lote) {
+        return false;
+      }
       if (filtros.telarN && f.telarN !== filtros.telarN) {
         return false;
       }
@@ -760,6 +786,8 @@ export class MockFabricApi extends FabricApi {
         bloqueConocido: true,
         accion: null,
         fechaHora: e.fechaHora,
+        fechaHoraOriginal: e.fechaHora,
+        fechaRemapeada: false,
         idBloque: null,
         metrosCubicos: m3,
         metrosCuadradosTablas: e.paquetes?.metrosCuadrados ?? null,
@@ -780,6 +808,9 @@ export class MockFabricApi extends FabricApi {
       ? new Date(`${filtros.hasta}T00:00:00`).getTime() + 86_400_000
       : null;
     const filtradas = filas.filter((f) => {
+      if (filtros.lote && String(f.pmLote ?? f.nBloque ?? '') !== filtros.lote) {
+        return false;
+      }
       if (filtros.telarN && f.nTelar !== filtros.telarN) {
         return false;
       }
@@ -864,15 +895,14 @@ export class MockFabricApi extends FabricApi {
           metro2Salida: salida,
           eficienciaM2: eficiencia,
           fechaHora: e.fechaHora,
+          fechaHoraOriginal: e.fechaHora,
+          fechaRemapeada: false,
           sospechosa: false,
           motivosSospecha: []
         };
       });
     filas.sort((a, b) => epoch(b.fechaHora ?? '') - epoch(a.fechaHora ?? ''));
 
-    const discosPuente = [
-      ...new Set(filas.map((f) => f.discoPuenteN).filter((d): d is string => d !== null))
-    ].sort((a, b) => Number(a) - Number(b));
     const materiales = [
       ...new Set(filas.map((f) => f.material).filter((m): m is string => m !== null))
     ].sort();
@@ -885,7 +915,7 @@ export class MockFabricApi extends FabricApi {
       ? new Date(`${filtros.hasta}T00:00:00`).getTime() + 86_400_000
       : null;
     const filtradas = filas.filter((f) => {
-      if (filtros.disco && f.discoPuenteN !== filtros.disco) {
+      if (filtros.lote && String(f.pmLote ?? f.nBloque ?? '') !== filtros.lote) {
         return false;
       }
       if (filtros.material && String(f.material) !== filtros.material) {
@@ -909,7 +939,6 @@ export class MockFabricApi extends FabricApi {
       limit: filtros.limit,
       offset: filtros.offset,
       items: filtradas.slice(filtros.offset, filtros.offset + filtros.limit),
-      discosPuente,
       materiales,
       operaciones
     });
@@ -981,6 +1010,9 @@ export class MockFabricApi extends FabricApi {
       ? new Date(`${filtros.hasta}T00:00:00`).getTime() + 86_400_000
       : null;
     const filtradas = filas.filter((f) => {
+      if (filtros.lote && String(f.pmLote ?? f.nBloque ?? '') !== filtros.lote) {
+        return false;
+      }
       if (filtros.reforzadora && f.nReforzadora !== filtros.reforzadora) {
         return false;
       }
@@ -1167,8 +1199,8 @@ export class MockFabricApi extends FabricApi {
     this.asegurarVentana(ahora);
     const ahoraIso = new Date(ahora).toISOString();
 
-    // Volumen por telar (filas = ciclos, lotes = bloques distintos) y del flujo
-    // de disco puente (los partes de paquetes), derivados de la simulación.
+    // Volumen por telar (filas = ciclos, lotes = bloques distintos) y del disco
+    // puente Gómez (los partes de paquetes), derivados de la simulación.
     const ciclos = this.mundo.ciclos.filter((c) => c.colocacion <= ahora);
     const lotesPorTelar = new Map<number, Set<number>>();
     const filasPorTelar = new Map<number, number>();
@@ -1186,6 +1218,26 @@ export class MockFabricApi extends FabricApi {
     const discoLotes = new Set(
       eventosDisco.map((e) => e.bloque).filter((b): b is number => b !== null)
     ).size;
+    // Para la tarjeta de Gómez en la sala: material del último parte y m² de hoy.
+    const inicioHoy = (() => {
+      const d = new Date(ahora);
+      d.setHours(0, 0, 0, 0);
+      return d.getTime();
+    })();
+    const ultimoEventoDisco = eventosDisco.reduce<(typeof eventosDisco)[number] | null>(
+      (ultimo, e) =>
+        !ultimo || epoch(e.fechaHora ?? '') >= epoch(ultimo.fechaHora ?? '') ? e : ultimo,
+      null
+    );
+    const matNum = Number(ultimoEventoDisco?.materialId);
+    const discoUltimoMaterial = Number.isFinite(matNum) ? matNum : null;
+    const discoM2Hoy = eventosDisco
+      .filter((e) => {
+        const t = epoch(e.fechaHora ?? '');
+        return t >= inicioHoy && t <= ahora;
+      })
+      .reduce((suma, e) => suma + (e.paquetes?.metrosCuadrados ?? 0), 0);
+    const discoM2HoyValor = discoM2Hoy > 0 ? Math.round(discoM2Hoy * 10) / 10 : null;
 
     const maquinas: CoberturaMaquina[] = CATALOGO_MAQUINAS_DEMO.map((d) => {
       const base = {
@@ -1194,6 +1246,8 @@ export class MockFabricApi extends FabricApi {
         seccion: d.seccion,
         familia: d.familia,
         fuenteDatos: d.fuenteDatos,
+        ultimoMaterial: null,
+        m2EntradaHoy: null,
         estado: d.estado
       };
       if (d.telarId !== undefined) {
@@ -1207,16 +1261,17 @@ export class MockFabricApi extends FabricApi {
         };
       }
       if (d.esDiscoPuente) {
+        // Gómez es el único disco puente con PLC: todo el flujo es suyo.
         return {
           ...base,
-          filas: null,
-          lotes: null,
-          ultimaActividad: null,
+          filas: discoFilas,
+          lotes: discoLotes,
+          ultimaActividad: discoFilas > 0 ? ahoraIso : null,
+          ultimoMaterial: discoUltimoMaterial,
+          m2EntradaHoy: discoM2HoyValor,
           nota:
-            'Flujo combinado: el dato no separa Terzago/Gómez/Cáñigo — todo el ' +
-            `corte llega como un único disco_puente_n. ${discoFilas} partes y ` +
-            `${discoLotes} lotes registrados, sin atribuir a esta máquina. ` +
-            'Pendiente que INDASEL etiquete la máquina física por parte.'
+            'Único disco puente integrado (con PLC); todo el flujo es suyo. ' +
+            'Terzago y Cáñigo aún sin integrar.'
         };
       }
       if (d.esReforzadora) {
@@ -1287,9 +1342,44 @@ export class MockFabricApi extends FabricApi {
     return this.mundo.eventos.filter((evento) => epoch(evento.fechaHora) <= ahora);
   }
 
+  /** Actividad del operario (demo): deriva del último evento simulado del telar. */
+  private actividadParteDemo(telarId: number, ahora: number): ActividadParte | null {
+    const ultimo = this.mundo.eventos
+      .filter((e) => e.telarId === telarId && epoch(e.fechaHora) <= ahora)
+      .reduce<EventoParte | null>(
+        (max, e) =>
+          max === null || epoch(e.fechaHora) > epoch(max.fechaHora) ? e : max,
+        null
+      );
+    if (!ultimo) {
+      return null;
+    }
+    const mapa: Record<TipoEvento, { etiqueta: string; categoria: ActividadParte['categoria'] }> = {
+      colocacion: { etiqueta: 'Colocando', categoria: 'operacion' },
+      aserrado: { etiqueta: 'Aserrando', categoria: 'operacion' },
+      salida: { etiqueta: 'Salida de Bloque', categoria: 'operacion' },
+      paquetes: { etiqueta: 'Haciendo Paquetes', categoria: 'operacion' },
+      'fin-jornada': { etiqueta: 'Fin de jornada', categoria: 'fin-jornada' }
+    };
+    const m = mapa[ultimo.tipo];
+    if (
+      m.categoria !== 'fin-jornada' &&
+      ahora - epoch(ultimo.fechaHora) > VENTANA_ACTIVIDAD_MS
+    ) {
+      return null;
+    }
+    return { etiqueta: m.etiqueta, categoria: m.categoria, desde: ultimo.fechaHora };
+  }
+
   private snapshotTelar(telarId: number, ahora: number): SnapshotTelar {
     const validas = this.lecturasValidas(telarId, ahora - 86_400_000, ahora);
     const ultimaValida = validas.length > 0 ? validas[validas.length - 1] : null;
+    // "Hace cuánto" llegó el último dato, SIEMPRE: la última lectura recibida
+    // (fresca o no), independiente de la frescura que decide `estado`.
+    const ultimaLecturaEn = this.lecturas(telarId).reduce<string | null>((max, l) => {
+      const t = epoch(l.recibidaEn);
+      return t <= ahora && (max === null || t > epoch(max)) ? l.recibidaEn : max;
+    }, null);
     const ciclo = cicloEn(this.mundo.ciclos, telarId, ahora);
     const cortando = !!ciclo && ahora >= ciclo.inicioCorte && ahora < ciclo.finCorte;
 
@@ -1322,8 +1412,10 @@ export class MockFabricApi extends FabricApi {
         estado === 'paro' || estado === 'incidencia' || estado === 'cambio-bloque'
           ? (ultimaValida?.incidencia ?? null)
           : null,
+      actividadParte: this.actividadParteDemo(telarId, ahora),
       bloque: ciclo?.bloque ?? null,
       ultimaLectura: ultimaValida,
+      ultimaLecturaEn,
       alturaInicialMm: ciclo?.alturaInicialMm ?? null,
       progresoPct,
       etaFinCorte,
@@ -1341,6 +1433,13 @@ export class MockFabricApi extends FabricApi {
           l.sospechosa &&
           epoch(l.recibidaEn) >= ahora - 86_400_000 &&
           epoch(l.recibidaEn) <= ahora
+      ),
+      datosConAvisos: this.lecturas(telarId).some(
+        (l) =>
+          !l.sospechosa &&
+          l.alertas.length > 0 &&
+          epoch(l.recibidaEn) >= ahora - 86_400_000 &&
+          epoch(l.recibidaEn) <= ahora
       )
     };
   }
@@ -1348,8 +1447,11 @@ export class MockFabricApi extends FabricApi {
   private mapearEstado(incidencia: TipoIncidencia): EstadoTelar {
     switch (incidencia) {
       case 'marcha':
+      case 'modo-manual':
+      case 'modo-automatico':
         return 'marcha';
       case 'rotura-fleje':
+      case 'paro-rotura-material':
         return 'incidencia';
       case 'cambio-bloque':
         return 'cambio-bloque';
@@ -1454,12 +1556,18 @@ export class MockFabricApi extends FabricApi {
       const previo = segmentos[segmentos.length - 1];
       const inicio = epoch(lectura.recibidaEn);
       const finLectura = new Date(inicio + INTERVALO_LECTURA_MS).toISOString();
-      // Una lectura en cuarentena intermedia se puentea; rachas más largas
-      // sin dato fiable se dejan como hueco en el Gantt, no se inventan.
+      const hueco = previo ? inicio - epoch(previo.hasta) : 0;
+      // Una lectura en cuarentena intermedia se puentea; un hueco largo sin dato
+      // fiable se marca como 'sin-datos' (no se une, eso inventaría una tendencia).
+      if (previo && hueco > UMBRAL_SIN_DATOS_MS) {
+        segmentos.push({ desde: previo.hasta, hasta: lectura.recibidaEn, incidencia: 'sin-datos' });
+        segmentos.push({ desde: lectura.recibidaEn, hasta: finLectura, incidencia: lectura.incidencia });
+        continue;
+      }
       const continua =
         previo &&
         previo.incidencia === lectura.incidencia &&
-        inicio - epoch(previo.hasta) <= INTERVALO_LECTURA_MS * 1.5;
+        hueco <= INTERVALO_LECTURA_MS * 1.5;
       if (continua) {
         previo.hasta = finLectura;
       } else {
@@ -1622,6 +1730,9 @@ export class MockFabricApi extends FabricApi {
       golpesMedios: Math.round(media(marcha.map((l) => l.golpesPorMinuto))),
       velocidadMediaMmH: Math.round(media(marcha.map((l) => l.velocidadMmH))),
       amperiosMedios: Math.round(media(marcha.map((l) => l.amperios))),
+      // Consumo eléctrico medio en marcha (kW); null sin lecturas en marcha.
+      potenciaMediaKw:
+        marcha.length > 0 ? Math.round(media(marcha.map((l) => l.potenciaKw)) * 10) / 10 : null,
       parosPorCausa
     };
   }

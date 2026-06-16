@@ -54,15 +54,19 @@ function fila(opciones: {
   alturaMm?: number;
   sinCreateDate?: boolean;
   nBloque?: number;
+  /** Desfase de create_date (recepción) respecto a la fecha declarada. */
+  desfaseRecibidaMs?: number;
 }): FilaPrueba {
   const fechaHora = new Date(AHORA - opciones.haceMs);
   const potencia = opciones.potencia ?? 45;
+  // create_date llega ~3 min después de la fecha declarada (lote del ETL); un
+  // desfase grande (±) simula un reloj de consola corrupto → cuarentena (#1).
+  const desfaseRecibida = opciones.desfaseRecibidaMs ?? 3 * MIN;
   return {
     id: siguienteId++,
     telarN: String(opciones.telar),
     fechaHora,
-    // create_date llega ~3 min después de la fecha declarada (lote del ETL).
-    createDate: opciones.sinCreateDate ? null : new Date(fechaHora.getTime() + 3 * MIN),
+    createDate: opciones.sinCreateDate ? null : new Date(fechaHora.getTime() + desfaseRecibida),
     incidencia: opciones.incidencia,
     potencia,
     consumo: potencia * 2,
@@ -141,6 +145,18 @@ describe('PrismaFabricRepository · estado del telar', () => {
     expect(await estadoTelar(filas, 1)).toBe('paro');
   });
 
+  it('códigos confirmados (Pulycort 2026-06-16): 4 modo manual y 5 automático son marcha; 3 rotura de material es incidencia', async () => {
+    expect(
+      await estadoTelar([fila({ telar: 1, haceMs: 10 * MIN, incidencia: '4' })], 1),
+    ).toBe('marcha');
+    expect(
+      await estadoTelar([fila({ telar: 1, haceMs: 10 * MIN, incidencia: '5' })], 1),
+    ).toBe('marcha');
+    expect(
+      await estadoTelar([fila({ telar: 1, haceMs: 10 * MIN, incidencia: '3' })], 1),
+    ).toBe('incidencia');
+  });
+
   it('cae a "sin-datos" cuando la última lectura supera el umbral, aunque dijera marcha', async () => {
     // Caso real del telar 1: último registro horas atrás con la fábrica parada.
     const filas = [
@@ -148,6 +164,21 @@ describe('PrismaFabricRepository · estado del telar', () => {
       fila({ telar: 1, haceMs: 12 * HORA, incidencia: '1', alturaMm: 1805 }),
     ];
     expect(await estadoTelar(filas, 1)).toBe('sin-datos');
+  });
+
+  it('conserva ultimaLecturaEn (hace cuánto llegó el dato) aunque el telar esté «sin señal»', async () => {
+    // Telar callado 12 h: estado «sin-datos» y sin ultimaLectura viva, pero la
+    // marca de la última lectura recibida persiste para mostrar "hace 12 h".
+    const filas = [
+      fila({ telar: 1, haceMs: 12 * HORA + 10 * MIN, incidencia: '1', alturaMm: 1810 }),
+      fila({ telar: 1, haceMs: 12 * HORA, incidencia: '1', alturaMm: 1805 }),
+    ];
+    const planta = await repoCon(filas).getSnapshotPlanta();
+    const telar = planta.telares.find((t) => t.telarId === 1)!;
+    expect(telar.estado).toBe('sin-datos');
+    expect(telar.ultimaLectura).toBeNull();
+    // create_date de la última fila = fechaHora + 3 min (lote del ETL).
+    expect(telar.ultimaLecturaEn).toBe(new Date(AHORA - 12 * HORA + 3 * MIN).toISOString());
   });
 
   it('una lectura con fecha FUTURA (reloj corrupto, sin create_date) no cuenta como reciente', async () => {
@@ -609,18 +640,64 @@ describe('PrismaFabricRepository · fuentes de Salud del dato', () => {
   });
 
   it('produccion_mapeada: pasa a "mal" cuando la mayoría de lecturas están en cuarentena', async () => {
-    // 1 fiable + 3 con incidencia sin mapear (cuarentena) = 25 % fiables.
+    // 1 fiable + 3 con la fecha declarada incoherente con la recepción (reloj de
+    // consola desfasado > 30 min, el único motivo de cuarentena) = 25 % fiables.
     const salud = await repoConFuentes({
       lecturas: [
         fila({ telar: 1, haceMs: 40 * MIN, incidencia: '1', alturaMm: 1810 }),
-        fila({ telar: 1, haceMs: 30 * MIN, incidencia: '5', alturaMm: 1808 }),
-        fila({ telar: 1, haceMs: 20 * MIN, incidencia: '5', alturaMm: 1806 }),
-        fila({ telar: 1, haceMs: 10 * MIN, incidencia: '5', alturaMm: 1804 }),
+        fila({ telar: 1, haceMs: 30 * MIN, incidencia: '1', alturaMm: 1808, desfaseRecibidaMs: -45 * MIN }),
+        fila({ telar: 1, haceMs: 20 * MIN, incidencia: '1', alturaMm: 1806, desfaseRecibidaMs: -45 * MIN }),
+        fila({ telar: 1, haceMs: 10 * MIN, incidencia: '1', alturaMm: 1804, desfaseRecibidaMs: -45 * MIN }),
       ],
     }).getSaludDatos();
     const fuente = salud.fuentes.find((f) => f.tabla === 'produccion_mapeada')!;
     expect(fuente.estado).toBe('mal');
     expect(fuente.diagnostico).toContain('25 %');
+  });
+
+  it('incidencia sin mapear: es un AVISO, no descarta (la lectura sigue contando en KPIs)', async () => {
+    const salud = await repoConFuentes({
+      lecturas: [
+        fila({ telar: 1, haceMs: 30 * MIN, incidencia: '1', alturaMm: 1808 }),
+        // Código fuera de la tabla confirmada (1-5): sigue siendo "sin mapear".
+        fila({ telar: 1, haceMs: 10 * MIN, incidencia: '9', alturaMm: 1806 }),
+      ],
+    }).getSaludDatos();
+    // No va a cuarentena…
+    expect(salud.cuarentena).toHaveLength(0);
+    // …sino a avisos, y el telar la sigue contando como fiable.
+    expect(
+      salud.avisos.some((a) => a.alertas.some((m) => m.includes('Incidencia sin mapear'))),
+    ).toBe(true);
+    const telar = salud.telares.find((t) => t.telarId === 1)!;
+    // No descartada → sigue siendo "fiable" (cuenta en KPIs)…
+    expect(telar.pctFiables).toBe(100);
+    // …pero el % de lecturas LIMPIAS baja, porque tiene un aviso.
+    expect(telar.pctLimpias).toBeLessThan(100);
+    expect(telar.conAvisos7d).toBeGreaterThan(0);
+  });
+
+  it('consumo: avisa (sin descartar) cuando una lectura entra en la cola alta del telar', async () => {
+    const lecturas: FilaPrueba[] = [];
+    // Baseline estable del telar (~45 kW) para fijar los percentiles de la cola.
+    for (let i = 0; i < 8; i++) {
+      lecturas.push(
+        fila({ telar: 1, haceMs: (90 - i * 8) * MIN, incidencia: '1', potencia: 45, alturaMm: 1805 }),
+      );
+    }
+    // Pico en la cola (por encima del top 0,13 %): aviso "MUY alto", sin descartar.
+    lecturas.push(fila({ telar: 1, haceMs: 8 * MIN, incidencia: '1', potencia: 200, alturaMm: 1805 }));
+
+    const salud = await repoConFuentes({ lecturas }).getSaludDatos();
+    expect(salud.cuarentena).toHaveLength(0);
+    expect(
+      salud.avisos.some((a) => a.alertas.some((m) => m.includes('Consumo MUY alto'))),
+    ).toBe(true);
+    const telar = salud.telares.find((t) => t.telarId === 1)!;
+    expect(telar.conAvisos7d).toBeGreaterThan(0);
+    // El pico no descarta (sigue fiable) pero rebaja el % de lecturas limpias.
+    expect(telar.pctFiables).toBe(100);
+    expect(telar.pctLimpias).toBeLessThan(100);
   });
 
   it('parte_trabajo_mapeada: registros del total y aviso con partes sospechosos', async () => {

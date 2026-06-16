@@ -113,6 +113,12 @@ function techoBonito(max: number): { yMax: number; paso: number } {
 export class GraficoBarrasComponent {
   readonly barras = input.required<BarraApilada[]>();
   readonly unidad = input('');
+  /**
+   * Pinta la etiqueta de TODAS las barras (no solo una de cada N). Útil cuando
+   * cada barra es una entidad distinta —p. ej. una máquina— y la etiqueta corta
+   * cabe en su hueco. Por defecto false: mantiene el muestreo del eje temporal.
+   */
+  readonly etiquetasCompletas = input(false);
 
   readonly ancho = W;
   readonly alto = H;
@@ -150,7 +156,7 @@ export class GraficoBarrasComponent {
     const { yMax } = this.escala();
     const n = Math.max(1, barras.length);
     const slot = INNER_W / n;
-    const cadaEtiqueta = Math.ceil(n / 8);
+    const cadaEtiqueta = this.etiquetasCompletas() ? 1 : Math.ceil(n / 8);
     const conTotales = n <= 12;
 
     return barras.map((barra, i) => {

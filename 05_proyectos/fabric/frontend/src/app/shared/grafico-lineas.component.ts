@@ -14,7 +14,9 @@ const INNER_H = H - MT - MB;
 const COLOR_BANDA: Partial<Record<TipoIncidencia, string>> = {
   paro: 'rgba(243, 200, 106, 0.14)',
   'rotura-fleje': 'rgba(255, 95, 125, 0.16)',
-  'cambio-bloque': 'rgba(79, 201, 222, 0.1)'
+  'cambio-bloque': 'rgba(79, 201, 222, 0.1)',
+  // Rayado gris: tramo sin lectura fiable. La línea además se corta aquí.
+  'sin-datos': 'url(#patron-sin-datos)'
 };
 
 export interface ProyeccionLinea {
@@ -49,6 +51,18 @@ function techoBonito(max: number): { yMax: number; paso: number } {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <svg [attr.viewBox]="'0 0 ' + ancho + ' ' + alto" class="grafico">
+      <defs>
+        <pattern
+          id="patron-sin-datos"
+          width="6"
+          height="6"
+          patternUnits="userSpaceOnUse"
+          patternTransform="rotate(45)"
+        >
+          <rect width="6" height="6" fill="rgba(148,163,184,0.07)" />
+          <line x1="0" y1="0" x2="0" y2="6" stroke="rgba(148,163,184,0.40)" stroke-width="1.3" />
+        </pattern>
+      </defs>
       @if (puntosVisibles().length >= 2) {
         <!-- bandas de incidencia -->
         @for (banda of bandasPintadas(); track $index) {
@@ -94,6 +108,11 @@ function techoBonito(max: number): { yMax: number; paso: number } {
           stroke-width="1.8"
           stroke-linejoin="round"
         />
+        <!-- Lecturas aisladas entre huecos: como la línea se corta, se marcan
+             con un punto para que no desaparezcan. -->
+        @for (p of puntosSueltos(); track $index) {
+          <circle [attr.cx]="p.cx" [attr.cy]="p.cy" r="1.9" [attr.fill]="color()" />
+        }
         @if (rutaProyeccion(); as ruta) {
           <path
             [attr.d]="ruta"
@@ -183,21 +202,63 @@ export class GraficoLineasComponent {
     return MT + INNER_H - (Math.max(0, Math.min(yMax, v)) / yMax) * INNER_H;
   }
 
-  private readonly coordenadas = computed(() =>
-    this.puntosVisibles().map((p) => `${this.x(epoch(p.t)).toFixed(1)},${this.y(p.v).toFixed(1)}`)
+  /**
+   * Puntos partidos en tramos: se corta allí donde cae una banda 'sin-datos'
+   * (hueco mayor que la cadencia). Así la línea no cruza el hueco inventando
+   * una tendencia que no existe; el agujero queda visible y rayado.
+   */
+  private readonly tramos = computed<PuntoSerie[][]>(() => {
+    const puntos = this.puntosVisibles();
+    const huecos = this.bandas()
+      .filter((b) => b.incidencia === 'sin-datos')
+      .map((b) => [epoch(b.desde), epoch(b.hasta)] as const);
+    const tramos: PuntoSerie[][] = [];
+    let actual: PuntoSerie[] = [];
+    for (let i = 0; i < puntos.length; i++) {
+      if (i > 0) {
+        const a = epoch(puntos[i - 1].t);
+        const b = epoch(puntos[i].t);
+        if (huecos.some(([g0, g1]) => g0 < b && g1 > a)) {
+          tramos.push(actual);
+          actual = [];
+        }
+      }
+      actual.push(puntos[i]);
+    }
+    if (actual.length) {
+      tramos.push(actual);
+    }
+    return tramos;
+  });
+
+  private coords(tramo: PuntoSerie[]): string {
+    return tramo.map((p) => `${this.x(epoch(p.t)).toFixed(1)},${this.y(p.v).toFixed(1)}`).join(' L');
+  }
+
+  readonly rutaLinea = computed(() =>
+    this.tramos()
+      .filter((t) => t.length >= 2)
+      .map((t) => `M${this.coords(t)}`)
+      .join(' ')
   );
 
-  readonly rutaLinea = computed(() => `M${this.coordenadas().join(' L')}`);
+  /** Centro de cada lectura aislada (tramo de un solo punto), para pintarla como punto. */
+  readonly puntosSueltos = computed(() =>
+    this.tramos()
+      .filter((t) => t.length === 1)
+      .map((t) => ({ cx: this.x(epoch(t[0].t)), cy: this.y(t[0].v) }))
+  );
 
   readonly rutaArea = computed(() => {
-    const puntos = this.puntosVisibles();
-    if (puntos.length < 2) {
-      return '';
-    }
     const base = MT + INNER_H;
-    const x0 = this.x(epoch(puntos[0].t)).toFixed(1);
-    const x1 = this.x(epoch(puntos[puntos.length - 1].t)).toFixed(1);
-    return `M${x0},${base} L${this.coordenadas().join(' L')} L${x1},${base} Z`;
+    return this.tramos()
+      .filter((t) => t.length >= 2)
+      .map((t) => {
+        const x0 = this.x(epoch(t[0].t)).toFixed(1);
+        const x1 = this.x(epoch(t[t.length - 1].t)).toFixed(1);
+        return `M${x0},${base} L${this.coords(t)} L${x1},${base} Z`;
+      })
+      .join(' ');
   });
 
   readonly rutaProyeccion = computed(() => {

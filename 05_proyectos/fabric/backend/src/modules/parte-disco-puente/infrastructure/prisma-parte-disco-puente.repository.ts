@@ -8,6 +8,10 @@ import {
 } from '../domain/parte-disco-puente.entity';
 import { ParteDiscoPuenteRepository } from '../domain/parte-disco-puente.repository';
 import { BloqueRegistroService } from '../../../shared/infrastructure/bloque-registro/bloque-registro.service';
+import {
+  aplicarRemapeoFecha,
+  sqlFechaHoraEfectiva,
+} from '../../../shared/infrastructure/fecha-remapeo/fecha-remapeo';
 
 const TTL_CATALOGOS_MS = 5 * 60_000;
 
@@ -17,7 +21,6 @@ export class PrismaParteDiscoPuenteRepository
 {
   private catalogosCache: {
     en: number;
-    discosPuente: string[];
     materiales: number[];
     operaciones: string[];
   } | null = null;
@@ -30,43 +33,77 @@ export class PrismaParteDiscoPuenteRepository
   async findMany(
     filtros: FiltrosParteDiscoPuente,
   ): Promise<PaginaParteDiscoPuente> {
-    const where: Prisma.ParteDiscoPuenteMapeadaWhereInput = {};
-    if (filtros.discoPuenteN) {
-      where.discoPuenteN = filtros.discoPuenteN;
+    // El orden y los filtros de fecha van sobre la fecha_hora EFECTIVA (con el
+    // año ya corregido), no sobre el valor crudo: si no, los partes remapeados
+    // (lote del 31-dic-2025 estampado en 2026) saldrían al principio del
+    // listado en vez de en su sitio real (jul–dic 2025). Como Prisma no ordena
+    // por una expresión calculada, se resuelve la página por SQL crudo y luego
+    // se traen las filas tipadas por id.
+    const condiciones: Prisma.Sql[] = [];
+    if (filtros.lote !== null) {
+      condiciones.push(Prisma.sql`s.n_bloque = ${filtros.lote}`);
     }
     if (filtros.material !== null) {
-      where.material = filtros.material;
+      condiciones.push(Prisma.sql`s.material = ${filtros.material}`);
     }
     if (filtros.operacion !== null) {
-      where.operacion = filtros.operacion;
+      condiciones.push(Prisma.sql`s.operacion = ${filtros.operacion}`);
     }
-    if (filtros.desde || filtros.hasta) {
-      where.fechaHora = {
-        ...(filtros.desde ? { gte: filtros.desde } : {}),
-        ...(filtros.hasta ? { lt: filtros.hasta } : {}),
-      };
+    if (filtros.desde) {
+      condiciones.push(Prisma.sql`s.fecha_hora_efectiva >= ${filtros.desde}`);
     }
+    if (filtros.hasta) {
+      condiciones.push(Prisma.sql`s.fecha_hora_efectiva < ${filtros.hasta}`);
+    }
+    const where =
+      condiciones.length > 0
+        ? Prisma.sql`WHERE ${Prisma.join(condiciones, ' AND ')}`
+        : Prisma.empty;
 
-    const [total, filas] = await this.prisma.$transaction([
-      this.prisma.parteDiscoPuenteMapeada.count({ where }),
-      this.prisma.parteDiscoPuenteMapeada.findMany({
-        where,
-        // En Postgres DESC pone los NULL primero; los queremos al final.
-        orderBy: [{ fechaHora: { sort: 'desc', nulls: 'last' } }, { id: 'desc' }],
-        take: filtros.limit,
-        skip: filtros.offset,
-      }),
-    ]);
+    const base = Prisma.sql`
+      FROM (
+        SELECT id, n_bloque, material, operacion,
+               ${sqlFechaHoraEfectiva()} AS fecha_hora_efectiva
+        FROM parte_discopuente_mapeada
+      ) s
+      ${where}`;
+
+    const totalFilas = await this.prisma.$queryRaw<{ total: number }[]>(
+      Prisma.sql`SELECT count(*)::int AS total ${base}`,
+    );
+    const total = totalFilas[0]?.total ?? 0;
+
+    const idsOrdenados = await this.prisma.$queryRaw<{ id: number }[]>(
+      Prisma.sql`SELECT s.id ${base}
+                 ORDER BY s.fecha_hora_efectiva DESC NULLS LAST, s.id DESC
+                 LIMIT ${filtros.limit} OFFSET ${filtros.offset}`,
+    );
+    const ids = idsOrdenados.map((f) => f.id);
 
     const ahora = Date.now();
     const catalogos = await this.catalogos();
     const conocidos = await this.bloqueRegistro.conocidos();
+
+    const filasPorId = new Map<number, FilaParte>();
+    if (ids.length > 0) {
+      const filas = await this.prisma.parteDiscoPuenteMapeada.findMany({
+        where: { id: { in: ids } },
+      });
+      for (const fila of filas) {
+        filasPorId.set(fila.id, fila);
+      }
+    }
+    // Se respeta el orden devuelto por la consulta SQL (por fecha efectiva).
+    const items = ids
+      .map((id) => filasPorId.get(id))
+      .filter((fila): fila is FilaParte => fila !== undefined)
+      .map((fila) => this.toDomain(fila, ahora, conocidos));
+
     return {
       total,
       limit: filtros.limit,
       offset: filtros.offset,
-      items: filas.map((fila) => this.toDomain(fila, ahora, conocidos)),
-      discosPuente: catalogos.discosPuente,
+      items,
       materiales: catalogos.materiales,
       operaciones: catalogos.operaciones,
     };
@@ -74,7 +111,6 @@ export class PrismaParteDiscoPuenteRepository
 
   /** Catálogos para los filtros, cacheados para no recorrer la tabla por página. */
   private async catalogos(): Promise<{
-    discosPuente: string[];
     materiales: number[];
     operaciones: string[];
   }> {
@@ -84,12 +120,7 @@ export class PrismaParteDiscoPuenteRepository
     ) {
       return this.catalogosCache;
     }
-    const [discos, materiales, operaciones] = await this.prisma.$transaction([
-      this.prisma.parteDiscoPuenteMapeada.findMany({
-        distinct: ['discoPuenteN'],
-        select: { discoPuenteN: true },
-        where: { discoPuenteN: { not: null } },
-      }),
+    const [materiales, operaciones] = await this.prisma.$transaction([
       this.prisma.parteDiscoPuenteMapeada.findMany({
         distinct: ['material'],
         select: { material: true },
@@ -103,9 +134,6 @@ export class PrismaParteDiscoPuenteRepository
     ]);
     this.catalogosCache = {
       en: Date.now(),
-      discosPuente: discos
-        .map((f) => f.discoPuenteN!)
-        .sort((a, b) => Number(a) - Number(b)),
       materiales: materiales.map((f) => f.material!).sort((a, b) => a - b),
       operaciones: operaciones
         .map((f) => f.operacion!)
@@ -119,13 +147,20 @@ export class PrismaParteDiscoPuenteRepository
     ahora: number,
     conocidos: Set<number>,
   ): ParteDiscoPuente {
+    // Remapeo del año mal estampado (+1) del lote de backfill del 31-dic-2025:
+    // ~434 filas de jul–dic 2025 que figuran en 2026. Se corrige restando 1 año
+    // y se marca `fechaRemapeada` (señal de alerta), pero se USA la fecha
+    // corregida. La detección (fecha_hora muy por delante de create_date) deja
+    // intactos los partes reales futuros cuando el tiempo avance hasta esos
+    // meses. Ver `shared/.../fecha-remapeo`.
+    const { fechaHora, fechaHoraOriginal, remapeada } = aplicarRemapeoFecha(
+      fila.fechaHora,
+      fila.createDate,
+    );
     const motivosSospecha: string[] = [];
-    // Cuarentena: una fecha declarada en el futuro es imposible (~434 filas en
-    // jul-dic 2026). Se marca pero NO se oculta (estilo de la casa: el validador
-    // señala y excluye de KPIs; aquí es una lectura en crudo, sin KPIs). Las
-    // reglas definitivas de cuarentena de partes están pendientes de TotWare
-    // (00_gestion/TAREAS.md).
-    if (fila.fechaHora && fila.fechaHora.getTime() > ahora) {
+    // Si tras corregir el año la fecha SIGUE en el futuro, es otra corrupción
+    // distinta (no un +1 año): se marca, como antes, pero no se silencia.
+    if (fechaHora && fechaHora.getTime() > ahora) {
       motivosSospecha.push('fecha futura imposible');
     }
     return {
@@ -174,7 +209,9 @@ export class PrismaParteDiscoPuenteRepository
       metro2Salida: dec(fila.metro2Salida),
       eficienciaM2: fila.eficienciaM2,
       fecha: fila.fecha,
-      fechaHora: fila.fechaHora,
+      fechaHora,
+      fechaHoraOriginal,
+      fechaRemapeada: remapeada,
       createDate: fila.createDate,
       sospechosa: motivosSospecha.length > 0,
       motivosSospecha,

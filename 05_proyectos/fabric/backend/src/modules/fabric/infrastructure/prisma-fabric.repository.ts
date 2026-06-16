@@ -9,8 +9,19 @@ import {
   volumenBloqueM3,
   volumenMenorQuePiedraCortada,
 } from '../../../shared/domain/medidas-bloque';
+import {
+  ACCION_FIN_JORNADA,
+  TELAR_ACCION,
+  TELAR_OPERACION,
+} from '../../../shared/domain/codigos-parte';
+import {
+  BandaConsumo,
+  bandaConsumo,
+  umbralConsumoDePotencias,
+} from '../../../shared/domain/consumo-atipico';
 import { FabricRepository } from '../domain/fabric.repository';
 import {
+  ActividadParte,
   Bloque,
   CicloBloque,
   DesvioRitmo,
@@ -25,6 +36,7 @@ import {
   GrupoFuente,
   JornadaTelar,
   KpisPlanta,
+  LecturaAviso,
   LecturaCuarentena,
   LecturaTelar,
   Medidas,
@@ -57,10 +69,10 @@ import {
  *
  * Inferencias documentadas (pendientes de confirmar con TotWare; ver
  * 00_gestion/TAREAS.md):
- *  - Códigos de `incidencia`: '1'→marcha (velocidad media ~100 mm/h),
- *    '2'→paro (velocidad ~0). '3'/'4'/'5' sin tabla de significados →
- *    'desconocida' (cuarentena). '0' (todo el telar 4) no trae código:
- *    se infiere marcha/paro por física (potencia ≥ 10 kW → marcha).
+ *  - Códigos de `incidencia`: '1'→marcha y '2'→paro CONFIRMADOS por Pulycort
+ *    (2026-06-16). '3'/'4'/'5' siguen sin tabla de significados →
+ *    'desconocida' (aviso, la lectura sigue contando). '0' (todo el telar 4)
+ *    no trae código: se infiere marcha/paro por física (potencia ≥ 10 kW → marcha).
  *  - `consumo` es la corriente (amperios): cuadra fila a fila con
  *    amperios ≈ 2 × potencia, relación ya verificada en VERIFICACION.md §0.
  *  - `largo/alto/grueso` se asumen en cm; `altura_actual` en mm y
@@ -79,6 +91,18 @@ const TELAR_IDS = [1, 2, 3, 4];
 const NOMBRES_TELAR = new Map(TELAR_IDS.map((id) => [id, `Telar ${id}`]));
 
 const UMBRAL_SIN_DATOS_MS = 25 * 60_000;
+/**
+ * Sin lecturas durante este tiempo, el estado operativo (marcha/paro) deja de
+ * mostrarse y la máquina pasa a "En pausa" (y a "Descansando" a partir de 24 h,
+ * eso lo decide la UI). Hasta 1 h se conserva el último estado conocido.
+ */
+const UMBRAL_PAUSA_MS = 60 * 60_000;
+/**
+ * Un parte de operario (operacion/accion) se muestra en el badge durante este
+ * tiempo desde que se registró. Excepción: "Fin de jornada" dura hasta que la
+ * máquina vuelve a dar señal de marcha (no caduca a los 20 min).
+ */
+const VENTANA_ACTIVIDAD_MS = 20 * 60_000;
 /**
  * Frescura de la fuente de lecturas: si la última lectura (de cualquier telar)
  * es más antigua que esto, no se afirma que "llegan con normalidad" aunque la
@@ -275,13 +299,16 @@ function resumenDePartes(partes: FilaParte[]): ResumenPaquetes {
 }
 
 // Umbrales del validador, compartidos con el frontend (validador.ts).
-const TOLERANCIA_FECHA_MS = 15 * 60_000;
+const TOLERANCIA_FECHA_MS = 30 * 60_000;
 const VELOCIDAD_MAX_MM_H = 310;
 const SUBIDA_TOLERADA_MM = 30;
-const GOLPES_MIN = 700;
-const GOLPES_MAX = 1000;
-const POTENCIA_MAX_KW = 76;
 const ALTURA_BASTIDOR_REPOSO_MM = 2150;
+// Avisos σ de velocidad: mínimo de lecturas en marcha para fiarse de la media y
+// la desviación típica de un telar (si no, no se avisa).
+const SIGMA_MIN_MUESTRAS = 8;
+// El consumo atípico se corta por percentil de la cola del propio telar; la
+// lógica y las tasas (top 16/2,3/0,13 %, ≥ 5 kW) viven en
+// `shared/domain/consumo-atipico.ts`, compartidas con el listado crudo.
 
 const TTL_SNAPSHOT_MS = 20_000;
 const TTL_ESTADISTICAS_MS = 60_000;
@@ -409,6 +436,71 @@ function media(valores: number[]): number {
   return valores.reduce((suma, v) => suma + v, 0) / valores.length;
 }
 
+/** Media y desviación típica (poblacional) de una muestra. */
+function mediaYDesviacion(valores: number[]): { media: number; sigma: number } {
+  if (valores.length === 0) {
+    return { media: 0, sigma: 0 };
+  }
+  const m = media(valores);
+  const varianza = valores.reduce((s, v) => s + (v - m) ** 2, 0) / valores.length;
+  return { media: m, sigma: Math.sqrt(varianza) };
+}
+
+/**
+ * μ y σ de una magnitud sobre las lecturas EN MARCHA de un telar. Devuelve null
+ * si no hay muestra suficiente o no hay dispersión: sin base fiable no se puede
+ * juzgar lo "inusual", así que no se avisa (no inventar).
+ */
+function baselineSigma(
+  lecturas: LecturaTelar[],
+  valor: (l: LecturaTelar) => number,
+): { media: number; sigma: number } | null {
+  const muestras = lecturas
+    .filter((l) => enMarcha(l.incidencia))
+    .map(valor)
+    .filter((v) => Number.isFinite(v));
+  if (muestras.length < SIGMA_MIN_MUESTRAS) {
+    return null;
+  }
+  const base = mediaYDesviacion(muestras);
+  return base.sigma > 0 ? base : null;
+}
+
+/**
+ * Aviso escalonado por cola alta: μ+1σ "alto", μ+2σ "inusual", μ+3σ "MUY alto".
+ * Devuelve el mensaje correspondiente o null si está dentro de 1σ.
+ */
+function avisoSigma(
+  valor: number,
+  base: { media: number; sigma: number },
+  mensajes: { alto: string; inusual: string; muy: string },
+): string | null {
+  const desv = (valor - base.media) / base.sigma;
+  if (desv > 3) {
+    return mensajes.muy;
+  }
+  if (desv > 2) {
+    return mensajes.inusual;
+  }
+  if (desv > 1) {
+    return mensajes.alto;
+  }
+  return null;
+}
+
+/** Mensaje del aviso de consumo según la banda de la cola en que cae la lectura. */
+function mensajeConsumo(banda: BandaConsumo, kw: number): string {
+  const r = redondea(kw, 1);
+  switch (banda) {
+    case 'muy':
+      return `Consumo MUY alto (${r} kW), conviene revisar`;
+    case 'inusual':
+      return `Consumo inusualmente alto (${r} kW)`;
+    case 'alto':
+      return `Consumo alto (${r} kW)`;
+  }
+}
+
 function redondea(valor: number, decimales = 1): number {
   const factor = 10 ** decimales;
   return Math.round(valor * factor) / factor;
@@ -433,13 +525,24 @@ function turnoDe(epochMs: number): Turno {
   return 'noche';
 }
 
-/** Mapeo de códigos reales de incidencia (inferencia documentada arriba). */
+/**
+ * Mapeo de los códigos reales de la columna `incidencia` (confirmados por
+ * Pulycort 2026-06-16): 1 marcha, 2 paro, 3 paro por rotura de material, 4 modo
+ * manual, 5 modo automático. El 0 (telar 4, sin código) se infiere por potencia;
+ * cualquier otro queda 'desconocida' (aviso, no descarte).
+ */
 function incidenciaDeCodigo(codigo: string | null, potencia: number): TipoIncidencia {
   switch ((codigo ?? '').trim()) {
     case '1':
       return 'marcha';
     case '2':
       return 'paro';
+    case '3':
+      return 'paro-rotura-material';
+    case '4':
+      return 'modo-manual';
+    case '5':
+      return 'modo-automatico';
     case '0':
       // Sin código (telar 4): inferencia física por potencia.
       return potencia >= POTENCIA_MARCHA_KW ? 'marcha' : 'paro';
@@ -451,8 +554,11 @@ function incidenciaDeCodigo(codigo: string | null, potencia: number): TipoIncide
 function mapearEstado(incidencia: TipoIncidencia): EstadoTelar {
   switch (incidencia) {
     case 'marcha':
+    case 'modo-manual':
+    case 'modo-automatico':
       return 'marcha';
     case 'rotura-fleje':
+    case 'paro-rotura-material':
       return 'incidencia';
     case 'cambio-bloque':
       return 'cambio-bloque';
@@ -461,11 +567,113 @@ function mapearEstado(incidencia: TipoIncidencia): EstadoTelar {
   }
 }
 
+/** Incidencias en las que el telar está CORTANDO (cuentan como marcha). */
+const INCIDENCIAS_MARCHA: readonly TipoIncidencia[] = [
+  'marcha',
+  'modo-manual',
+  'modo-automatico',
+];
+/** Incidencias de PARADA (cuentan como paro en los KPIs). */
+const INCIDENCIAS_PARO: readonly TipoIncidencia[] = [
+  'paro',
+  'paro-rotura-material',
+  'rotura-fleje',
+];
+const enMarcha = (incidencia: TipoIncidencia): boolean =>
+  INCIDENCIAS_MARCHA.includes(incidencia);
+const enParo = (incidencia: TipoIncidencia): boolean =>
+  INCIDENCIAS_PARO.includes(incidencia);
+
 /**
- * Validador de calidad portado del frontend (validador.ts) con las reglas
- * aplicables a los datos reales. Marca in situ `sospechosa`/`motivosSospecha`.
+ * Mapea el último parte de operario del telar a la actividad del badge. null si
+ * el parte no codifica nada mostrable (operacion 0 sin accion conocida, u
+ * operacion 5/10/11 que no están en el selection) o si ya caducó (20 min; salvo
+ * "Fin de jornada", que dura hasta que la máquina vuelve a marcha). Mapeo de
+ * códigos en shared/domain/codigos-parte.ts.
+ */
+function actividadDeParteTelar(
+  operacion: string | null,
+  accion: string | null,
+  fecha: Date,
+  ahora: number,
+  lecturas: LecturaInterna[],
+): ActividadParte | null {
+  const op = operacion && operacion.trim() !== '' ? Number(operacion) : null;
+  let etiqueta: string | undefined;
+  let categoria: ActividadParte['categoria'];
+  let finJornada = false;
+  if (op === 0) {
+    const ac = accion && accion.trim() !== '' ? Number(accion) : null;
+    if (ac === null || TELAR_ACCION[ac] === undefined) {
+      return null;
+    }
+    etiqueta = TELAR_ACCION[ac];
+    finJornada = ac === ACCION_FIN_JORNADA;
+    categoria = finJornada ? 'fin-jornada' : 'evento';
+  } else if (op !== null && TELAR_OPERACION[op] !== undefined) {
+    etiqueta = TELAR_OPERACION[op];
+    categoria = 'operacion';
+  } else {
+    return null;
+  }
+  const fechaMs = fecha.getTime();
+  if (fechaMs > ahora) {
+    return null;
+  }
+  if (finJornada) {
+    const reanudada = lecturas.some(
+      (l) => enMarcha(l.incidencia) && epoch(l.recibidaEn) > fechaMs,
+    );
+    if (reanudada) {
+      return null;
+    }
+  } else if (ahora - fechaMs > VENTANA_ACTIVIDAD_MS) {
+    return null;
+  }
+  return { etiqueta, categoria, desde: fecha.toISOString() };
+}
+
+/** Suma los minutos del mapa cuyas incidencias cumplen el predicado. */
+function minutosDe(
+  minutos: Map<TipoIncidencia, number>,
+  predicado: (incidencia: TipoIncidencia) => boolean,
+): number {
+  let total = 0;
+  for (const [incidencia, m] of minutos) {
+    if (predicado(incidencia)) {
+      total += m;
+    }
+  }
+  return total;
+}
+
+/**
+ * Validador de calidad portado del frontend (validador.ts). Modelo de dos
+ * niveles:
+ *  - `sospechosa`/`motivosSospecha` (DESCARTE, fuera de KPIs y a cuarentena):
+ *    reservado al dato inservible. Hoy solo la fecha incoherente con la
+ *    recepción (#1); los descartes "duros" de carga (fecha nula, telar ∉ 1-4,
+ *    sello futuro) se aplican antes, en `lecturasDesde`.
+ *  - `alertas` (AVISO, la lectura SIGUE contando en KPIs): lo que pinta raro
+ *    pero es real. Incidencia sin mapear (#2), consumo (#3) y velocidad (#7)
+ *    inusuales, altura sobre el tope (#8) y saltos de altura en corte (#10/#11).
+ *
+ * El consumo atípico (#3) se marca por PERCENTIL de la cola derecha del propio
+ * telar ("alto" top 16 %, "inusual" top 2,3 %, "MUY alto" top 0,13 %), ignorando
+ * las lecturas < 5 kW: la potencia de los telares no es normal y μ±σ no servía (en
+ * unos no saltaba nunca y en otros chillaba — ver VERIFICACION.md). La velocidad
+ * (#7) sigue por σ del telar. Las reglas de amperios (#4/#5) y golpes (#6) se
+ * retiraron a la espera de aclararlas (00_gestion/TAREAS.md).
  */
 function validarLecturas(lecturas: LecturaTelar[], codigos: string[]): void {
+  // Baseline por telar sobre las lecturas EN MARCHA: cortes de consumo por
+  // percentil de la cola (≥ 5 kW) y μ/σ de la velocidad. Solo se usan si hay
+  // muestra suficiente (y dispersión real en la velocidad).
+  const umbralCons = umbralConsumoDePotencias(
+    lecturas.filter((l) => enMarcha(l.incidencia)).map((l) => l.potenciaKw),
+  );
+  const velocidadBase = baselineSigma(lecturas, (l) => l.velocidadMmH);
+
   // Coherencia de altura contra la lectura INMEDIATAMENTE anterior del mismo
   // bloque (válida o no): comparar solo contra la última válida encadena en
   // cascada — p. ej. el telar 4 congela la altura en 0 al parar y, al
@@ -474,64 +682,66 @@ function validarLecturas(lecturas: LecturaTelar[], codigos: string[]): void {
 
   lecturas.forEach((lectura, i) => {
     const motivos: string[] = [];
+    const alertas: string[] = [];
     const declarada = epoch(lectura.fechaHora);
     const recibida = epoch(lectura.recibidaEn);
 
+    // #1 Fecha incoherente: ÚNICO motivo de descarte del validador.
     if (Number.isNaN(declarada) || Math.abs(declarada - recibida) > TOLERANCIA_FECHA_MS) {
       motivos.push(
         `Fecha declarada (${lectura.fechaHora}) alejada de la recepción (${lectura.recibidaEn})`,
       );
     }
 
+    // #2 Incidencia sin mapear: aviso, no descarte.
     if (lectura.incidencia === 'desconocida') {
-      motivos.push(`Incidencia sin mapear (código ${codigos[i]})`);
+      alertas.push(`Incidencia sin mapear (código ${codigos[i]})`);
     }
 
-    if (lectura.potenciaKw > POTENCIA_MAX_KW || lectura.potenciaKw < 0) {
-      motivos.push(`Potencia fuera de rango (${lectura.potenciaKw} kW)`);
-    } else if (lectura.potenciaKw > 5) {
-      const esperado = lectura.potenciaKw * 2;
-      if (Math.abs(lectura.amperios - esperado) > esperado * 0.35) {
-        motivos.push(
-          `Consumo desacoplado de la potencia (${lectura.amperios} A con ${lectura.potenciaKw} kW)`,
-        );
+    // #3 Consumo atípico por percentil de la cola del telar. Solo en marcha (1
+    // marcha, 4 modo manual, 5 modo automático): los paros (2, y 3 rotura de
+    // material) llevan el sensor congelado, no consumo de corte.
+    if (umbralCons && enMarcha(lectura.incidencia)) {
+      const banda = bandaConsumo(lectura.potenciaKw, umbralCons);
+      if (banda) {
+        alertas.push(mensajeConsumo(banda, lectura.potenciaKw));
       }
-    } else if (lectura.amperios > lectura.potenciaKw * 2 + 8) {
-      motivos.push(
-        `Consumo sin potencia que lo justifique (${lectura.amperios} A con ${lectura.potenciaKw} kW)`,
-      );
     }
 
-    if (
-      lectura.golpesPorMinuto !== 0 &&
-      (lectura.golpesPorMinuto < GOLPES_MIN || lectura.golpesPorMinuto > GOLPES_MAX)
-    ) {
-      motivos.push(`Golpes fuera de rango (${lectura.golpesPorMinuto} golpes/min)`);
+    // #7 Velocidad de descenso escalonada por σ del telar (solo en marcha).
+    if (velocidadBase && enMarcha(lectura.incidencia)) {
+      const mmh = Math.round(lectura.velocidadMmH);
+      const aviso = avisoSigma(lectura.velocidadMmH, velocidadBase, {
+        alto: `Velocidad de descenso alta (${mmh} mm/h)`,
+        inusual: `Velocidad de descenso inusualmente alta (${mmh} mm/h)`,
+        muy: `Velocidad de descenso MUY alta (${mmh} mm/h), conviene revisar`,
+      });
+      if (aviso) {
+        alertas.push(aviso);
+      }
     }
 
-    if (lectura.velocidadMmH > VELOCIDAD_MAX_MM_H || lectura.velocidadMmH < 0) {
-      motivos.push(`Velocidad fuera de rango (${lectura.velocidadMmH} mm/h)`);
-    }
-
+    // #8 Altura por encima del tope físico del bastidor: aviso, no descarte.
     if (lectura.alturaActualMm > ALTURA_BASTIDOR_REPOSO_MM + 100) {
-      motivos.push(
+      alertas.push(
         `Altura por encima del tope físico del bastidor (${Math.round(lectura.alturaActualMm)} mm)`,
       );
     }
 
+    // #10/#11 Coherencia de altura en pleno corte: avisos, no descarte.
     if (previa && lectura.bloque !== null && previa.bloque === lectura.bloque) {
       const deltaAltura = lectura.alturaActualMm - previa.alturaActualMm;
       const deltaHoras = (recibida - epoch(previa.recibidaEn)) / 3_600_000;
       // Solo en pleno corte: parado, algunos telares dejan la altura a 0 y
       // el salto al arrancar/parar no es un descenso de corte.
-      if (lectura.incidencia === 'marcha' && previa.incidencia === 'marcha') {
+      if (enMarcha(lectura.incidencia) && enMarcha(previa.incidencia)) {
         if (deltaAltura > SUBIDA_TOLERADA_MM) {
-          motivos.push(`La altura del bastidor sube ${Math.round(deltaAltura)} mm en pleno corte`);
+          alertas.push(`La altura del bastidor sube ${Math.round(deltaAltura)} mm en pleno corte`);
         } else if (
           deltaHoras > 0 &&
           -deltaAltura > VELOCIDAD_MAX_MM_H * deltaHoras * 1.5 + SUBIDA_TOLERADA_MM
         ) {
-          motivos.push(
+          alertas.push(
             `Descenso físicamente imposible (${Math.round(-deltaAltura)} mm en ${Math.round(deltaHoras * 60)} min)`,
           );
         }
@@ -540,6 +750,7 @@ function validarLecturas(lecturas: LecturaTelar[], codigos: string[]): void {
 
     lectura.sospechosa = motivos.length > 0;
     lectura.motivosSospecha = motivos;
+    lectura.alertas = alertas;
     previa = lectura;
   });
 }
@@ -572,7 +783,7 @@ function tramosDeParo(validas: LecturaTelar[], hastaMs: number): TramoParo[] {
   let abierto: TramoParo | null = null;
   for (let i = 0; i < validas.length; i++) {
     const lectura = validas[i];
-    const esParo = lectura.incidencia === 'paro' || lectura.incidencia === 'rotura-fleje';
+    const esParo = enParo(lectura.incidencia);
     if (!esParo) {
       abierto = null;
       continue;
@@ -597,10 +808,27 @@ function segmentos(validas: LecturaTelar[]): SegmentoEstado[] {
     const previo = resultado[resultado.length - 1];
     const inicio = epoch(lectura.recibidaEn);
     const finLectura = new Date(inicio + INTERVALO_LECTURA_MS).toISOString();
+    const hueco = previo ? inicio - epoch(previo.hasta) : 0;
+    // Hueco largo sin lectura fiable: se marca como 'sin-datos' en vez de unir
+    // los dos extremos (eso inventaría una tendencia que no existe). El telar 3/4
+    // pasan horas en cuarentena; el gráfico debe mostrar el agujero, no rellenarlo.
+    if (previo && hueco > UMBRAL_SIN_DATOS_MS) {
+      resultado.push({
+        desde: previo.hasta,
+        hasta: lectura.recibidaEn,
+        incidencia: 'sin-datos',
+      });
+      resultado.push({
+        desde: lectura.recibidaEn,
+        hasta: finLectura,
+        incidencia: lectura.incidencia,
+      });
+      continue;
+    }
     const continua =
       previo &&
       previo.incidencia === lectura.incidencia &&
-      inicio - epoch(previo.hasta) <= INTERVALO_LECTURA_MS * 1.5;
+      hueco <= INTERVALO_LECTURA_MS * 1.5;
     if (continua) {
       previo.hasta = finLectura;
     } else {
@@ -659,8 +887,20 @@ export class PrismaFabricRepository implements FabricRepository {
       const porTelar = await this.lecturasDesde(ahora - 7 * 86_400_000);
       const nombres = await this.nombresOperarios();
       this.materialesActual = await this.resolverMateriales();
+      // Marca de la última lectura por telar sin límite de ventana, para que
+      // la lista de Máquinas muestre "hace cuánto" llegó el último dato aunque
+      // el telar lleve más de 7 días sin emitir.
+      const ultimasMarcas = await this.ultimaLecturaPorTelar(ahora);
+      const actividades = await this.actividadOperarioPorTelar(ahora, porTelar);
       const telares = TELAR_IDS.map((telarId) =>
-        this.snapshotTelar(telarId, porTelar.get(telarId) ?? [], ahora, nombres),
+        this.snapshotTelar(
+          telarId,
+          porTelar.get(telarId) ?? [],
+          ahora,
+          nombres,
+          ultimasMarcas.get(telarId) ?? null,
+          actividades.get(telarId) ?? null,
+        ),
       );
 
       // Bloques completados hoy → sus partes reales para los KPIs.
@@ -704,8 +944,11 @@ export class PrismaFabricRepository implements FabricRepository {
       const lecturas = porTelar.get(telarId) ?? [];
       const validas = lecturas.filter((l) => !l.sospechosa);
       const snapshot = this.snapshotTelar(telarId, lecturas, ahora, nombres);
-      const desdeDia = inicioDia(ahora);
-      const validasJornada = validas.filter((l) => epoch(l.recibidaEn) >= desdeDia);
+      // Ventana rodante de 24 h (no día natural): así los gráficos del detalle no
+      // se quedan en blanco al cruzar medianoche. El Gantt "Jornada de hoy" usa
+      // estos mismos segmentos pero los recorta al día en curso.
+      const desdeVentana = ahora - 24 * 3_600_000;
+      const validasJornada = validas.filter((l) => epoch(l.recibidaEn) >= desdeVentana);
       const runs = derivarRuns(validas);
       const runActual = this.runActual(runs, ahora);
 
@@ -738,6 +981,7 @@ export class PrismaFabricRepository implements FabricRepository {
         serieAltura: validasJornada.map((l) => ({ t: l.recibidaEn, v: l.alturaActualMm })),
         seriePotencia: validasJornada.map((l) => ({ t: l.recibidaEn, v: l.potenciaKw })),
         serieGolpes: validasJornada.map((l) => ({ t: l.recibidaEn, v: l.golpesPorMinuto })),
+        serieVelocidad: validasJornada.map((l) => ({ t: l.recibidaEn, v: l.velocidadMmH })),
         segmentosJornada: segmentos(validasJornada),
         disponibilidadTurnoPct: this.disponibilidadTurno(validas, ahora),
         // Rotura de fleje sin código identificado en los datos reales.
@@ -1054,12 +1298,17 @@ export class PrismaFabricRepository implements FabricRepository {
       const telares: SaludTelar[] = TELAR_IDS.map((telarId) => {
         const lecturas = porTelar.get(telarId) ?? [];
         const fiables = lecturas.filter((l) => !l.sospechosa).length;
+        const conAvisos = lecturas.filter((l) => !l.sospechosa && l.alertas.length > 0).length;
+        const limpias = lecturas.filter((l) => !l.sospechosa && l.alertas.length === 0).length;
         return {
           telarId,
           nombre: NOMBRES_TELAR.get(telarId) ?? `Telar ${telarId}`,
           lecturas7d: lecturas.length,
           fiables7d: fiables,
           pctFiables: lecturas.length > 0 ? (fiables / lecturas.length) * 100 : 100,
+          conAvisos7d: conAvisos,
+          limpias7d: limpias,
+          pctLimpias: lecturas.length > 0 ? (limpias / lecturas.length) * 100 : 100,
         };
       });
 
@@ -1070,6 +1319,14 @@ export class PrismaFabricRepository implements FabricRepository {
         .slice(0, 60)
         .map((lectura) => ({ lectura, motivos: lectura.motivosSospecha }));
 
+      // Avisos: lecturas que NO se descartan (siguen en KPIs) pero pintan raro.
+      const avisos: LecturaAviso[] = TELAR_IDS.flatMap((id) =>
+        (porTelar.get(id) ?? []).filter((l) => !l.sospechosa && l.alertas.length > 0),
+      )
+        .sort((a, b) => epoch(b.recibidaEn) - epoch(a.recibidaEn))
+        .slice(0, 60)
+        .map((lectura) => ({ lectura, alertas: lectura.alertas }));
+
       const partes = await this.saludPartes();
 
       return {
@@ -1077,6 +1334,7 @@ export class PrismaFabricRepository implements FabricRepository {
         fuentes: await this.fuentesDatos(porTelar, telares, partes, ahora),
         telares,
         cuarentena,
+        avisos,
         partes,
       };
     });
@@ -1566,6 +1824,80 @@ export class PrismaFabricRepository implements FabricRepository {
   }
 
   /**
+   * Marca de la ÚLTIMA lectura recibida por cada telar SIN límite de ventana:
+   * para poder decir "hace cuánto" llegó el último dato aunque el telar lleve
+   * días (o semanas) callado, más allá de los 7 días que carga el snapshot.
+   * El `lte ahora` descarta sellos futuros (reloj de consola corrupto); la
+   * recepción es `create_date` o, si falta, la fecha declarada (como `aLectura`).
+   */
+  private async ultimaLecturaPorTelar(ahora: number): Promise<Map<number, string>> {
+    const marcas = new Map<number, string>();
+    await Promise.all(
+      TELAR_IDS.map(async (telarId) => {
+        // Protegida: si la consulta falla (permisos), el snapshot cae al
+        // respaldo (última lectura de la ventana ya cargada) sin tumbarse.
+        const fila = await this.intentar(
+          () =>
+            this.prisma.produccionMapeada.findFirst({
+              where: { telarN: String(telarId), fechaHora: { not: null, lte: new Date(ahora) } },
+              orderBy: [{ fechaHora: 'desc' }, { id: 'desc' }],
+              select: { createDate: true, fechaHora: true },
+            }),
+          null as { createDate: Date | null; fechaHora: Date | null } | null,
+        );
+        if (fila?.createDate || fila?.fechaHora) {
+          marcas.set(telarId, (fila.createDate ?? fila.fechaHora!).toISOString());
+        }
+      }),
+    );
+    return marcas;
+  }
+
+  /**
+   * Actividad del operario (último parte de `parte_trabajo_mapeada`) por telar,
+   * para el badge de la sala: operacion 1-4 → fase de trabajo; operacion 0 →
+   * motivo de parada en `accion`. Caduca a los 20 min salvo "Fin de jornada"
+   * (dura hasta que la máquina vuelve a marcha). Protegida: si falla, sin badge.
+   */
+  private async actividadOperarioPorTelar(
+    ahora: number,
+    porTelar: Map<number, LecturaInterna[]>,
+  ): Promise<Map<number, ActividadParte>> {
+    const mapa = new Map<number, ActividadParte>();
+    await Promise.all(
+      TELAR_IDS.map(async (telarId) => {
+        const fila = await this.intentar(
+          () =>
+            this.prisma.parteTrabajoMapeada.findFirst({
+              where: { nTelar: String(telarId), fechaHora: { not: null, lte: new Date(ahora) } },
+              orderBy: [{ fechaHora: 'desc' }, { id: 'desc' }],
+              select: { operacion: true, accion: true, fechaHora: true },
+            }),
+          null as {
+            operacion: string | null;
+            accion: string | null;
+            fechaHora: Date | null;
+          } | null,
+        );
+        if (!fila?.fechaHora) {
+          return;
+        }
+        const act = actividadDeParteTelar(
+          fila.operacion,
+          fila.accion,
+          fila.fechaHora,
+          ahora,
+          porTelar.get(telarId) ?? [],
+        );
+        if (act) {
+          mapa.set(telarId, act);
+        }
+      }),
+    );
+    return mapa;
+  }
+
+  /**
    * Partes de paquetes (operación '4', la única con m²/tablas reales) de los
    * bloques dados. El cruce con los runs de lecturas es telar + nº bloque.
    */
@@ -1722,6 +2054,7 @@ export class PrismaFabricRepository implements FabricRepository {
       operario2: fila.operario2 !== null ? String(fila.operario2) : null,
       sospechosa: false,
       motivosSospecha: [],
+      alertas: [],
     };
   }
 
@@ -1865,8 +2198,8 @@ export class PrismaFabricRepository implements FabricRepository {
       finCorte: enCurso ? null : new Date(run.hastaMs).toISOString(),
       // Paquetes reales del cruce con parte_trabajo_mapeada (si hay parte).
       paquetes,
-      horasMarcha: redondea((minutos.get('marcha') ?? 0) / 60),
-      horasParo: redondea(((minutos.get('paro') ?? 0) + (minutos.get('rotura-fleje') ?? 0)) / 60),
+      horasMarcha: redondea((minutosDe(minutos, enMarcha)) / 60),
+      horasParo: redondea((minutosDe(minutos, enParo)) / 60),
       numParos: tramos.length,
       // Estimación (la UI la marca con "prev." / "≈").
       tablasPrevistas: tablasPrevistasDe(bloque.medidasFabrica),
@@ -1928,12 +2261,20 @@ export class PrismaFabricRepository implements FabricRepository {
     lecturas: LecturaInterna[],
     ahora: number,
     nombres: Map<number, string>,
+    ultimaLecturaEnExterna?: string | null,
+    actividadParte: ActividadParte | null = null,
   ): SnapshotTelar {
     const validas = lecturas.filter(
       (l) => !l.sospechosa && epoch(l.recibidaEn) <= ahora + UMBRAL_SIN_DATOS_MS,
     );
     const ultimaValida = validas.length > 0 ? validas[validas.length - 1] : null;
     const ultimaCualquiera = lecturas.length > 0 ? lecturas[lecturas.length - 1] : null;
+
+    // "Hace cuánto" llegó el último dato, SIEMPRE (fresco o no). Prioriza la
+    // marca externa (consulta sin límite de ventana, para telares callados
+    // semanas); si no, la última lectura cargada en la ventana del snapshot.
+    const ultimaLecturaEn =
+      ultimaLecturaEnExterna ?? ultimaCualquiera?.recibidaEn ?? null;
 
     // "Sin señal" significa que NO llegan lecturas. El estado sale de la
     // última lectura RECIBIDA aunque esté en cuarentena (p. ej. el telar 4
@@ -1943,8 +2284,11 @@ export class PrismaFabricRepository implements FabricRepository {
     // El umbral es de valor absoluto: una lectura FUTURA (reloj de consola
     // corrupto en una fila sin create_date) cumpliría `ahora - t ≤ umbral`
     // durante horas y dejaría el estado congelado en su incidencia.
+    // Hasta 1 h (UMBRAL_PAUSA_MS) se mantiene el último estado operativo; más
+    // allá, la máquina queda "sin lectura reciente" y la UI la pinta "En pausa"
+    // (o "Descansando" pasadas 24 h).
     const esReciente = (l: LecturaTelar | null): l is LecturaTelar =>
-      l !== null && Math.abs(ahora - epoch(l.recibidaEn)) <= UMBRAL_SIN_DATOS_MS;
+      l !== null && Math.abs(ahora - epoch(l.recibidaEn)) <= UMBRAL_PAUSA_MS;
     const referencia = esReciente(ultimaValida)
       ? ultimaValida
       : esReciente(ultimaCualquiera)
@@ -2008,8 +2352,10 @@ export class PrismaFabricRepository implements FabricRepository {
         estado === 'paro' || estado === 'incidencia' || estado === 'cambio-bloque'
           ? (referencia?.incidencia ?? null)
           : null,
+      actividadParte,
       bloque,
       ultimaLectura: referencia,
+      ultimaLecturaEn,
       alturaInicialMm: alturaInicial,
       progresoPct,
       etaFinCorte,
@@ -2029,6 +2375,12 @@ export class PrismaFabricRepository implements FabricRepository {
         .map((l): PuntoSerie => ({ t: l.recibidaEn, v: l.potenciaKw })),
       datosSospechosos: lecturas.some(
         (l) => l.sospechosa && epoch(l.recibidaEn) >= ahora - 86_400_000,
+      ),
+      datosConAvisos: lecturas.some(
+        (l) =>
+          !l.sospechosa &&
+          l.alertas.length > 0 &&
+          epoch(l.recibidaEn) >= ahora - 86_400_000,
       ),
     };
   }
@@ -2082,7 +2434,7 @@ export class PrismaFabricRepository implements FabricRepository {
     }
     const delTurno = validas.filter((l) => epoch(l.recibidaEn) >= inicioTurno);
     const minutos = minutosPorIncidencia(delTurno, ahora);
-    return Math.min(100, ((minutos.get('marcha') ?? 0) / minutosTurno) * 100);
+    return Math.min(100, ((minutosDe(minutos, enMarcha)) / minutosTurno) * 100);
   }
 
   private inicioTurno(ahora: number): number {
@@ -2164,27 +2516,28 @@ export class PrismaFabricRepository implements FabricRepository {
     ahora: number,
   ): EstadisticasTelar {
     const minutos = minutosPorIncidencia(validas, ahora);
-    const minutosMarcha = minutos.get('marcha') ?? 0;
-    const minutosParo = (minutos.get('paro') ?? 0) + (minutos.get('rotura-fleje') ?? 0);
+    const minutosMarcha = minutosDe(minutos, enMarcha);
+    const minutosParo = minutosDe(minutos, enParo);
     const minutosCambio = minutos.get('cambio-bloque') ?? 0;
     const minutosTotales = minutosMarcha + minutosParo + minutosCambio;
 
     const tramos = tramosDeParo(validas, ahora);
-    const parosPorCausa: ParoPorCausa[] = [
-      {
-        causa: 'paro',
-        minutos: Math.round(
-          tramos.filter((t) => t.causa === 'paro').reduce((s, t) => s + t.minutos, 0),
-        ),
-        numero: tramos.filter((t) => t.causa === 'paro').length,
-      },
-    ];
+    // Una entrada por causa de paro presente (paro genérico, rotura de material…);
+    // 'paro' se muestra siempre aunque sea 0, para no esconder el KPI.
+    const parosPorCausa: ParoPorCausa[] = INCIDENCIAS_PARO.map((causa) => {
+      const deCausa = tramos.filter((t) => t.causa === causa);
+      return {
+        causa,
+        minutos: Math.round(deCausa.reduce((s, t) => s + t.minutos, 0)),
+        numero: deCausa.length,
+      };
+    }).filter((p) => p.causa === 'paro' || p.numero > 0);
 
     const runs = derivarRuns(validas);
     const actual = this.runActual(runs, ahora);
     const completados = runs.filter((r) => r !== actual).length;
 
-    const marcha = validas.filter((l) => l.incidencia === 'marcha');
+    const marcha = validas.filter((l) => enMarcha(l.incidencia));
     return {
       telarId,
       nombre: NOMBRES_TELAR.get(telarId) ?? `Telar ${telarId}`,
@@ -2202,6 +2555,10 @@ export class PrismaFabricRepository implements FabricRepository {
         media(marcha.filter((l) => l.velocidadMmH > 0).map((l) => l.velocidadMmH)),
       ),
       amperiosMedios: Math.round(media(marcha.map((l) => l.amperios))),
+      // Consumo eléctrico medio en marcha (kW); null si el telar no tuvo
+      // lecturas en marcha en el rango (sin base, no se inventa un 0).
+      potenciaMediaKw:
+        marcha.length > 0 ? redondea(media(marcha.map((l) => l.potenciaKw)), 1) : null,
       parosPorCausa,
     };
   }

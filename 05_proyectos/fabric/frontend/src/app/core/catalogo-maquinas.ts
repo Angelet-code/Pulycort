@@ -17,10 +17,10 @@ export type FaseProduccion = 'bloque' | 'tabla' | 'losa';
  * Estado de INTEGRACIÓN de la máquina en Fabric (no su estado operativo):
  * - `en-vivo`: lecturas en tiempo real — los 4 telares (`produccion_mapeada`).
  * - `con-partes`: tiene partes reales propios pero todavía sin estado en vivo —
- *   los discos puente (`parte_discopuente_mapeada`) y las reforzadoras de tabla
- *   (`reforzadora_mapeada`). El dato no separa las máquinas físicas del flujo,
- *   pero el flujo sí está conectado.
- * - `sin-integrar`: aún sin ninguna fuente de datos conectada.
+ *   el disco puente Gómez (`parte_discopuente_mapeada`, el único con PLC) y las
+ *   reforzadoras de tabla (`reforzadora_mapeada`; el dato aún no separa la 1 de
+ *   la 2 SEI). El flujo está conectado aunque no haya estado en vivo.
+ * - `sin-integrar`: aún sin ninguna fuente de datos conectada (sin PLC).
  */
 export type IntegracionMaquina = 'en-vivo' | 'con-partes' | 'sin-integrar';
 
@@ -170,9 +170,8 @@ export const CATALOGO_MAQUINAS: readonly MaquinaCatalogo[] = [
     unidad: 'm²',
     fase: 'losa',
     familia: 'disco_puente',
-    integracion: 'con-partes',
-    enlacePartes: '/partes/disco-puente',
-    descripcion: 'Corte de tablas en losas (Terzago).'
+    integracion: 'sin-integrar',
+    descripcion: 'Corte de tablas en losas (Terzago). Sin PLC ni integración todavía.'
   },
   {
     codigo: 13,
@@ -182,7 +181,7 @@ export const CATALOGO_MAQUINAS: readonly MaquinaCatalogo[] = [
     familia: 'disco_puente',
     integracion: 'con-partes',
     enlacePartes: '/partes/disco-puente',
-    descripcion: 'Corte de tablas en losas (Gómez).'
+    descripcion: 'Corte de tablas en losas (Gómez). Único disco puente integrado.'
   },
   {
     codigo: 14,
@@ -190,9 +189,8 @@ export const CATALOGO_MAQUINAS: readonly MaquinaCatalogo[] = [
     unidad: 'm²',
     fase: 'losa',
     familia: 'disco_puente',
-    integracion: 'con-partes',
-    enlacePartes: '/partes/disco-puente',
-    descripcion: 'Corte de tablas en losas (Cáñigo).'
+    integracion: 'sin-integrar',
+    descripcion: 'Corte de tablas en losas (Cáñigo). Sin PLC ni integración todavía.'
   },
   {
     codigo: 15,
@@ -240,6 +238,39 @@ export const CATALOGO_MAQUINAS: readonly MaquinaCatalogo[] = [
     descripcion: 'Trabajos especiales: cantos, aristas, taladros, cortes y embalaje.'
   }
 ];
+
+/**
+ * Diminutivo de cada máquina para ejes de gráficos y etiquetas compactas: los
+ * telares son T1–T4, el disco puente Gómez DPG, la reforzadora 1 R1, etc. Va
+ * indexado por `codigo` (identificador estable), pero lo que se MUESTRA siempre
+ * es la sigla, nunca el número de catálogo.
+ */
+const ABREVIATURAS: Record<number, string> = {
+  1: 'RB', // Reforzadora de bloques
+  2: 'MH', // Monohilo
+  3: 'T1', // Telar 1
+  4: 'T2', // Telar 2
+  5: 'T3', // Telar 3
+  6: 'T4', // Telar 4
+  7: 'TE', // Telar externo
+  8: 'CB', // Cortabloques
+  9: 'R1', // Reforzadora 1
+  10: 'R2', // Reforzadora 2 SEI
+  11: 'PT', // Pulidora de tabla SIMEC
+  12: 'DPT', // Disco puente 1 Terzago
+  13: 'DPG', // Disco puente 2 Gómez
+  14: 'DPC', // Disco puente 3 Cáñigo
+  15: 'CND', // Control numérico Donatoni
+  16: 'PL', // Pulidora de losa
+  17: 'BIS', // Biseladora
+  18: 'REC', // Recuperadora
+  19: 'TAL' // Taller
+};
+
+/** Sigla corta de la máquina (T1, DPG…); su nombre completo si no la tuviera. */
+export function abreviaturaMaquina(maquina: MaquinaCatalogo): string {
+  return ABREVIATURAS[maquina.codigo] ?? maquina.nombre;
+}
 
 /**
  * Prioridad de familia dentro del grupo de máquinas con datos: primero los

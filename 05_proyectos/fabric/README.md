@@ -30,10 +30,11 @@ como tal.** Fabric sigue leyendo la columna fuente heredada `n_bloque`, pero la 
 `pmLote` y la UI lo presenta como PM/lote en telares, partes y producción. Los campos
 antiguos (`bloque`, `nBloque`) se conservan por compatibilidad.
 
-No se crean sub-bloques (`PM47177-01`, etc.) ni se usa el tamaño como identificador. Si dos
-bloques físicos comparten el mismo PM/lote y la fuente no los diferencia, los cálculos de
-rendimiento se interpretan a nivel PM/lote. Las medidas son atributos/verificación, no una
-matrícula.
+No se crean sub-bloques (`PM47177-01`, etc.) ni se usa el tamaño como identificador. La PM es
+un identificador **ÚNICO de bloque** (1:1, confirmado por Pulycort 2026-06-15): dos bloques
+físicos no deben compartir PM, y un PM repetido (dos altas con el mismo nº en el inventario, o
+reutilizado en el tiempo) es un **error de dato** que Fabric marca ⚠ sin inventar su m³. Las
+medidas son atributos/verificación, no una matrícula.
 
 En disco puente, `pm_losa` se expone como `contenedorSalida`: palet/cajón de salida
 pendiente de confirmación final con Indasel, no una losa individual. La capa confirmada es
@@ -71,7 +72,9 @@ Frontend dev **4200** · backend **3000**. (PulyTrack usa 8001/5174/4174; quedan
 ## Antes de entregar
 
 **Ningún valor puede ser estimado o supuesto**: en modo real lo no calculable se muestra
-como "—". La lista de control maestra está en [`VERIFICACION.md`](./VERIFICACION.md) y las
-inferencias pendientes de confirmar (códigos de incidencia/operación, `consumo` = amperios,
-unidades) en [`00_gestion/TAREAS.md`](../../00_gestion/TAREAS.md). No se entrega hasta que
+como "—". La lista de control maestra está en [`VERIFICACION.md`](./VERIFICACION.md). Los
+códigos de incidencia (`1`=marcha, `2`=paro) y de operación (`1`-`4`) están confirmados
+(Pulycort 2026-06-16); las inferencias que siguen pendientes de confirmar (`consumo` =
+amperios, unidades, códigos sin mapear) están en
+[`00_gestion/TAREAS.md`](../../00_gestion/TAREAS.md). No se entrega hasta que
 ninguna fila quede pendiente.

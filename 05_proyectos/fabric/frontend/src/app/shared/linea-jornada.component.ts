@@ -5,17 +5,28 @@ import { formatHora } from '../core/format';
 const COLOR_POR_INCIDENCIA: Record<TipoIncidencia, string> = {
   marcha: 'rgba(53, 217, 157, 0.75)',
   paro: 'rgba(243, 200, 106, 0.85)',
+  'paro-rotura-material': 'rgba(255, 95, 125, 0.9)',
+  'modo-manual': 'rgba(75, 159, 255, 0.7)',
+  'modo-automatico': 'rgba(75, 159, 255, 0.88)',
   'rotura-fleje': 'rgba(255, 95, 125, 0.9)',
   'cambio-bloque': 'rgba(79, 201, 222, 0.45)',
-  desconocida: 'rgba(255, 255, 255, 0.25)'
+  desconocida: 'rgba(255, 255, 255, 0.25)',
+  // Rayado diagonal gris = "no hay dato fiable aquí" (distinto de los colores
+  // sólidos de estado, que sí afirman lo que hacía la máquina).
+  'sin-datos':
+    'repeating-linear-gradient(45deg, rgba(148,163,184,0.10) 0 4px, rgba(148,163,184,0.42) 4px 6px)'
 };
 
 const ETIQUETA_POR_INCIDENCIA: Record<TipoIncidencia, string> = {
   marcha: 'En marcha',
   paro: 'Paro',
+  'paro-rotura-material': 'Paro por rotura de material',
+  'modo-manual': 'Modo manual',
+  'modo-automatico': 'Modo automático',
   'rotura-fleje': 'Rotura de fleje',
   'cambio-bloque': 'Cambio de lote',
-  desconocida: 'Desconocida'
+  desconocida: 'Desconocida',
+  'sin-datos': 'Sin datos'
 };
 
 interface TramoPintado {

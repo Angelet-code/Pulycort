@@ -41,6 +41,8 @@ export type ParteReforzadora = {
 
 /** Filtros y paginación para el listado de partes de la reforzadora. */
 export type FiltrosParteReforzadora = {
+  /** Nº de lote (n_bloque) exacto; null = todos. */
+  lote: number | null;
   nReforzadora: string | null;
   material: number | null;
   acabado: string | null;

@@ -12,6 +12,7 @@ import { formatFechaHoraAnio, formatNumero } from '../../core/format';
 import { materialPorId } from '../../core/materiales';
 import { PaginaPartesReforzadora } from '../../core/models';
 import { MaterialDotComponent } from '../../shared/material-dot.component';
+import { MaterialSelectComponent } from '../../shared/material-select.component';
 import { MetricaComponent } from '../../shared/metrica.component';
 
 const LIMIT = 50;
@@ -28,11 +29,20 @@ const REFRESCO_MS = 60_000;
 @Component({
   selector: 'fabric-partes-reforzadora',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MaterialDotComponent, MetricaComponent],
+  imports: [MaterialDotComponent, MaterialSelectComponent, MetricaComponent],
   template: `
     <section class="panel">
       <div class="panel-head filtros">
         <div class="fila-filtros">
+          <input
+            type="search"
+            class="control control-busqueda"
+            placeholder="Nº de lote"
+            aria-label="Buscar por nº de lote"
+            [value]="lote() ?? ''"
+            (change)="setLote(valorDe($event) || null)"
+          />
+
           <select
             class="control"
             aria-label="Filtrar por reforzadora"
@@ -57,17 +67,11 @@ const REFRESCO_MS = 60_000;
             }
           </select>
 
-          <select
-            class="control"
-            aria-label="Filtrar por material"
-            [value]="material() ?? ''"
-            (change)="setMaterial(valorDe($event) || null)"
-          >
-            <option value="">Todos los materiales</option>
-            @for (m of materiales(); track m) {
-              <option [value]="m">{{ nombreMaterial(m) }}</option>
-            }
-          </select>
+          <fabric-material-select
+            [materiales]="materiales()"
+            [seleccion]="material()"
+            (seleccionChange)="setMaterial($event)"
+          />
 
           <label class="control control-fecha">
             <span class="soft">Desde</span>
@@ -112,7 +116,7 @@ const REFRESCO_MS = 60_000;
                 <th>Fecha y hora</th>
                 <th>Reforzadora</th>
                 <th>Acabado</th>
-                <th class="derecha">PM / lote</th>
+                <th class="derecha">Nº de lote</th>
                 <th>Material</th>
                 <th class="derecha">Tablas</th>
                 <th class="derecha">Medidas tabla (cm)</th>
@@ -229,6 +233,7 @@ export class PartesReforzadoraComponent {
 
   readonly formatNumero = formatNumero;
 
+  readonly lote = signal<string | null>(null);
   readonly reforzadora = signal<string | null>(null);
   readonly material = signal<string | null>(null);
   readonly acabado = signal<string | null>(null);
@@ -252,6 +257,7 @@ export class PartesReforzadoraComponent {
 
   readonly hayFiltros = computed(
     () =>
+      this.lote() !== null ||
       this.reforzadora() !== null ||
       this.material() !== null ||
       this.acabado() !== null ||
@@ -264,6 +270,7 @@ export class PartesReforzadoraComponent {
     // cada minuto.
     effect((onCleanup) => {
       const filtros = {
+        lote: this.lote(),
         reforzadora: this.reforzadora(),
         material: this.material(),
         acabado: this.acabado(),
@@ -280,6 +287,14 @@ export class PartesReforzadoraComponent {
 
   valorDe(evento: Event): string {
     return (evento.target as HTMLInputElement | HTMLSelectElement).value;
+  }
+
+  setLote(l: string | null): void {
+    if (this.lote() === l) {
+      return;
+    }
+    this.offset.set(0);
+    this.lote.set(l);
   }
 
   setReforzadora(r: string | null): void {
@@ -318,6 +333,7 @@ export class PartesReforzadoraComponent {
 
   limpiarFiltros(): void {
     this.offset.set(0);
+    this.lote.set(null);
     this.reforzadora.set(null);
     this.material.set(null);
     this.acabado.set(null);
@@ -369,6 +385,7 @@ export class PartesReforzadoraComponent {
   }
 
   private cargar(filtros: {
+    lote: string | null;
     reforzadora: string | null;
     material: string | null;
     acabado: string | null;

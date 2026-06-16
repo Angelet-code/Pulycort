@@ -11,7 +11,16 @@ import {
   formatNumero,
   formatRelativo
 } from '../../core/format';
-import { EstadoFuente, FuenteDato, GrupoFuente, LecturaTelar, SaludTelar } from '../../core/models';
+import {
+  EstadoFuente,
+  FuenteDato,
+  GrupoFuente,
+  LecturaAviso,
+  LecturaCuarentena,
+  LecturaTelar,
+  SaludDatos,
+  SaludTelar
+} from '../../core/models';
 import { KpiTileComponent } from '../../shared/kpi-tile.component';
 import { DataBadgeComponent } from '../../shared/data-badge.component';
 import { MetricaComponent } from '../../shared/metrica.component';
@@ -84,15 +93,30 @@ import { MetricaComponent } from '../../shared/metrica.component';
           }
         </section>
       } @else {
+        <div class="fila-filtros">
+          <input
+            type="search"
+            class="control control-busqueda"
+            placeholder="Nº de lote"
+            aria-label="Buscar por nº de lote"
+            [value]="lote() ?? ''"
+            (change)="setLote(valorDe($event) || null)"
+          />
+          @if (lote()) {
+            <button type="button" class="limpiar" (click)="setLote(null)">
+              ✕ Limpiar
+            </button>
+          }
+        </div>
         <section class="kpi-grid">
           @for (telar of s.telares; track telar.telarId) {
             <fabric-kpi
-              [etiqueta]="telar.nombre + ' · lecturas fiables'"
-              [valor]="telar.pctFiables"
+              [etiqueta]="telar.nombre + ' · lecturas limpias'"
+              [valor]="telar.pctLimpias"
               unidad="%"
               [decimales]="1"
               [nota]="notaTelar(telar)"
-              [tono]="tono(telar.pctFiables)"
+              [tono]="tono(telar.pctLimpias)"
             />
           }
         </section>
@@ -100,68 +124,133 @@ import { MetricaComponent } from '../../shared/metrica.component';
         <section class="panel">
           <div class="panel-head">
             <h2>Cuarentena</h2>
-            <span class="soft">{{ s.cuarentena.length }} lecturas retenidas (máx. 60)</span>
+            <span class="soft">{{ cuarentenaFiltrada(s).length }} lecturas retenidas (máx. 60)</span>
           </div>
-        @if (s.cuarentena.length > 0) {
-          <div class="tabla-scroll">
-            <table class="tabla tabla-cuarentena">
-              <thead>
+        <div class="tabla-scroll">
+          <table class="tabla tabla-cuarentena">
+            <thead>
+              <tr>
+                <th>Dato</th>
+                <th>Recibida</th>
+                <th>Telar</th>
+                <th class="derecha">Nº de lote</th>
+                <th>Fecha declarada</th>
+                <th>Estado</th>
+                <th class="derecha">Golpes</th>
+                <th class="derecha">Amperios</th>
+                <th class="derecha">Potencia</th>
+                <th class="derecha">Altura</th>
+                <th>Motivo del descarte</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (entrada of cuarentenaFiltrada(s); track entrada.lectura.id) {
                 <tr>
-                  <th>Dato</th>
-                  <th>Recibida</th>
-                  <th>Telar</th>
-                  <th>Fecha declarada</th>
-                  <th>Estado</th>
-                  <th class="derecha">Golpes</th>
-                  <th class="derecha">Amperios</th>
-                  <th class="derecha">Potencia</th>
-                  <th class="derecha">Altura</th>
-                  <th>Motivo del descarte</th>
+                  <td>
+                    <fabric-data-badge [sospechosa]="true" [motivos]="entrada.motivos" />
+                  </td>
+                  <td>{{ fecha(entrada.lectura.recibidaEn) }}</td>
+                  <td>
+                    <span [style.color]="'var(--t' + entrada.lectura.telarId + ')'">
+                      T{{ entrada.lectura.telarId }}
+                    </span>
+                  </td>
+                  <td class="derecha num">{{ entrada.lectura.pmLote ?? entrada.lectura.bloque ?? '—' }}</td>
+                  <td [class.dato-malo]="fechaSospechosa(entrada.lectura)">
+                    {{ fechaAnio(entrada.lectura.fechaHora) }}
+                  </td>
+                  <td>{{ incidencia(entrada.lectura) }}</td>
+                  <td class="derecha">
+                    <fabric-metrica [valor]="entrada.lectura.golpesPorMinuto" unidad="golpes/min" [tam]="13" />
+                  </td>
+                  <td class="derecha">
+                    <fabric-metrica [valor]="entrada.lectura.amperios" unidad="A" [tam]="13" />
+                  </td>
+                  <td class="derecha">
+                    <fabric-metrica [valor]="entrada.lectura.potenciaKw" unidad="kW" [decimales]="1" [tam]="13" />
+                  </td>
+                  <td class="derecha">
+                    <fabric-metrica [valor]="entrada.lectura.alturaActualMm" unidad="mm" [tam]="13" />
+                  </td>
+                  <td class="motivos">{{ entrada.motivos.join(' · ') }}</td>
                 </tr>
-              </thead>
-              <tbody>
-                @for (entrada of s.cuarentena; track entrada.lectura.id) {
-                  <tr>
-                    <td>
-                      <fabric-data-badge [sospechosa]="true" [motivos]="entrada.motivos" />
-                    </td>
-                    <td>{{ fecha(entrada.lectura.recibidaEn) }}</td>
-                    <td>
-                      <span [style.color]="'var(--t' + entrada.lectura.telarId + ')'">
-                        T{{ entrada.lectura.telarId }}
-                      </span>
-                    </td>
-                    <td [class.dato-malo]="fechaSospechosa(entrada.lectura)">
-                      {{ fechaAnio(entrada.lectura.fechaHora) }}
-                    </td>
-                    <td>{{ incidencia(entrada.lectura) }}</td>
-                    <td class="derecha">
-                      <fabric-metrica [valor]="entrada.lectura.golpesPorMinuto" unidad="golpes/min" [tam]="13" />
-                    </td>
-                    <td class="derecha">
-                      <fabric-metrica [valor]="entrada.lectura.amperios" unidad="A" [tam]="13" />
-                    </td>
-                    <td class="derecha">
-                      <fabric-metrica [valor]="entrada.lectura.potenciaKw" unidad="kW" [decimales]="1" [tam]="13" />
-                    </td>
-                    <td class="derecha">
-                      <fabric-metrica [valor]="entrada.lectura.alturaActualMm" unidad="mm" [tam]="13" />
-                    </td>
-                    <td class="motivos">{{ entrada.motivos.join(' · ') }}</td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-        } @else {
-          <div class="estado-vacio">Sin lecturas en cuarentena en los últimos 7 días</div>
-        }
+              } @empty {
+                <tr>
+                  <td colspan="11" class="fila-vacia">Sin lecturas en cuarentena en los últimos 7 días</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
         <p class="nota-metodo pie-metodo">
           Las lecturas en cuarentena se excluyen de todos los KPIs y gráficos de Fabric; se
-          conservan aquí, nunca se borran. Reglas del validador v1: fecha declarada incoherente
-          con la recepción, incidencia sin mapear ("Sin nombre"), saltos de altura físicamente
-          imposibles, potencia fuera de rango o desacoplada de los amperios, y golpes fuera del
-          rango de la máquina.
+          conservan aquí, nunca se borran. A cuarentena solo va el dato inservible: hoy, la
+          fecha declarada incoherente con la recepción. Lo demás que pinta raro pero es real
+          se marca como aviso (abajo), sin sacarlo de los KPIs.
+        </p>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Avisos</h2>
+          <span class="soft">{{ avisosFiltrados(s).length }} lecturas señaladas (siguen contando en KPIs)</span>
+        </div>
+        <div class="tabla-scroll">
+          <table class="tabla tabla-cuarentena">
+            <thead>
+              <tr>
+                <th>Dato</th>
+                <th>Recibida</th>
+                <th>Telar</th>
+                <th class="derecha">Nº de lote</th>
+                <th>Estado</th>
+                <th class="derecha">Golpes</th>
+                <th class="derecha">Amperios</th>
+                <th class="derecha">Potencia</th>
+                <th class="derecha">Altura</th>
+                <th>Motivo del aviso</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (entrada of avisosFiltrados(s); track entrada.lectura.id) {
+                <tr>
+                  <td>
+                    <fabric-data-badge [sospechosa]="false" [alertas]="entrada.alertas" />
+                  </td>
+                  <td>{{ fecha(entrada.lectura.recibidaEn) }}</td>
+                  <td>
+                    <span [style.color]="'var(--t' + entrada.lectura.telarId + ')'">
+                      T{{ entrada.lectura.telarId }}
+                    </span>
+                  </td>
+                  <td class="derecha num">{{ entrada.lectura.pmLote ?? entrada.lectura.bloque ?? '—' }}</td>
+                  <td>{{ incidencia(entrada.lectura) }}</td>
+                  <td class="derecha">
+                    <fabric-metrica [valor]="entrada.lectura.golpesPorMinuto" unidad="golpes/min" [tam]="13" />
+                  </td>
+                  <td class="derecha">
+                    <fabric-metrica [valor]="entrada.lectura.amperios" unidad="A" [tam]="13" />
+                  </td>
+                  <td class="derecha">
+                    <fabric-metrica [valor]="entrada.lectura.potenciaKw" unidad="kW" [decimales]="1" [tam]="13" />
+                  </td>
+                  <td class="derecha">
+                    <fabric-metrica [valor]="entrada.lectura.alturaActualMm" unidad="mm" [tam]="13" />
+                  </td>
+                  <td class="motivos">{{ entrada.alertas.join(' · ') }}</td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="10" class="fila-vacia">Sin avisos en los últimos 7 días</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <p class="nota-metodo pie-metodo">
+          Avisos de calidad que NO descartan la lectura: el dato sigue contando en todos los
+          KPIs, solo se señala para vigilarlo. El consumo y la velocidad de descenso se comparan
+          con la media de cada telar (se avisa al superar 1, 2 o 3 desviaciones típicas).
         </p>
       </section>
 
@@ -213,6 +302,12 @@ import { MetricaComponent } from '../../shared/metrica.component';
     }
     .tabla-cuarentena {
       min-width: 860px;
+    }
+    .fila-vacia {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 12.5px;
+      padding: 14px 0;
     }
     .motivos {
       white-space: normal;
@@ -414,6 +509,9 @@ export class SaludDatosComponent {
   /** Mensaje del último fallo de lectura; null mientras la fuente responda. */
   readonly error = signal<string | null>(null);
 
+  /** Búsqueda por nº de lote; filtra las tablas de cuarentena y de avisos. */
+  readonly lote = signal<string | null>(null);
+
   readonly salud = toSignal(
     // La fuente entra en el stream para refrescar al instante con el switch.
     toObservable(this.fuenteDatos.fuente).pipe(
@@ -491,7 +589,49 @@ export class SaludDatosComponent {
   }
 
   notaTelar(telar: SaludTelar): string {
-    return `${formatNumero(telar.fiables7d)} de ${formatNumero(telar.lecturas7d)} lecturas (7 d)`;
+    const partes = [
+      `${formatNumero(telar.limpias7d)} de ${formatNumero(telar.lecturas7d)} limpias (7 d)`
+    ];
+    if (telar.conAvisos7d > 0) {
+      partes.push(`${formatNumero(telar.conAvisos7d)} con avisos`);
+    }
+    const enCuarentena = telar.lecturas7d - telar.fiables7d;
+    if (enCuarentena > 0) {
+      partes.push(`${formatNumero(enCuarentena)} en cuarentena`);
+    }
+    return partes.join(' · ');
+  }
+
+  /** Avisos de la salud (no descartados); [] si el backend no los trae. */
+  avisos(s: SaludDatos): LecturaAviso[] {
+    return s.avisos ?? [];
+  }
+
+  valorDe(evento: Event): string {
+    return (evento.target as HTMLInputElement).value;
+  }
+
+  setLote(l: string | null): void {
+    this.lote.set(l);
+  }
+
+  /** Coincidencia por subcadena del nº de lote, igual que el buscador de inventario. */
+  private coincideLote(valor: number | null): boolean {
+    const q = this.lote()?.trim();
+    if (!q) {
+      return true;
+    }
+    return String(valor ?? '').includes(q);
+  }
+
+  /** Cuarentena filtrada por el buscador de nº de lote. */
+  cuarentenaFiltrada(s: SaludDatos): LecturaCuarentena[] {
+    return s.cuarentena.filter((c) => this.coincideLote(c.lectura.pmLote));
+  }
+
+  /** Avisos filtrados por el buscador de nº de lote. */
+  avisosFiltrados(s: SaludDatos): LecturaAviso[] {
+    return this.avisos(s).filter((a) => this.coincideLote(a.lectura.pmLote));
   }
 
   fecha(iso: string): string {
@@ -530,7 +670,7 @@ export class SaludDatosComponent {
   fechaSospechosa(lectura: LecturaTelar): boolean {
     return (
       Math.abs(new Date(lectura.fechaHora).getTime() - new Date(lectura.recibidaEn).getTime()) >
-      15 * 60_000
+      30 * 60_000
     );
   }
 }

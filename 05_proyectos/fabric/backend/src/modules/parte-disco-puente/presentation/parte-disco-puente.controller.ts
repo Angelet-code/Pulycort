@@ -18,7 +18,7 @@ export class ParteDiscoPuenteController {
 
   @Get()
   list(
-    @Query('disco') disco?: string,
+    @Query('lote') lote?: string,
     @Query('material') material?: string,
     @Query('operacion') operacion?: string,
     @Query('desde') desde?: string,
@@ -29,7 +29,7 @@ export class ParteDiscoPuenteController {
     offset?: number,
   ): Promise<PaginaParteDiscoPuente> {
     return this.getListaUseCase.execute({
-      discoPuenteN: disco && disco.trim() !== '' ? disco.trim() : null,
+      lote: lote && /^\d+$/.test(lote.trim()) ? Number(lote.trim()) : null,
       material: this.parseEntero('material', material),
       operacion: operacion && operacion.trim() !== '' ? operacion.trim() : null,
       desde: this.parseFecha('desde', desde, false),

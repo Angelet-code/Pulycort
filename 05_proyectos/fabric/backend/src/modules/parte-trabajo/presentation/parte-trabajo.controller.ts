@@ -18,6 +18,7 @@ export class ParteTrabajoController {
 
   @Get()
   list(
+    @Query('lote') lote?: string,
     @Query('telar') telar?: string,
     @Query('material') material?: string,
     @Query('operacion') operacion?: string,
@@ -29,6 +30,7 @@ export class ParteTrabajoController {
     offset?: number,
   ): Promise<PaginaParteTrabajo> {
     return this.getListaUseCase.execute({
+      lote: lote && /^\d+$/.test(lote.trim()) ? Number(lote.trim()) : null,
       telarN: telar && telar.trim() !== '' ? telar.trim() : null,
       material: this.parseEntero('material', material),
       operacion: operacion && operacion.trim() !== '' ? operacion.trim() : null,

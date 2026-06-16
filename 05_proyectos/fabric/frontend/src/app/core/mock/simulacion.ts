@@ -327,36 +327,38 @@ function generarCiclosTelar(ctx: ContextoGeneracion, telarId: number): CicloSim[
 
 /**
  * Corrompe una lectura como lo hace el sistema real: el dato sale mal de la
- * máquina. El validador del lado API es quien debe cazarla después.
+ * máquina. El validador del lado API la clasifica después: la fecha imposible
+ * va a cuarentena (fuera de KPIs); el resto son avisos que NO descartan.
  */
 function corromperLectura(rng: () => number, lectura: LecturaTelar): void {
-  const tipo = enteroEntre(rng, 0, 5);
+  const tipo = enteroEntre(rng, 0, 4);
   switch (tipo) {
     case 0: {
+      // Reloj de consola atrasado: fecha declarada imposible → cuarentena.
       const fecha = new Date(lectura.fechaHora);
       fecha.setFullYear(2014);
       lectura.fechaHora = fecha.toISOString();
       break;
     }
     case 1: {
+      // Reloj de consola adelantado: fecha futura → cuarentena.
       const fecha = new Date(lectura.fechaHora);
       fecha.setFullYear(2099);
       lectura.fechaHora = fecha.toISOString();
       break;
     }
     case 2:
+      // Incidencia sin mapear → aviso.
       lectura.incidencia = 'desconocida';
       break;
     case 3:
-      // El bastidor jamás sube durante un corte.
+      // El bastidor jamás sube durante un corte → aviso.
       lectura.alturaActualMm += enteroEntre(rng, 600, 1500);
       break;
-    case 4:
-      lectura.golpesPorMinuto = rng() < 0.5 ? 9999 : enteroEntre(rng, 1100, 1400);
-      break;
     default:
-      // Amperios desacoplados de la potencia (sensor roto).
-      lectura.amperios = lectura.potenciaKw * 5 + enteroEntre(rng, 10, 40);
+      // Consumo disparado muy por encima de la media del telar → aviso σ.
+      lectura.potenciaKw += enteroEntre(rng, 60, 120);
+      lectura.amperios = lectura.potenciaKw * 2;
       break;
   }
 }
@@ -375,6 +377,7 @@ function lecturaBase(
   | 'operario2'
   | 'sospechosa'
   | 'motivosSospecha'
+  | 'alertas'
 > {
   const [operario1, operario2] = operariosDe(t);
   const iso = new Date(t).toISOString();
@@ -386,7 +389,8 @@ function lecturaBase(
     operario1,
     operario2,
     sospechosa: false,
-    motivosSospecha: []
+    motivosSospecha: [],
+    alertas: []
   };
 }
 

@@ -134,6 +134,30 @@ export function formatRelativo(iso: string | null | undefined, ahora = Date.now(
   return dias === 1 ? 'hace 1 día' : `hace ${dias} días`;
 }
 
+/**
+ * Como `formatRelativo`, pero con minutos hasta las 2 h: "hace 35 min",
+ * "hace 1 h 35 min". A partir de 2 h cae al formato grueso ("hace 2 h",
+ * "hace 3 días"). Para la frescura de la última lectura, donde los minutos
+ * importan mientras la señal es relativamente reciente.
+ */
+export function formatRelativoFino(iso: string | null | undefined, ahora = Date.now()): string {
+  if (!iso) {
+    return SIN_DATO;
+  }
+  const ms = ahora - new Date(iso).getTime();
+  if (ms < 0) {
+    return 'en el futuro';
+  }
+  const minutos = Math.floor(ms / 60_000);
+  if (minutos < 1) {
+    return 'ahora mismo';
+  }
+  if (minutos < 120) {
+    return `hace ${formatDuracionMin(minutos)}`;
+  }
+  return formatRelativo(iso, ahora);
+}
+
 /** Duración en minutos → "1 h 25 min" / "45 min" / "2 días 3 h". */
 export function formatDuracionMin(minutos: number | null | undefined): string {
   if (minutos === null || minutos === undefined || Number.isNaN(minutos) || minutos < 0) {

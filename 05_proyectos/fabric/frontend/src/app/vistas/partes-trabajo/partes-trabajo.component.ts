@@ -8,11 +8,12 @@ import {
 } from '@angular/core';
 import { FabricApi } from '../../core/fabric-api';
 import { FuenteDatosService } from '../../core/fuente-datos.service';
-import { ETIQUETA_EVENTO } from '../../core/etiquetas';
+import { ETIQUETA_ACCION, ETIQUETA_EVENTO, ETIQUETA_OPERACION } from '../../core/etiquetas';
 import { formatFechaHoraAnio, formatNumero } from '../../core/format';
 import { materialPorId } from '../../core/materiales';
-import { PaginaPartesTrabajo, TipoEvento } from '../../core/models';
+import { PaginaPartesTrabajo, ParteTrabajoCrudo, TipoEvento } from '../../core/models';
 import { MaterialDotComponent } from '../../shared/material-dot.component';
+import { MaterialSelectComponent } from '../../shared/material-select.component';
 import { MetricaComponent } from '../../shared/metrica.component';
 
 const LIMIT = 50;
@@ -21,19 +22,31 @@ const TELARES = ['1', '2', '3', '4'] as const;
 
 /**
  * Partes de trabajo: el registro de los operarios tal cual está en la tabla
- * real `parte_trabajo_mapeada`. La operación '4' (la única con paquetes,
- * tablas y m²) es "hacer paquetes" deducido de los datos; el resto de
- * códigos de operación están pendientes de la tabla de significados
- * (00_gestion/TAREAS.md). Valores en crudo, sin interpretar.
+ * real `parte_trabajo_mapeada`. Las operaciones 1-4 tienen significado
+ * confirmado por Pulycort (1 colocar, 2 aserrar, 3 salida del telar,
+ * 4 paquetes); la op. 0 no es una fase y su detalle (motivo de parada) va en la
+ * columna `accion`: se traduce con `ETIQUETA_ACCION` (motivos de parada con
+ * color por categoría, confirmados por Pulycort) y los códigos aún sin
+ * significado (0 y 10) se muestran en crudo. Los `operacion` 5/10/11 siguen
+ * pendientes de la tabla de significados (00_gestion/TAREAS.md). Valores en
+ * crudo, sin interpretar.
  */
 @Component({
   selector: 'fabric-partes-trabajo',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MaterialDotComponent, MetricaComponent],
+  imports: [MaterialDotComponent, MaterialSelectComponent, MetricaComponent],
   template: `
     <section class="panel">
       <div class="panel-head filtros">
         <div class="fila-filtros">
+          <input
+            type="search"
+            class="control control-busqueda"
+            placeholder="Nº de lote"
+            aria-label="Buscar por nº de lote"
+            [value]="lote() ?? ''"
+            (change)="setLote(valorDe($event) || null)"
+          />
           <div class="seg" role="tablist" aria-label="Filtrar por telar">
             <button
               type="button"
@@ -68,17 +81,11 @@ const TELARES = ['1', '2', '3', '4'] as const;
             }
           </select>
 
-          <select
-            class="control"
-            aria-label="Filtrar por material"
-            [value]="material() ?? ''"
-            (change)="setMaterial(valorDe($event) || null)"
-          >
-            <option value="">Todos los materiales</option>
-            @for (m of materiales(); track m) {
-              <option [value]="m">{{ nombreMaterial(m) }}</option>
-            }
-          </select>
+          <fabric-material-select
+            [materiales]="materiales()"
+            [seleccion]="material()"
+            (seleccionChange)="setMaterial($event)"
+          />
 
           <label class="control control-fecha">
             <span class="soft">Desde</span>
@@ -130,7 +137,7 @@ const TELARES = ['1', '2', '3', '4'] as const;
                 <th>Fecha y hora</th>
                 <th>Telar</th>
                 <th>Operación</th>
-                <th class="derecha">PM / lote</th>
+                <th class="derecha">Nº de lote</th>
                 <th>Material</th>
                 <th class="derecha">Medidas fuente (cm)</th>
                 <th class="derecha">m³</th>
@@ -143,7 +150,12 @@ const TELARES = ['1', '2', '3', '4'] as const;
             <tbody>
               @for (fila of p.items; track fila.id) {
                 <tr>
-                  <td class="num">{{ fechaHora(fila.fechaHora) }}</td>
+                  <td class="num">
+                    {{ fechaHora(fila.fechaHora) }}
+                    @if (fila.fechaRemapeada) {
+                      <span class="es-remapeada" [title]="tituloRemapeo(fila)">↻ año corregido</span>
+                    }
+                  </td>
                   <td>
                     @if (fila.nTelar && esTelarConocido(fila.nTelar)) {
                       <button
@@ -159,12 +171,18 @@ const TELARES = ['1', '2', '3', '4'] as const;
                   </td>
                   <td>
                     @if (fila.operacion !== null) {
-                      <button
-                        type="button"
-                        class="celda-clicable"
-                        (click)="setOperacion(fila.operacion)"
-                        title="Filtrar por esta operación"
-                      >{{ nombreOperacion(fila.operacion) }}</button>
+                      @let op = celdaOperacion(fila.operacion, fila.accion);
+                      @if (op.texto) {
+                        <button
+                          type="button"
+                          class="celda-clicable"
+                          [style.color]="op.color"
+                          (click)="setOperacion(fila.operacion)"
+                          title="Filtrar por esta operación"
+                        >{{ op.texto }}</button>
+                      } @else {
+                        <span class="soft">—</span>
+                      }
                     } @else {
                       <span class="soft">—</span>
                     }
@@ -272,6 +290,16 @@ const TELARES = ['1', '2', '3', '4'] as const;
       font-size: 11px;
       cursor: help;
     }
+    .es-remapeada {
+      margin-left: 6px;
+      padding: 1px 6px;
+      border-radius: 999px;
+      font-size: 10.5px;
+      white-space: nowrap;
+      color: var(--amber);
+      border: 1px solid var(--amber);
+      cursor: help;
+    }
   `
 })
 export class PartesTrabajoComponent {
@@ -281,6 +309,7 @@ export class PartesTrabajoComponent {
   readonly telares = TELARES;
   readonly formatNumero = formatNumero;
 
+  readonly lote = signal<string | null>(null);
   readonly telar = signal<string | null>(null);
   readonly material = signal<string | null>(null);
   readonly operacion = signal<string | null>(null);
@@ -302,6 +331,7 @@ export class PartesTrabajoComponent {
 
   readonly hayFiltros = computed(
     () =>
+      this.lote() !== null ||
       this.telar() !== null ||
       this.material() !== null ||
       this.operacion() !== null ||
@@ -314,6 +344,7 @@ export class PartesTrabajoComponent {
     // y refresca cada minuto.
     effect((onCleanup) => {
       const filtros = {
+        lote: this.lote(),
         telarN: this.telar(),
         material: this.material(),
         operacion: this.operacion(),
@@ -334,6 +365,14 @@ export class PartesTrabajoComponent {
 
   esTelarConocido(t: string): boolean {
     return (TELARES as readonly string[]).includes(t);
+  }
+
+  setLote(l: string | null): void {
+    if (this.lote() === l) {
+      return;
+    }
+    this.offset.set(0);
+    this.lote.set(l);
   }
 
   setTelar(t: string | null): void {
@@ -372,6 +411,7 @@ export class PartesTrabajoComponent {
 
   limpiarFiltros(): void {
     this.offset.set(0);
+    this.lote.set(null);
     this.telar.set(null);
     this.material.set(null);
     this.operacion.set(null);
@@ -412,22 +452,63 @@ export class PartesTrabajoComponent {
     return materialPorId(String(valor)).nombre;
   }
 
-  /** En demo la operación es el nombre del evento; en real, un código. */
+  /**
+   * Etiqueta de una operación para el filtro (sin fila concreta). En demo la
+   * operación es el nombre del evento; en real, un código mapeado por Pulycort.
+   * La op. 0 se desglosa por la columna `accion`, así que en el filtro se
+   * nombra de forma genérica; la celda sí muestra la acción concreta.
+   */
   nombreOperacion(operacion: string): string {
     const etiqueta = ETIQUETA_EVENTO[operacion as TipoEvento];
     if (etiqueta) {
       return etiqueta;
     }
-    // Código real sin tabla de significados; el '4' se deduce de los datos
-    // (única operación con paquetes/tablas/m²). Pendiente de confirmar.
-    return operacion === '4' ? 'Op. 4 · paquetes' : `Op. ${operacion}`;
+    if (operacion === '0') {
+      return 'Acción';
+    }
+    // Códigos 5/10/11 aún sin confirmar: se muestran en crudo.
+    return ETIQUETA_OPERACION[operacion] ?? `Op. ${operacion}`;
+  }
+
+  /**
+   * Texto y color de la operación en la celda de la tabla. La op. 0 muestra el
+   * motivo de parada de la columna `accion`: si el código está mapeado
+   * (`ETIQUETA_ACCION`) se pinta su texto con su color (p. ej. 11 = "Fin de
+   * jornada" en ámbar); si no, el código en crudo (pendiente de decodificar);
+   * y si la fila no trae acción, vacío (la celda mostrará "—").
+   */
+  celdaOperacion(operacion: string, accion: string | null): { texto: string; color: string | null } {
+    if (operacion === '0') {
+      const codigo = accion?.trim() ?? '';
+      if (!codigo) {
+        return { texto: '', color: null };
+      }
+      const etiqueta = ETIQUETA_ACCION[codigo];
+      return etiqueta
+        ? { texto: etiqueta.texto, color: etiqueta.color ?? null }
+        : { texto: codigo, color: null };
+    }
+    return { texto: this.nombreOperacion(operacion), color: null };
   }
 
   fechaHora(iso: string | null): string {
     return formatFechaHoraAnio(iso);
   }
 
+  /**
+   * Texto de la alerta de fecha remapeada: el parte llegó con el año mal
+   * estampado (+1) en un lote de carga y el backend lo corrigió restando 1 año.
+   */
+  tituloRemapeo(fila: ParteTrabajoCrudo): string {
+    return (
+      `Fecha remapeada: figuraba ${formatFechaHoraAnio(fila.fechaHoraOriginal)} ` +
+      `(año mal estampado en un lote de carga); ` +
+      `corregida a ${formatFechaHoraAnio(fila.fechaHora)} restando 1 año.`
+    );
+  }
+
   private cargar(filtros: {
+    lote: string | null;
     telarN: string | null;
     material: string | null;
     operacion: string | null;

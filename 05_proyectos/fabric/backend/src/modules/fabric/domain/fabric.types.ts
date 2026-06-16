@@ -18,9 +18,16 @@ export type EstadoTelar =
 export type TipoIncidencia =
   | 'marcha'
   | 'paro'
+  | 'paro-rotura-material'
+  | 'modo-manual'
+  | 'modo-automatico'
   | 'rotura-fleje'
   | 'cambio-bloque'
-  | 'desconocida';
+  | 'desconocida'
+  // Solo en segmentos del Gantt/gráficos: tramo sin lectura fiable (hueco mayor
+  // que la cadencia). Nunca se asigna a una lectura individual; marca "no hay
+  // dato", no un estado de la máquina, para no inventar lo que pasó en el hueco.
+  | 'sin-datos';
 
 export type Turno = 'manana' | 'tarde' | 'noche';
 
@@ -81,6 +88,11 @@ export interface LecturaTelar {
   operario2: string | null;
   sospechosa: boolean;
   motivosSospecha: string[];
+  /**
+   * Avisos de calidad que NO descartan la lectura: sigue contando en los KPIs,
+   * pero se marca (consumo/velocidad inusuales, altura rara, etc.).
+   */
+  alertas: string[];
 }
 
 export interface EventoParte {
@@ -199,14 +211,38 @@ export interface CicloBloque {
   parteEnOtroTelar: boolean;
 }
 
+/**
+ * Actividad del operario tomada del último parte de trabajo del telar
+ * (`parte_trabajo_mapeada`): qué hace (operacion 1-4) o por qué se paró (accion,
+ * cuando operacion=0). Se pinta en el badge con prioridad sobre el estado de
+ * máquina mientras es reciente (20 min); "Fin de jornada" dura hasta que la
+ * máquina vuelve a dar señal de actividad. Mapeo: shared/domain/codigos-parte.ts.
+ */
+export interface ActividadParte {
+  etiqueta: string;
+  /** operacion = trabajo normal; evento = parada/incidencia; fin-jornada = descanso. */
+  categoria: 'operacion' | 'evento' | 'fin-jornada';
+  /** Fecha del parte que la originó (ISO). */
+  desde: string;
+}
+
 export interface SnapshotTelar {
   telarId: number;
   nombre: string;
   estado: EstadoTelar;
   estadoDesde: string | null;
   causaParo: TipoIncidencia | null;
+  /** Actividad del operario (último parte); null si no hay parte reciente. */
+  actividadParte: ActividadParte | null;
   bloque: Bloque | null;
   ultimaLectura: LecturaTelar | null;
+  /**
+   * Marca de la ÚLTIMA lectura recibida del telar, esté o no fresca: para
+   * mostrar siempre "hace cuánto" llegó el último dato, aunque el telar lleve
+   * horas o días callado (entonces `ultimaLectura` es null por «sin señal»,
+   * pero esta marca persiste). null solo si el telar nunca ha emitido.
+   */
+  ultimaLecturaEn: string | null;
   alturaInicialMm: number | null;
   progresoPct: number | null;
   etaFinCorte: string | null;
@@ -218,6 +254,8 @@ export interface SnapshotTelar {
   operario2: string | null;
   seriePotencia: PuntoSerie[];
   datosSospechosos: boolean;
+  /** ¿Alguna lectura con avisos (no descartada) en las últimas 24 h? */
+  datosConAvisos: boolean;
 }
 
 export interface KpisPlanta {
@@ -257,6 +295,8 @@ export interface DetalleTelar {
   serieAltura: PuntoSerie[];
   seriePotencia: PuntoSerie[];
   serieGolpes: PuntoSerie[];
+  /** Velocidad de descenso del bastidor (mm/h) a lo largo de la jornada. */
+  serieVelocidad: PuntoSerie[];
   segmentosJornada: SegmentoEstado[];
   disponibilidadTurnoPct: number | null;
   mtbfFleje7dHoras: number | null;
@@ -290,6 +330,12 @@ export interface EstadisticasTelar {
   golpesMedios: number;
   velocidadMediaMmH: number;
   amperiosMedios: number;
+  /**
+   * Consumo eléctrico medio en marcha (kW ≈ kWh por hora), descartando las
+   * lecturas con el telar parado. null si no hubo lecturas en marcha en el
+   * rango: sin base no se inventa un 0.
+   */
+  potenciaMediaKw: number | null;
   parosPorCausa: ParoPorCausa[];
 }
 
@@ -367,12 +413,26 @@ export interface LecturaCuarentena {
   motivos: string[];
 }
 
+/** Lectura con avisos del validador que NO se descarta (cuenta en KPIs). */
+export interface LecturaAviso {
+  lectura: LecturaTelar;
+  alertas: string[];
+}
+
 export interface SaludTelar {
   telarId: number;
   nombre: string;
   lecturas7d: number;
+  /** No descartadas (cuentan en KPIs, incluidas las que llevan avisos). Salud de la fuente. */
   fiables7d: number;
+  /** % no descartadas. */
   pctFiables: number;
+  /** Lecturas con algún aviso (no descartadas) en la ventana de 7 días. */
+  conAvisos7d: number;
+  /** 100% limpias: ni descartadas ni con avisos. */
+  limpias7d: number;
+  /** % de lecturas 100% limpias; es el KPI por telar de Salud. */
+  pctLimpias: number;
 }
 
 /** Calidad de los partes de operario (tabla parte_trabajo_mapeada). */
@@ -427,6 +487,8 @@ export interface SaludDatos {
   fuentes: FuenteDato[];
   telares: SaludTelar[];
   cuarentena: LecturaCuarentena[];
+  /** Lecturas con avisos que NO se descartan (siguen contando en KPIs). */
+  avisos: LecturaAviso[];
   /** null cuando la fuente no tiene partes (demo). */
   partes: SaludPartes | null;
 }

@@ -109,23 +109,26 @@ export const PROBLEMAS_SISTEMA: ProblemaSistema[] = [
   {
     id: 'codigos-incidencia-sin-tabla',
     area: 'maquinas',
-    problema: 'Los códigos de incidencia 3, 4 y 5 no tienen significado documentado',
+    problema: 'Los códigos de incidencia 3, 4 y 5 ya tienen significado confirmado',
     evidencia:
-      'Solo se han verificado por física de los datos el 1 (marcha) y el 2 (paro). Las ' +
-      'lecturas con 3/4/5 van a cuarentena y no se sabe cuál es la rotura de fleje.',
-    solucion: 'Pedir a TotWare la tabla oficial de códigos de incidencia.',
+      'Confirmado por Pulycort (2026-06-16): 1 = marcha, 2 = paro, 3 = paro por rotura de ' +
+      'material, 4 = modo manual, 5 = modo automático. Solo el código 0 (que emite el telar 4) ' +
+      'sigue sin código propio y se infiere por potencia (ver telar4-sin-codigo).',
+    solucion:
+      'Mapeo aplicado en Fabric (incidenciaDeCodigo + ETIQUETA_INCIDENCIA): 4 y 5 cuentan como ' +
+      'marcha (azul), 2 y 3 como paro (el 3, rotura de material, en rojo). Pendiente solo cerrar ' +
+      'el código 0 del telar 4.',
     dependeDe: ['TotWare'],
-    estado: 'pendiente'
+    estado: 'corregido'
   },
   {
     id: 'maquinas-flujo-no-separadas',
     area: 'maquinas',
-    problema: 'El dato no distingue las máquinas físicas que comparten un mismo flujo',
+    problema: 'El dato de la reforzadora no separa las dos máquinas físicas',
     evidencia:
-      'Disco puente: la columna disco_puente_n solo trae 0/1, nunca 2 ni 3, así que los tres ' +
-      'discopuentes (Terzago, Gómez, Cáñigo) y el Donatoni llegan como un único flujo. ' +
-      'Reforzadora: n_reforzadora solo trae "1", así que no separa la REFORZADORA 1 de la ' +
-      'REFORZADORA 2 SEI. No se puede atribuir un corte a una máquina concreta sin inventar.',
+      'En reforzadora_mapeada la columna n_reforzadora solo trae "1", así que el dato no separa ' +
+      'la REFORZADORA 1 de la REFORZADORA 2 SEI: no se puede atribuir un parte a una de las dos ' +
+      'sin inventar.',
     solucion:
       'Pedir que el dato etiquete la máquina física por registro (un identificador de máquina ' +
       'en el parte), o confirmar que comparten un solo autómata/flujo. Mientras tanto Fabric las ' +
@@ -134,21 +137,45 @@ export const PROBLEMAS_SISTEMA: ProblemaSistema[] = [
     dependeDe: ['TotWare', 'Odoo / INDASEL'],
     estado: 'mitigado'
   },
+  {
+    id: 'discopuentes-sin-integrar',
+    area: 'maquinas',
+    problema: 'Solo el disco puente Gómez está integrado; Terzago y Cáñigo no',
+    evidencia:
+      'parte_discopuente_mapeada es íntegramente del disco puente Gómez (confirmado Pulycort ' +
+      '2026-06-15). Los discos puente Terzago y Cáñigo no tienen PLC ni integración todavía, así ' +
+      'que no envían ningún dato; el Donatoni (que también corta a disco puente) tampoco. La ' +
+      'columna disco_puente_n solo trae 0/1, pero es un flag de estado de Gómez, no el número de ' +
+      'máquina física.',
+    solucion:
+      'Instalar PLC/integración en Terzago y Cáñigo para que envíen sus partes. Mientras tanto ' +
+      'Fabric atribuye todo el flujo a Gómez (integrada) y marca Terzago y Cáñigo como pendientes ' +
+      'en /salud/cobertura, sin inventarles actividad.',
+    dependeDe: ['Odoo / INDASEL', 'TotWare'],
+    estado: 'pendiente'
+  },
 
   // ── Base de datos e integración ───────────────────────────────────────────
   {
     id: 'partes-fechas-corruptas',
     area: 'datos',
-    problema: 'Partes con fechas imposibles o ausentes (trabajo y disco puente)',
+    problema: 'Partes con fechas imposibles (año +1) o ausentes (trabajo y disco puente)',
     evidencia:
-      'Fechas futuras por errata de año (hasta dic 2026): 26 filas en parte_trabajo_mapeada ' +
-      '(+179 sin fecha declarada) y 434 en parte_discopuente_mapeada. Cualquier "última ' +
-      'actividad" u orden por fecha_hora sin sanear puede colar dic-2026 como lo más reciente.',
+      'Causa raíz confirmada en BD (2026-06-16): NO es el reloj de la máquina. Un único volcado ' +
+      'de backfill del 31-dic-2025 (~23:00–23:03) estampó el año +1 a partes de la 2ª mitad de ' +
+      '2025 (real jul–dic 2025 → figuran jul–dic 2026): 434 filas en parte_discopuente_mapeada ' +
+      '(ids 69537–69970) y 26 en parte_trabajo_mapeada (ids 52654–52679), más 179 partes de ' +
+      'trabajo sin fecha declarada. El feed en vivo es correcto y create_date (la inserción real) ' +
+      'nunca está en el futuro; telares y reforzadora están limpios. Sin sanear, el orden por ' +
+      'fecha_hora colaba dic-2026 como lo más reciente.',
     solucion:
-      'Validar la fecha en el terminal del operario al grabar el parte. Fabric marca esas ' +
-      'filas como sospechosas sin ocultarlas y, en el cruce lecturas-partes, sustituye la ' +
-      'fecha corrupta por la de inserción (create_date). Pendiente extender ese respaldo a ' +
-      'toda ordenación por fecha_hora (auditoría 2026-06-14).',
+      'El origen debería validar la fecha al grabar el parte. Mientras tanto Fabric lo corrige al ' +
+      'leer (la BD es de solo lectura): si fecha_hora va más de 1 día por delante de create_date, ' +
+      'resta 1 año, usa la fecha corregida para ordenar/filtrar/mostrar y marca la fila con ' +
+      '"↻ año corregido" (tooltip con el valor original). Aplicado a /partes-disco-puente y ' +
+      '/partes-trabajo (helper compartido fecha-remapeo). A prueba del avance del tiempo: los ' +
+      'partes reales de jul–dic 2026 tendrán create_date también en 2026, así que no se tocan ni ' +
+      'se solapan. Las 179 filas sin fecha se muestran como "—" y van al final del orden.',
     dependeDe: ['TotWare'],
     estado: 'mitigado'
   },

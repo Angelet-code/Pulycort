@@ -11,9 +11,16 @@ export type EstadoTelar = 'marcha' | 'paro' | 'incidencia' | 'cambio-bloque' | '
 export type TipoIncidencia =
   | 'marcha'
   | 'paro'
+  | 'paro-rotura-material'
+  | 'modo-manual'
+  | 'modo-automatico'
   | 'rotura-fleje'
   | 'cambio-bloque'
-  | 'desconocida';
+  | 'desconocida'
+  // Solo en segmentos del Gantt/gráficos: tramo sin lectura fiable (hueco mayor
+  // que la cadencia). Nunca se asigna a una lectura individual; marca "no hay
+  // dato", no un estado de la máquina, para no inventar lo que pasó en el hueco.
+  | 'sin-datos';
 
 export type Turno = 'manana' | 'tarde' | 'noche';
 
@@ -68,6 +75,11 @@ export interface LecturaTelar {
   /** Marcada por el validador de calidad de datos (fechas imposibles, etc.). */
   sospechosa: boolean;
   motivosSospecha: string[];
+  /**
+   * Avisos de calidad que NO descartan la lectura: sigue contando en los KPIs,
+   * pero se marca (consumo/velocidad inusuales, altura rara, etc.).
+   */
+  alertas: string[];
 }
 
 export type TipoEvento =
@@ -210,6 +222,18 @@ export interface DesvioRitmo {
 }
 
 /** Estado actual de un telar, calculado en servidor (mock). */
+/**
+ * Actividad del operario del último parte (qué hace / por qué paró). Se pinta en
+ * el badge con prioridad sobre el estado de máquina mientras es reciente (20 min);
+ * "Fin de jornada" dura hasta que la máquina vuelve a marcha.
+ */
+export interface ActividadParte {
+  etiqueta: string;
+  categoria: 'operacion' | 'evento' | 'fin-jornada';
+  /** Fecha del parte que la originó (ISO). */
+  desde: string;
+}
+
 export interface SnapshotTelar {
   telarId: number;
   nombre: string;
@@ -217,8 +241,17 @@ export interface SnapshotTelar {
   /** Inicio del estado actual (para "parado desde hace 25 min"). */
   estadoDesde: string | null;
   causaParo: TipoIncidencia | null;
+  /** Actividad del operario (último parte); null si no hay parte reciente. */
+  actividadParte: ActividadParte | null;
   bloque: Bloque | null;
   ultimaLectura: LecturaTelar | null;
+  /**
+   * Marca de la ÚLTIMA lectura recibida del telar, fresca o no: para mostrar
+   * siempre "hace cuánto" llegó el último dato aunque el telar lleve horas o
+   * días callado (entonces `ultimaLectura` es null por «sin señal», pero esta
+   * marca persiste). null solo si el telar nunca ha emitido.
+   */
+  ultimaLecturaEn: string | null;
   alturaInicialMm: number | null;
   /** 0-100, avance del corte del lote actual. */
   progresoPct: number | null;
@@ -233,6 +266,8 @@ export interface SnapshotTelar {
   seriePotencia: PuntoSerie[];
   /** ¿Alguna lectura sospechosa en las últimas 24 h alimentando esta tarjeta? */
   datosSospechosos: boolean;
+  /** ¿Alguna lectura con avisos (no descartada) en las últimas 24 h? */
+  datosConAvisos: boolean;
 }
 
 export interface KpisPlanta {
@@ -280,6 +315,8 @@ export interface DetalleTelar {
   serieAltura: PuntoSerie[];
   seriePotencia: PuntoSerie[];
   serieGolpes: PuntoSerie[];
+  /** Velocidad de descenso del bastidor (mm/h) a lo largo de la jornada. */
+  serieVelocidad: PuntoSerie[];
   segmentosJornada: SegmentoEstado[];
   /** Disponibilidad del turno actual: min marcha / min de turno transcurridos. */
   disponibilidadTurnoPct: number | null;
@@ -322,6 +359,12 @@ export interface EstadisticasTelar {
   golpesMedios: number;
   velocidadMediaMmH: number;
   amperiosMedios: number;
+  /**
+   * Consumo eléctrico medio en marcha (kW ≈ kWh por hora), descartando las
+   * lecturas con el telar parado. null si no hubo lecturas en marcha en el
+   * rango: sin base no se inventa un 0.
+   */
+  potenciaMediaKw: number | null;
   parosPorCausa: ParoPorCausa[];
 }
 
@@ -397,18 +440,32 @@ export interface Estadisticas {
   lecturasSospechosas: number;
 }
 
-/** Lectura en cuarentena con los motivos del validador. */
+/** Lectura en cuarentena con los motivos del validador (fuera de KPIs). */
 export interface LecturaCuarentena {
   lectura: LecturaTelar;
   motivos: string[];
+}
+
+/** Lectura con avisos del validador que NO se descarta (cuenta en KPIs). */
+export interface LecturaAviso {
+  lectura: LecturaTelar;
+  alertas: string[];
 }
 
 export interface SaludTelar {
   telarId: number;
   nombre: string;
   lecturas7d: number;
+  /** No descartadas (cuentan en KPIs, incluidas las que llevan avisos). Salud de la fuente. */
   fiables7d: number;
+  /** % no descartadas. */
   pctFiables: number;
+  /** Lecturas con algún aviso (no descartadas) en la ventana de 7 días. */
+  conAvisos7d: number;
+  /** 100% limpias: ni descartadas ni con avisos. */
+  limpias7d: number;
+  /** % de lecturas 100% limpias; es el KPI por telar de Salud. */
+  pctLimpias: number;
 }
 
 /** Calidad de los partes de operario (tabla parte_trabajo_mapeada). */
@@ -464,6 +521,11 @@ export interface SaludDatos {
   fuentes?: FuenteDato[];
   telares: SaludTelar[];
   cuarentena: LecturaCuarentena[];
+  /**
+   * Lecturas con avisos que NO se descartan (siguen en KPIs). Opcional para
+   * tolerar backends anteriores al campo.
+   */
+  avisos?: LecturaAviso[];
   /** null cuando la fuente no tiene partes (demo). */
   partes: SaludPartes | null;
 }
@@ -530,9 +592,28 @@ export interface LecturaCruda {
   golpesXMinuto: number | null;
   alturaActual: number | null;
   fechaHora: string | null;
+  /**
+   * Banda de consumo atípico (percentil de la cola del telar) calculada por el
+   * backend; null = consumo normal o lectura en paro. Ausente en modo demo.
+   */
+  consumoBanda?: BandaConsumo | null;
+  /** Intensidad 0..1 dentro de la cola, para el degradado amarillo→rojo. */
+  consumoIntensidad?: number;
+}
+
+/** Tramo de la cola de consumo de un telar en que cae una lectura en marcha. */
+export type BandaConsumo = 'alto' | 'inusual' | 'muy';
+
+/** Cortes de consumo (kW) de un telar: dónde empieza cada banda de aviso. */
+export interface UmbralConsumo {
+  alto: number;
+  inusual: number;
+  muy: number;
 }
 
 export interface FiltrosLecturas {
+  /** Nº de lote (n_bloque) exacto a buscar; null = todos. */
+  lote: string | null;
   telarN: string | null;
   /** Código real (u id de la demo) de material; null = todos. */
   material: string | null;
@@ -550,14 +631,17 @@ export interface PaginaLecturas {
   items: LecturaCruda[];
   /** Materiales distintos de toda la fuente, para el filtro de la UI. */
   materiales: (number | string)[];
+  /** Cortes de consumo (kW) por telar, para los tooltips; ausente en demo. */
+  umbralesConsumo?: Record<string, UmbralConsumo>;
 }
 
 /**
  * Parte de trabajo de operario tal cual está en la tabla real
- * `parte_trabajo_mapeada`. `operacion`/`accion` son códigos sin tabla de
- * significados confirmada (solo la operación '4' se deduce de los datos:
- * es la única con paquetes/tablas/m²). En demo, `operacion` lleva el nombre
- * del evento simulado.
+ * `parte_trabajo_mapeada`. `operacion` 1-4 está confirmada por Pulycort
+ * (1 colocar, 2 aserrar, 3 salida, 4 paquetes; la 4 es la única con
+ * paquetes/tablas/m²); la op. 0 no es fase y su detalle está en `accion`
+ * (código aún sin decodificar, igual que los `operacion` 5/10/11). En demo,
+ * `operacion` lleva el nombre del evento simulado.
  */
 export interface ParteTrabajoCrudo {
   id: number;
@@ -584,7 +668,15 @@ export interface ParteTrabajoCrudo {
   /** Si el n_bloque existe en el padrón de máquina (bloque_maquinas); false = avisar. */
   bloqueConocido: boolean;
   accion: string | null;
+  /**
+   * Fecha efectiva. Si el parte venía con el año mal estampado (+1, un lote de
+   * backfill), el backend ya la corrigió (−1 año) y `fechaRemapeada` es true.
+   */
   fechaHora: string | null;
+  /** Valor original de la fecha tal cual en la tabla, antes de corregir el año. */
+  fechaHoraOriginal: string | null;
+  /** true si el backend remapeó el año (señal de alerta en la UI). */
+  fechaRemapeada: boolean;
   idBloque: number | null;
   metrosCubicos: number | null;
   metrosCuadradosTablas: number | null;
@@ -592,6 +684,8 @@ export interface ParteTrabajoCrudo {
 }
 
 export interface FiltrosPartesTrabajo {
+  /** Nº de lote (n_bloque) exacto a buscar; null = todos. */
+  lote: string | null;
   telarN: string | null;
   material: string | null;
   operacion: string | null;
@@ -656,15 +750,23 @@ export interface ParteDiscoPuenteCrudo {
   metro2Entrada: number | null;
   metro2Salida: number | null;
   eficienciaM2: number | null;
+  /**
+   * Fecha efectiva. Si el parte venía con el año mal estampado (+1, un lote de
+   * backfill), el backend ya la corrigió (−1 año) y `fechaRemapeada` es true.
+   */
   fechaHora: string | null;
-  /** true si la lectura es sospechosa (hoy solo: fecha declarada en el futuro). */
+  /** Valor original de la fecha tal cual en la tabla, antes de corregir el año. */
+  fechaHoraOriginal: string | null;
+  /** true si el backend remapeó el año (señal de alerta en la UI). */
+  fechaRemapeada: boolean;
+  /** true si la lectura es sospechosa (hoy solo: fecha futura imposible tras remapear). */
   sospechosa: boolean;
   motivosSospecha: string[];
 }
 
 export interface FiltrosPartesDiscoPuente {
-  /** Nº de disco puente (catálogo dinámico); null = todos. */
-  disco: string | null;
+  /** Nº de lote (n_bloque) exacto a buscar; null = todos. */
+  lote: string | null;
   material: string | null;
   operacion: string | null;
   /** Fechas naturales YYYY-MM-DD inclusivas; null = sin límite. */
@@ -680,7 +782,6 @@ export interface PaginaPartesDiscoPuente {
   offset: number;
   items: ParteDiscoPuenteCrudo[];
   /** Catálogos de toda la fuente para los filtros de la UI. */
-  discosPuente: string[];
   materiales: (number | string)[];
   operaciones: string[];
 }
@@ -723,6 +824,8 @@ export interface ParteReforzadoraCrudo {
 }
 
 export interface FiltrosPartesReforzadora {
+  /** Nº de lote (n_bloque) exacto a buscar; null = todos. */
+  lote: string | null;
   /** Nº de reforzadora (catálogo dinámico); null = todas. */
   reforzadora: string | null;
   material: string | null;
@@ -788,6 +891,16 @@ export interface CoberturaMaquina {
   lotes: number | null;
   /** Última actividad registrada (ISO); null si no aplica/sin datos. */
   ultimaActividad: string | null;
+  /**
+   * Material (id de `product_template`) del último parte; null si no aplica.
+   * Hoy solo lo rellena el disco puente Gómez.
+   */
+  ultimoMaterial: number | null;
+  /**
+   * m² de entrada de los partes de HOY; null si no aplica o sin partes hoy.
+   * Hoy solo el disco puente Gómez. Semántica de m² pendiente de validar.
+   */
+  m2EntradaHoy: number | null;
   /** Nota de integración (p. ej. la discrepancia 3 máquinas físicas vs 1 flujo). */
   nota: string | null;
 }

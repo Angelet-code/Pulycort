@@ -18,6 +18,7 @@ export class ParteReforzadoraController {
 
   @Get()
   list(
+    @Query('lote') lote?: string,
     @Query('reforzadora') reforzadora?: string,
     @Query('material') material?: string,
     @Query('acabado') acabado?: string,
@@ -29,6 +30,7 @@ export class ParteReforzadoraController {
     offset?: number,
   ): Promise<PaginaParteReforzadora> {
     return this.getListaUseCase.execute({
+      lote: lote && /^\d+$/.test(lote.trim()) ? Number(lote.trim()) : null,
       nReforzadora:
         reforzadora && reforzadora.trim() !== '' ? reforzadora.trim() : null,
       material: this.parseEntero('material', material),

@@ -43,16 +43,31 @@ export type ParteDiscoPuente = {
   metro2Salida: number | null;
   eficienciaM2: number | null;
   fecha: Date | null;
+  /**
+   * `fecha_hora` efectiva. Si la fila venía con el año mal estampado (+1 año, un
+   * lote de backfill del 31-dic-2025), aquí va ya corregida (−1 año) y se usa
+   * para ordenar, filtrar y mostrar. Ver `shared/.../fecha-remapeo`.
+   */
   fechaHora: Date | null;
+  /** Valor original de `fecha_hora` tal cual en la tabla, antes de corregir el año. */
+  fechaHoraOriginal: Date | null;
+  /** true si se corrigió el año (señal de alerta: la fecha está remapeada). */
+  fechaRemapeada: boolean;
   createDate: Date | null;
-  /** true si la lectura es sospechosa; hoy solo: fecha declarada en el futuro. */
+  /** true si la lectura es sospechosa; hoy solo: fecha futura imposible (ya tras remapear). */
   sospechosa: boolean;
   motivosSospecha: string[];
 };
 
-/** Filtros y paginación para el listado de partes de disco puente. */
+/**
+ * Filtros y paginación para el listado de partes de disco puente. No se filtra
+ * por `disco_puente_n`: todo `parte_discopuente_mapeada` es del disco puente
+ * Gómez (el único integrado) y el 0/1 es un flag sin significado confirmado, no
+ * el número de máquina.
+ */
 export type FiltrosParteDiscoPuente = {
-  discoPuenteN: string | null;
+  /** Nº de lote (n_bloque) exacto; null = todos. */
+  lote: number | null;
   material: number | null;
   operacion: string | null;
   /** Ventana de fecha_hora; `hasta` es exclusivo (inicio del día siguiente). */
@@ -69,7 +84,6 @@ export type PaginaParteDiscoPuente = {
   offset: number;
   items: ParteDiscoPuente[];
   /** Valores distintos de toda la tabla, para los selectores de filtro. */
-  discosPuente: string[];
   materiales: number[];
   operaciones: string[];
 };

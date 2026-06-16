@@ -10,8 +10,9 @@ import { FabricApi } from '../../core/fabric-api';
 import { FuenteDatosService } from '../../core/fuente-datos.service';
 import { formatFechaHoraAnio, formatNumero } from '../../core/format';
 import { materialPorId } from '../../core/materiales';
-import { PaginaPartesDiscoPuente } from '../../core/models';
+import { PaginaPartesDiscoPuente, ParteDiscoPuenteCrudo } from '../../core/models';
 import { MaterialDotComponent } from '../../shared/material-dot.component';
+import { MaterialSelectComponent } from '../../shared/material-select.component';
 import { MetricaComponent } from '../../shared/metrica.component';
 
 const LIMIT = 50;
@@ -28,22 +29,19 @@ const REFRESCO_MS = 60_000;
 @Component({
   selector: 'fabric-partes-disco-puente',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MaterialDotComponent, MetricaComponent],
+  imports: [MaterialDotComponent, MaterialSelectComponent, MetricaComponent],
   template: `
     <section class="panel">
       <div class="panel-head filtros">
         <div class="fila-filtros">
-          <select
-            class="control"
-            aria-label="Filtrar por disco puente"
-            [value]="disco() ?? ''"
-            (change)="setDisco(valorDe($event) || null)"
-          >
-            <option value="">Todos los discos puente</option>
-            @for (d of discos(); track d) {
-              <option [value]="d">Disco puente {{ d }}</option>
-            }
-          </select>
+          <input
+            type="search"
+            class="control control-busqueda"
+            placeholder="Nº de lote"
+            aria-label="Buscar por nº de lote"
+            [value]="lote() ?? ''"
+            (change)="setLote(valorDe($event) || null)"
+          />
 
           <select
             class="control"
@@ -57,17 +55,11 @@ const REFRESCO_MS = 60_000;
             }
           </select>
 
-          <select
-            class="control"
-            aria-label="Filtrar por material"
-            [value]="material() ?? ''"
-            (change)="setMaterial(valorDe($event) || null)"
-          >
-            <option value="">Todos los materiales</option>
-            @for (m of materiales(); track m) {
-              <option [value]="m">{{ nombreMaterial(m) }}</option>
-            }
-          </select>
+          <fabric-material-select
+            [materiales]="materiales()"
+            [seleccion]="material()"
+            (seleccionChange)="setMaterial($event)"
+          />
 
           <label class="control control-fecha">
             <span class="soft">Desde</span>
@@ -99,6 +91,11 @@ const REFRESCO_MS = 60_000;
         }
       </div>
 
+      <p class="nota-gomez soft">
+        Todos los partes son del disco puente Gómez, el único integrado (Terzago y
+        Cáñigo aún sin PLC).
+      </p>
+
       @if (error()) {
         <div class="banner-error" role="alert">
           ⚠ No se pudo leer de la fuente ({{ error() }}).
@@ -120,9 +117,8 @@ const REFRESCO_MS = 60_000;
             <thead>
               <tr>
                 <th>Fecha y hora</th>
-                <th>Disco puente</th>
                 <th>Operación</th>
-                <th class="derecha">PM / lote</th>
+                <th class="derecha">Nº de lote</th>
                 <th>Material</th>
                 <th>Acabado</th>
                 <th class="derecha">Medidas fuente (cm)</th>
@@ -138,20 +134,11 @@ const REFRESCO_MS = 60_000;
                 <tr>
                   <td class="num">
                     {{ fechaHora(fila.fechaHora) }}
+                    @if (fila.fechaRemapeada) {
+                      <span class="es-remapeada" [title]="tituloRemapeo(fila)">↻ año corregido</span>
+                    }
                     @if (fila.sospechosa) {
                       <span class="aviso-bloque" [title]="fila.motivosSospecha.join(' · ')">⚠</span>
-                    }
-                  </td>
-                  <td>
-                    @if (fila.discoPuenteN !== null) {
-                      <button
-                        type="button"
-                        class="celda-clicable"
-                        (click)="setDisco(fila.discoPuenteN)"
-                        title="Filtrar por el disco puente {{ fila.discoPuenteN }}"
-                      >Disco {{ fila.discoPuenteN }}</button>
-                    } @else {
-                      <span class="soft">—</span>
                     }
                   </td>
                   <td>
@@ -234,10 +221,26 @@ const REFRESCO_MS = 60_000;
     .total {
       font-size: 12.5px;
     }
+    .nota-gomez {
+      margin: 0;
+      font-size: 12px;
+      line-height: 1.4;
+      max-width: 70ch;
+    }
     .aviso-bloque {
       margin-left: 5px;
       color: var(--amber);
       font-size: 11px;
+      cursor: help;
+    }
+    .es-remapeada {
+      margin-left: 6px;
+      padding: 1px 6px;
+      border-radius: 999px;
+      font-size: 10.5px;
+      white-space: nowrap;
+      color: var(--amber);
+      border: 1px solid var(--amber);
       cursor: help;
     }
   `
@@ -248,7 +251,7 @@ export class PartesDiscoPuenteComponent {
 
   readonly formatNumero = formatNumero;
 
-  readonly disco = signal<string | null>(null);
+  readonly lote = signal<string | null>(null);
   readonly material = signal<string | null>(null);
   readonly operacion = signal<string | null>(null);
   readonly desde = signal<string | null>(null);
@@ -257,8 +260,6 @@ export class PartesDiscoPuenteComponent {
   readonly cargando = signal(false);
   readonly error = signal<string | null>(null);
   readonly pagina = signal<PaginaPartesDiscoPuente | null>(null);
-
-  readonly discos = computed(() => this.pagina()?.discosPuente ?? []);
 
   readonly materiales = computed(() => {
     const lista = this.pagina()?.materiales ?? [];
@@ -271,7 +272,7 @@ export class PartesDiscoPuenteComponent {
 
   readonly hayFiltros = computed(
     () =>
-      this.disco() !== null ||
+      this.lote() !== null ||
       this.material() !== null ||
       this.operacion() !== null ||
       this.desde() !== null ||
@@ -283,7 +284,7 @@ export class PartesDiscoPuenteComponent {
     // y refresca cada minuto.
     effect((onCleanup) => {
       const filtros = {
-        disco: this.disco(),
+        lote: this.lote(),
         material: this.material(),
         operacion: this.operacion(),
         desde: this.desde(),
@@ -301,12 +302,12 @@ export class PartesDiscoPuenteComponent {
     return (evento.target as HTMLInputElement | HTMLSelectElement).value;
   }
 
-  setDisco(d: string | null): void {
-    if (this.disco() === d) {
+  setLote(l: string | null): void {
+    if (this.lote() === l) {
       return;
     }
     this.offset.set(0);
-    this.disco.set(d);
+    this.lote.set(l);
   }
 
   setMaterial(m: string | null): void {
@@ -337,7 +338,7 @@ export class PartesDiscoPuenteComponent {
 
   limpiarFiltros(): void {
     this.offset.set(0);
-    this.disco.set(null);
+    this.lote.set(null);
     this.material.set(null);
     this.operacion.set(null);
     this.desde.set(null);
@@ -386,8 +387,20 @@ export class PartesDiscoPuenteComponent {
     return formatFechaHoraAnio(iso);
   }
 
+  /**
+   * Texto de la alerta de fecha remapeada: el parte llegó con el año mal
+   * estampado (+1) en un lote de carga y el backend lo corrigió restando 1 año.
+   */
+  tituloRemapeo(fila: ParteDiscoPuenteCrudo): string {
+    return (
+      `Fecha remapeada: figuraba ${formatFechaHoraAnio(fila.fechaHoraOriginal)} ` +
+      `(año mal estampado en un lote de carga); ` +
+      `corregida a ${formatFechaHoraAnio(fila.fechaHora)} restando 1 año.`
+    );
+  }
+
   private cargar(filtros: {
-    disco: string | null;
+    lote: string | null;
     material: string | null;
     operacion: string | null;
     desde: string | null;

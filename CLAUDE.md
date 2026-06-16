@@ -107,8 +107,9 @@ telares 1/3/4; reloj virtual ×60 en `core/reloj.service.ts`) y la real es `Http
 contra **fabric-backend** (`05_proyectos/fabric/backend/`, NestJS + Prisma 7, puerto 3000), cuyo
 `PrismaFabricRepository` calcula todo desde `produccion_mapeada` y devuelve `null`/"—" para
 lo que la tabla no contiene (m², tablas, merma, roturas) — principio de `VERIFICACION.md`:
-no inventar. Las inferencias del modo real (códigos de incidencia, `consumo` = amperios,
-unidades cm/mm) están pendientes de confirmar en `00_gestion/TAREAS.md`. El validador
+no inventar. Las inferencias del modo real pendientes de confirmar en `00_gestion/TAREAS.md`
+son `consumo` = amperios y las unidades cm/mm; los códigos de incidencia `1`=marcha y
+`2`=paro ya están confirmados (Pulycort 2026-06-16), pero `3`/`4`/`5`/`0` siguen sin mapear. El validador
 (`core/validador.ts` y su copia backend) excluye las lecturas sospechosas de los KPIs.
 Ver su `README.md`.
 

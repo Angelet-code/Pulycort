@@ -81,6 +81,9 @@ export class HttpFabricApi extends FabricApi {
     if (filtros.hasta) {
       params = params.set('hasta', filtros.hasta);
     }
+    if (filtros.lote) {
+      params = params.set('lote', filtros.lote);
+    }
     return this.http.get<PaginaLecturas>(`${FABRIC_API_BASE}/produccion-mapeada`, {
       params
     });
@@ -107,6 +110,9 @@ export class HttpFabricApi extends FabricApi {
     if (filtros.hasta) {
       params = params.set('hasta', filtros.hasta);
     }
+    if (filtros.lote) {
+      params = params.set('lote', filtros.lote);
+    }
     return this.http.get<PaginaPartesTrabajo>(`${FABRIC_API_BASE}/partes-trabajo`, {
       params
     });
@@ -118,9 +124,6 @@ export class HttpFabricApi extends FabricApi {
     let params = new HttpParams()
       .set('limit', String(filtros.limit))
       .set('offset', String(filtros.offset));
-    if (filtros.disco) {
-      params = params.set('disco', filtros.disco);
-    }
     if (filtros.material) {
       params = params.set('material', filtros.material);
     }
@@ -132,6 +135,9 @@ export class HttpFabricApi extends FabricApi {
     }
     if (filtros.hasta) {
       params = params.set('hasta', filtros.hasta);
+    }
+    if (filtros.lote) {
+      params = params.set('lote', filtros.lote);
     }
     return this.http.get<PaginaPartesDiscoPuente>(
       `${FABRIC_API_BASE}/partes-disco-puente`,
@@ -159,6 +165,9 @@ export class HttpFabricApi extends FabricApi {
     }
     if (filtros.hasta) {
       params = params.set('hasta', filtros.hasta);
+    }
+    if (filtros.lote) {
+      params = params.set('lote', filtros.lote);
     }
     return this.http.get<PaginaPartesReforzadora>(
       `${FABRIC_API_BASE}/partes-reforzadora`,

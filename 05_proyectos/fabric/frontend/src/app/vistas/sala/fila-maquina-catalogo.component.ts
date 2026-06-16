@@ -1,6 +1,20 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  input,
+  output
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { FaseProduccion, MaquinaCatalogo } from '../../core/catalogo-maquinas';
+import { CoberturaMaquina } from '../../core/models';
+import { materialPorId } from '../../core/materiales';
+import { formatRelativoFino } from '../../core/format';
+import { RelojService } from '../../core/reloj.service';
+import { EstadoChipComponent } from '../../shared/estado-chip.component';
+import { MaterialDotComponent } from '../../shared/material-dot.component';
+import { MetricaComponent } from '../../shared/metrica.component';
 
 /** Color de acento por fase de la cadena, en la línea del palette de telares. */
 const ACENTO_FASE: Record<FaseProduccion, string> = {
@@ -16,17 +30,33 @@ const NOMBRE_FASE: Record<FaseProduccion, string> = {
 };
 
 /**
+ * Cortes de frescura del último parte del disco puente: como no tiene estado en
+ * vivo, su frescura se infiere de cuándo llegó el último parte, igual que la
+ * última lectura de los telares — verde <10 min, ámbar <2 h, gris ≥2 h. Con la
+ * frescura "fresca" (<10 min) la tarjeta dice "Cortando"; si no, "Último corte".
+ */
+const LECTURA_FRESCA_MIN = 10;
+const LECTURA_TIBIA_MIN = 120;
+/**
+ * Minutos sin parte para que el disco puente deje de estar "En marcha" (badge) y
+ * "Cortando" (2ª línea). Mismo umbral que los telares (1 h, UMBRAL_PAUSA_MS): por
+ * debajo, "En marcha"/"Cortando"; por encima, el chip pasa a "En pausa" (y a
+ * "Descansando" tras 24 h) y la 2ª línea a "Último corte".
+ */
+const SIN_SENAL_MIN = 60;
+
+/**
  * Fila de máquina del catálogo de la nave, con el mismo lenguaje visual que la
  * fila de telar (`fila-maquina`): tarjeta horizontal con ícono de código,
- * nombre, meta y chip de estado; al desplegarla muestra sus parámetros
- * (unidad, fase, código) y su integración. A diferencia del telar no tiene
- * lectura en vivo, así que no inventa estado: los discos puente enlazan a sus
- * partes reales y el resto se marca «sin integrar».
+ * nombre, meta y un valor a la derecha. A diferencia del telar no tiene lectura
+ * en vivo, así que no inventa estado. El disco puente Gómez (único integrado) sí
+ * enseña, como un telar, el material que corta (2ª línea) y sus m² de hoy (a la
+ * derecha); el resto muestra unidad/descripción y su chip de integración.
  */
 @Component({
   selector: 'fabric-fila-maquina-catalogo',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink],
+  imports: [RouterLink, MaterialDotComponent, MetricaComponent, EstadoChipComponent],
   template: `
     <div class="fila" [class.abierta]="abierta()" [style.--acento]="acento()">
       <button
@@ -42,21 +72,54 @@ const NOMBRE_FASE: Record<FaseProduccion, string> = {
           <span class="titulo-linea">
             <span class="nombre">{{ maquina().nombre }}</span>
           </span>
-          <span class="meta">
-            <span class="meta-unidad">{{ maquina().unidad }}</span>
-            <span class="punto-sep" aria-hidden="true">·</span>
-            <span class="meta-desc">{{ maquina().descripcion }}</span>
-          </span>
+          @if (mostrarResumenDisco()) {
+            <span class="meta">
+              <span class="meta-corte">{{ etiquetaCorte() }}:</span>
+              @if (materialId(); as mid) {
+                <fabric-material-dot [materialId]="mid" [tam]="11" />
+                <span class="meta-material">{{ materialNombre() }}</span>
+              } @else {
+                <span class="meta-soft">—</span>
+              }
+            </span>
+          } @else {
+            <span class="meta">
+              <span class="meta-unidad">{{ maquina().unidad }}</span>
+              <span class="punto-sep" aria-hidden="true">·</span>
+              <span class="meta-desc">{{ maquina().descripcion }}</span>
+            </span>
+          }
         </span>
 
         <span class="estado">
-          @if (conPartes()) {
-            <span class="chip chip--cambio">
+          @if (mostrarResumenDisco()) {
+            <span class="estado-top">
+              <span
+                class="m2-hoy"
+                title="m² de entrada de los partes de hoy. La semántica de los m² del disco puente está pendiente de confirmar con TotWare; se muestra en crudo, no como rendimiento."
+              >
+                <span class="m2-cap">m² hoy</span>
+                <fabric-metrica [valor]="m2Valor()" unidad="m²" [decimales]="1" [tam]="16" />
+                <span class="m2-aviso" aria-label="pendiente de validar">⚠</span>
+              </span>
+              <fabric-estado-chip [estado]="estadoDisco()" [inactivoMin]="inactivoMin()" />
+            </span>
+            <span
+              class="ultima-lectura soft"
+              [class.fresca]="tonoLectura() === 'fresca'"
+              [class.tibia]="tonoLectura() === 'tibia'"
+              >{{ ultimaLecturaTexto() }}</span
+            >
+          } @else if (conPartes()) {
+            <span
+              class="chip chip--cambio"
+              title="¡Paciencia! Pronto tendremos la información de esta máquina."
+            >
               <span class="punto" aria-hidden="true"></span>
-              Con partes
+              Integrando
             </span>
           } @else {
-            <span class="chip chip--sindatos">
+            <span class="chip chip--sindatos" title="Sin fuente de datos conectada.">
               <span class="punto" aria-hidden="true"></span>
               Sin integrar
             </span>
@@ -212,6 +275,29 @@ const NOMBRE_FASE: Record<FaseProduccion, string> = {
       font-weight: 600;
       color: var(--text-soft);
     }
+    /* Disco puente Gómez: la 2ª línea es el material, como en la fila de telar. */
+    .meta-corte {
+      flex: none;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+    .meta fabric-material-dot {
+      flex: none;
+    }
+    .meta-material {
+      flex: 0 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      font-weight: 650;
+      color: var(--text);
+    }
+    .meta-soft {
+      flex: none;
+      white-space: nowrap;
+      color: var(--text-soft);
+    }
     .punto-sep {
       flex: none;
       color: var(--text-soft);
@@ -225,6 +311,42 @@ const NOMBRE_FASE: Record<FaseProduccion, string> = {
       flex: none;
       text-align: right;
       align-self: flex-start;
+    }
+    /* Columna derecha al estilo telar: m² de hoy arriba + última actividad. */
+    .estado-top {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+    }
+    .m2-hoy {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 6px;
+      cursor: help;
+    }
+    .m2-cap {
+      flex: none;
+      font-size: 10.5px;
+      font-weight: 650;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--text-soft);
+    }
+    .m2-aviso {
+      align-self: center;
+      color: var(--amber);
+      font-size: 11px;
+    }
+    /* "Hace cuánto" llegó el último parte: verde <10 min, ámbar <2 h, gris ≥2 h. */
+    .ultima-lectura {
+      font-size: 11px;
+      white-space: nowrap;
+    }
+    .ultima-lectura.fresca {
+      color: var(--green-text);
+    }
+    .ultima-lectura.tibia {
+      color: var(--amber-text);
     }
 
     .chevron {
@@ -312,7 +434,11 @@ const NOMBRE_FASE: Record<FaseProduccion, string> = {
   `
 })
 export class FilaMaquinaCatalogoComponent {
+  private readonly reloj = inject(RelojService);
+
   readonly maquina = input.required<MaquinaCatalogo>();
+  /** Cobertura real de la máquina (volumen/material); hoy solo aplica a Gómez. */
+  readonly cobertura = input<CoberturaMaquina | null>(null);
   readonly abierta = input(false);
   readonly alternar = output<void>();
 
@@ -325,4 +451,77 @@ export class FilaMaquinaCatalogoComponent {
       ? 'Tiene partes de trabajo reales, pero todavía sin lectura de estado en vivo.'
       : 'Sin lectura en vivo todavía: pendiente de conectar su fuente de datos.'
   );
+
+  /** El resumen de partes solo se pinta en el disco puente integrado (Gómez). */
+  readonly mostrarResumenDisco = computed(
+    () =>
+      this.conPartes() &&
+      this.maquina().familia === 'disco_puente' &&
+      this.cobertura() !== null
+  );
+
+  /** Id de material (string) del último parte, o null si no hay. */
+  readonly materialId = computed(() => {
+    const m = this.cobertura()?.ultimoMaterial;
+    return m != null ? String(m) : null;
+  });
+  readonly materialNombre = computed(() => {
+    const m = this.cobertura()?.ultimoMaterial;
+    return m != null ? materialPorId(String(m)).nombre : '—';
+  });
+  /** m² de entrada de hoy; null (→ "—") si no hubo partes hoy. */
+  readonly m2Valor = computed(() => this.cobertura()?.m2EntradaHoy ?? null);
+
+  /**
+   * "Cortando" si hay parte en los últimos SIN_SENAL_MIN; si no, "Último corte".
+   * Mismo criterio que el badge (En marcha / Sin señal): el disco puente no tiene
+   * estado en vivo, así que se infiere de la frescura del último parte.
+   */
+  readonly cortando = computed(() => {
+    const minutos = this.minutosDesdeUltimoParte();
+    return minutos !== null && minutos < SIN_SENAL_MIN;
+  });
+  readonly etiquetaCorte = computed(() => (this.cortando() ? 'Cortando' : 'Último corte'));
+
+  /**
+   * Estado para el badge, equivalente al de los telares: "En marcha" si hay parte
+   * reciente (< SIN_SENAL_MIN), "Sin señal" si no. Derivado de la frescura del
+   * parte (no hay marcha/paro en vivo del disco puente).
+   */
+  readonly estadoDisco = computed<'marcha' | 'sin-datos'>(() =>
+    this.cortando() ? 'marcha' : 'sin-datos'
+  );
+
+  /** Minutos desde el último parte; el chip decide En pausa vs Descansando. */
+  readonly inactivoMin = computed(() => this.minutosDesdeUltimoParte());
+
+  /** Texto de frescura del último parte ("Último parte hace X"), como el telar. */
+  readonly ultimaLecturaTexto = computed(() => {
+    const f = this.cobertura()?.ultimaActividad;
+    return f
+      ? `Último parte ${formatRelativoFino(f, this.reloj.ahoraMs())}`
+      : 'Sin partes registrados';
+  });
+
+  /** Tono de la frescura: verde <10 min, ámbar <2 h, gris ≥2 h o sin partes. */
+  readonly tonoLectura = computed<'fresca' | 'tibia' | 'fria'>(() => {
+    const minutos = this.minutosDesdeUltimoParte();
+    if (minutos === null) {
+      return 'fria';
+    }
+    if (minutos < LECTURA_FRESCA_MIN) {
+      return 'fresca';
+    }
+    return minutos < LECTURA_TIBIA_MIN ? 'tibia' : 'fria';
+  });
+
+  /** Minutos desde el último parte de Gómez; null si no hay (o fecha futura). */
+  private minutosDesdeUltimoParte(): number | null {
+    const f = this.cobertura()?.ultimaActividad;
+    if (!f) {
+      return null;
+    }
+    const minutos = (this.reloj.ahoraMs() - new Date(f).getTime()) / 60_000;
+    return minutos >= 0 ? minutos : null;
+  }
 }

@@ -27,6 +27,7 @@ export class ProduccionMapeadaController {
 
   @Get()
   list(
+    @Query('lote') lote?: string,
     @Query('telar') telar?: string,
     @Query('material') material?: string,
     @Query('desde') desde?: string,
@@ -37,6 +38,7 @@ export class ProduccionMapeadaController {
     offset?: number,
   ): Promise<PaginaProduccionMapeada> {
     return this.getListaUseCase.execute({
+      lote: lote && /^\d+$/.test(lote.trim()) ? Number(lote.trim()) : null,
       telarN: telar && telar.trim() !== '' ? telar.trim() : null,
       material: this.parseEntero('material', material),
       desde: this.parseFecha('desde', desde, false),
