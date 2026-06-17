@@ -141,6 +141,22 @@ npm run build      # tsc + vite build
 npm run preview    # 127.0.0.1:4174
 ```
 
+### Fabric — arranque rápido (lanzador `fabric.ps1`)
+
+Para levantar/parar/reiniciar Fabric usa el lanzador único en
+`05_proyectos/fabric/` (idempotente, instala deps solo si faltan, servidores en
+segundo plano, avisa si la BD real es alcanzable). También vía skill `/fabric`.
+
+```powershell
+# desde la raíz del repo
+powershell -NoProfile -ExecutionPolicy Bypass -File "05_proyectos\fabric\fabric.ps1" up
+#   up · backend · frontend · restart [backend|frontend] · stop · status · logs
+```
+
+No arranques los dev servers a mano salvo que el lanzador falle: es más lento y
+propenso a pisar puertos. Si `status` dice que la BD real (host de `DATABASE_URL`)
+no es alcanzable, este PC no está en la red de fábrica → modo **Demo** (no es un bug).
+
 ### Fabric — frontend (desde `05_proyectos/fabric/frontend/`)
 
 ```powershell

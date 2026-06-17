@@ -30,6 +30,37 @@ Si dos fuentes discrepan, conserva la discrepancia y anade una tarea o pregunta 
 - Al iniciar una app nueva, revisar si existen utilidades, conectores, modelos de datos, componentes UI o scripts reutilizables en otros proyectos del repositorio.
 - Reestructurar `05_proyectos/` de forma incremental conforme crezca el numero de apps, priorizando nombres claros, README propios y limites explicitos entre proyectos.
 
+## Levantar apps (rapido, desde cualquier PC)
+
+No arranques los servidores a mano paso a paso (nada de abrir varias terminales,
+`cd backend`, `npm install` "por si acaso", etc.). Cada app que se levanta a
+menudo tiene un lanzador unico e idempotente. Usalo: es mas rapido y evita pisar
+puertos o reinstalar sin necesidad.
+
+### Fabric (backend NestJS :3000 + frontend Angular :4200)
+
+Lanzador: `05_proyectos/fabric/fabric.ps1` (wrapper `fabric.cmd`). Autolocalizado
+(funciona desde cualquier carpeta y cualquier PC), no relanza si ya corre,
+instala dependencias solo si falta `node_modules` y deja los servidores en
+segundo plano (logs en `05_proyectos/fabric/.logs/`).
+
+```powershell
+# desde la raiz del repo
+powershell -NoProfile -ExecutionPolicy Bypass -File "05_proyectos\fabric\fabric.ps1" up
+#   up            arranca backend + frontend (por defecto)
+#   restart backend   reinicia solo el backend (lo mas pedido)
+#   restart           reinicia todo;  stop / status / logs
+#   backend | frontend   arranca solo uno
+# objetivo en restart/stop/logs: all (def.) | backend(be) | frontend(fe)
+```
+
+Para humanos / cmd: `05_proyectos\fabric\fabric.cmd up`. (Tambien hay skill `/fabric`.)
+
+El `status` final avisa si la BD real (el host de `DATABASE_URL` del `.env`) es
+alcanzable. Si dice **NO alcanzable**, este PC no esta en la red de la fabrica: el
+modo **Real** dara HTTP 500 y hay que usar el switch **Demo**. Eso NO es un bug
+del backend; es red.
+
 ## Contexto de negocio
 
 Pulycort trabaja piedra natural/marmol y necesita ordenar datos maestros, operaciones de produccion, trazabilidad de bloque-tabla-losa, acabados, tarifas, clientes/proveedores y su relacion con Odoo.

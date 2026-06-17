@@ -43,6 +43,32 @@ fuente confirmado.
 
 ## Arranque
 
+### Rápido (recomendado) — lanzador `fabric.ps1`
+
+Un solo script levanta backend + frontend desde cualquier carpeta y cualquier PC.
+Es idempotente (si ya corre, no relanza), instala dependencias solo si falta
+`node_modules`, no reconstruye y deja los servidores en segundo plano (logs en
+`.logs/`):
+
+```powershell
+# desde esta carpeta (o con ruta completa desde cualquier sitio)
+.\fabric.cmd up                 # arranca backend + frontend
+.\fabric.cmd restart backend    # reinicia solo el backend (lo más habitual)
+.\fabric.cmd status             # qué está corriendo + ¿BD real alcanzable?
+.\fabric.cmd stop               # para todo
+.\fabric.cmd logs backend       # últimas líneas de log
+```
+
+Comandos: `up · backend · frontend · restart [all|backend|frontend] · stop [...] ·
+status · logs [...]`. Si no puedes usar `.cmd`, llama directo al `.ps1`:
+`powershell -NoProfile -ExecutionPolicy Bypass -File .\fabric.ps1 up`.
+
+El `status` final indica si la BD real (el host de `DATABASE_URL` del `.env`) es
+alcanzable: si **no** lo es, este PC no está en la red de la fábrica y el modo
+**Real** dará 500 — usa el switch **Demo** (no es un fallo del backend).
+
+### Manual (lo que hace el lanzador por dentro)
+
 Frontend (desde `frontend/`):
 
 ```powershell
