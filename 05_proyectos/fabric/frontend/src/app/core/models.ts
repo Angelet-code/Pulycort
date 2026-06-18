@@ -407,6 +407,28 @@ export interface JornadaTelar {
   segmentos: SegmentoEstado[];
 }
 
+/**
+ * Rendimiento m²/m³ desglosado por grosor de corte de la tabla. El rendimiento
+ * depende sobre todo del grosor (a menor grosor, más m² por m³: el techo físico
+ * es ~1 m³ ÷ grosor), así que el agregado único mezcla cortes no comparables.
+ * Cada fila agrega los lotes con parte real de ese grosor con el mismo criterio
+ * que `rendimientoM2M3`: Σ m² del parte ÷ Σ m³ de bloque.
+ */
+export interface RendimientoEspesor {
+  /** Grosor de corte de la tabla en cm (clave del grupo, 1 decimal). */
+  espesorCorteCm: number;
+  /** m²/m³ medio del grupo; null si su base es toda de medidas dudosas. */
+  rendimientoM2M3: number | null;
+  /** Lotes con parte real y m³ que entran en este grosor. */
+  bloques: number;
+  /** De esos, los de medidas dudosas (no se restan; el sesgo solo es por defecto). */
+  bloquesDudosos: number;
+  /** Σ m² reales de los partes del grupo. */
+  m2: number;
+  /** Σ m³ de los bloques del grupo. */
+  m3: number;
+}
+
 export interface Estadisticas {
   rango: RangoEstadisticas;
   /** Agregación de `produccionPorDia`: por día, semana o mes según el rango. */
@@ -425,6 +447,8 @@ export interface Estadisticas {
   bloquesRendimiento: number;
   /** De esa base, bloques cuyas medidas de máquina no encajan con su parte. */
   bloquesRendimientoDudosos: number;
+  /** Desglose de `rendimientoM2M3` por grosor de corte, ordenado por grosor. */
+  rendimientoPorEspesor: RendimientoEspesor[];
   mermaMediaPct: number | null;
   pctMarchaGlobal: number;
   pctParoGlobal: number;
@@ -564,6 +588,120 @@ export interface PaginaPartes {
   total: number;
   /** Página devuelta (los más recientes primero). */
   partes: ParteTrabajo[];
+}
+
+/**
+ * Una de las fuentes de medida de un bloque, en METROS. Cada dimensión es null
+ * si la fuente no la trae; `volumenM3` solo con las tres. `imposible` = sigue
+ * fuera de rango físico tras normalizar cm→m. Espejo de backend.
+ */
+export interface MedidaBloqueFuente {
+  largoM: number | null;
+  altoM: number | null;
+  gruesoM: number | null;
+  volumenM3: number | null;
+  imposible: boolean;
+}
+
+/** Una lectura del telar del lote, con las medidas de bloque (consola, cm) de esa lectura. */
+export interface LecturaBloqueDudosa {
+  lectura: LecturaTelar;
+  largoCm: number;
+  altoCm: number;
+  gruesoCm: number;
+}
+
+/**
+ * Un bloque/lote con medidas DUDOSAS: reúne todas sus fuentes de medida
+ * (proveedor / fábrica-MRP / consola del telar / parte) y qué pasó en el telar,
+ * para diagnosticar el origen del ruido del dato. Espejo de backend.
+ */
+export interface BloqueDudoso {
+  id: string;
+  pmLote: number;
+  telarId: number;
+  telarNombre: string;
+  inicioCorte: string;
+  finCorte: string | null;
+  enCurso: boolean;
+  materialId: string;
+  /** Operarios del lote (nombres resueltos), de las lecturas del run. */
+  operarios: string[];
+
+  motivos: string[];
+  medidasIncoherentes: boolean;
+  volumenIncompatibleParte: boolean;
+  volumenImposible: boolean;
+  pmDuplicado: boolean;
+  parteEnOtroTelar: boolean;
+
+  inventario: {
+    fuente: 'alta' | 'stock';
+    proveedor: MedidaBloqueFuente;
+    fabrica: MedidaBloqueFuente;
+    mermaPct: number | null;
+    bloques: number;
+  } | null;
+
+  /** Medida de consola del telar, en metros (misma forma que proveedor/fábrica). */
+  consola: MedidaBloqueFuente;
+  /**
+   * Nº de lote (PM) del bloque cortado justo antes en este mismo telar: la consola
+   * arrastró su valor al empezar este corte (verificado: la 1ª lectura del run =
+   * la última del anterior). null = sin run anterior en la ventana analizada.
+   */
+  loteBloqueAnterior: number | null;
+
+  horasMarcha: number;
+  horasParo: number;
+  numParos: number;
+  numLecturas: number;
+  numLecturasConAlertas: number;
+  numLecturasSospechosas: number;
+  paquetes: ResumenPaquetes | null;
+  espesorCorteCm: number | null;
+  volumenInventarioM3: number | null;
+  rendimientoM2M3: number | null;
+  tablasPrevistas: number | null;
+  m2Previstos: number | null;
+
+  // Señales de coherencia física (para detectar errores).
+  /** m³ de piedra que salió en tabla = m² del parte × espesor de corte. */
+  piedraCortadaM3: number | null;
+  /** Merma de aserrado %: (m³ bloque − piedra cortada)/m³ bloque. Negativa = imposible. */
+  mermaAserradoPct: number | null;
+  /** Techo físico del rendimiento a este grosor: 1/grosor (= 100/espesorCorteCm). */
+  techoRendimientoM2M3: number | null;
+  /** Rendimiento como % del techo físico. >100 % = físicamente imposible. */
+  rendimientoSobreTechoPct: number | null;
+  /** Nº de medidas de bloque distintas que dio la consola durante el corte. */
+  consolaMedidasDistintas: number;
+  /** La medida de consola cambió durante el corte (>1 distinta): ruido/heredada. */
+  consolaInestable: boolean;
+
+  lecturas: LecturaBloqueDudosa[];
+}
+
+export interface MedidasDudosasPagina {
+  telarId: number | null;
+  /** Ventana efectiva analizada (ISO): desde, y hasta exclusivo o "ahora". */
+  desde: string;
+  hasta: string;
+  /** Nº total de bloques dudosos en la ventana (antes de recortar). */
+  total: number;
+  /** Nº total de lotes aserrados en la ventana (denominador: dudosos de cuántos). */
+  totalBloques: number;
+  /** true si se recortó la lista. */
+  truncado: boolean;
+  /** Conteo de bloques por bandera sobre el TOTAL (no solo los devueltos). */
+  conteo: {
+    medidasIncoherentes: number;
+    volumenIncompatibleParte: number;
+    volumenImposible: number;
+    pmDuplicado: number;
+    parteEnOtroTelar: number;
+  };
+  bloques: BloqueDudoso[];
 }
 
 /**
@@ -1017,4 +1155,76 @@ export interface InventarioVistaConjunta {
   generadoEn: string;
   /** Una entrada por forma, en orden [bloques, tablas, losas]. */
   formas: ResumenInventario[];
+}
+
+/**
+ * Tabla en existencias del inventario. Gemelo del bloque y, como él, une dos eras
+ * (lo hace el backend/mock): `fuente='stock'` = existencias on-hand de Odoo
+ * (`stock_lot`+`stock_quant`, `type_product_lot='tables'`) y `fuente='alta'` =
+ * paquete de tablas dado de entrada en `lot_tables_creation` aún sin reflejo en el
+ * stock. El backend resuelve el material contra `product_template` (sin el prefijo
+ * de forma "M2 TABLA"/"M3 BLOQUE"). En demo los valores salen de la simulación.
+ *
+ * Las medidas (`largo`/`alto`/`grueso`) llegan en metros (el backend normaliza
+ * cm→m): largo/alto limpios, el `grueso` con unidades inconsistentes entre lotes
+ * (semántica a confirmar). `paquetes` (`packages_tables`) y `nTablas`
+ * (`qty_creation` en stock / `n_tables` en el alta) llegan en crudo. `m2`: en las
+ * altas = `n_tables` × largo × alto (recuento explícito); en el stock on-hand va
+ * `null` hasta confirmar el recuento (no se inventa). La demo lo trae como anticipo.
+ */
+export type TipoTabla = 'tables' | 'slabs';
+
+export interface TablaInventario {
+  id: number;
+  /**
+   * Era/origen del dato: `stock` = existencias on-hand de Odoo; `alta` = paquete
+   * de tablas recibido (`lot_tables_creation`) aún sin existencias en el stock.
+   * Opcional para tolerar backends/demo anteriores al campo.
+   */
+  fuente?: 'stock' | 'alta';
+  /** Nº de lote de la tabla (`stock_lot.name` o `lot_tables_creation.name`). */
+  name: string | null;
+  /** Id de producto del material (en demo, id de la simulación). */
+  material: number | string | null;
+  /** Nombre legible del material, ya resuelto por el backend/mock (sin "M3 BLOQUE"). */
+  materialNombre: string | null;
+  /** Clasificación del lote (`type_product_lot`): tablas o losas. */
+  tipo: TipoTabla;
+  /** Ubicación física on-hand (`stock_location.complete_name`), p. ej. "WH/Stock". */
+  ubicacion: string | null;
+  /** Medidas del lote en metros (normalizadas); el grueso con unidad inconsistente entre lotes, a confirmar. */
+  largo: number | null;
+  alto: number | null;
+  grueso: number | null;
+  /** Nº de paquetes del lote (`packages_tables`); crudo, significado a confirmar. */
+  paquetes: number | null;
+  /** Nº de tablas del lote (`qty_creation` en stock / `n_tables` en el alta); crudo. */
+  nTablas: number | null;
+  /** Acabado del lote (`finished`); código en crudo. */
+  acabado: string | null;
+  /** Superficie en m²: en altas = nº de tablas × largo × alto; null en stock (recuento ambiguo). */
+  m2: number | null;
+  createDate: string | null;
+  writeDate: string | null;
+}
+
+export interface FiltrosInventarioTablas {
+  /** Nombre de material (casa todas sus variantes de id de Odoo); null = todos. */
+  material: string | null;
+  /** Búsqueda por nº de lote (`name`); null = sin búsqueda. */
+  q: string | null;
+  /** Fechas naturales YYYY-MM-DD inclusivas; null = sin límite. */
+  desde: string | null;
+  hasta: string | null;
+  limit: number;
+  offset: number;
+}
+
+export interface PaginaInventarioTablas {
+  total: number;
+  limit: number;
+  offset: number;
+  items: TablaInventario[];
+  /** Nombres de material distintos (deduplicados) para el desplegable. */
+  materiales: string[];
 }

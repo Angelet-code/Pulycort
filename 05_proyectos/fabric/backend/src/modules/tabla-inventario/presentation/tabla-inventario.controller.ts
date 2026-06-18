@@ -6,26 +6,15 @@ import {
   ParseIntPipe,
   Query,
 } from '@nestjs/common';
-import { GetBloquesInventarioUseCase } from '../application/get-bloques-inventario.use-case';
-import { GetResumenInventarioUseCase } from '../application/get-resumen-inventario.use-case';
-import { PaginaBloqueInventario } from '../domain/bloque-inventario.entity';
-import { InventarioVistaConjunta } from '../../../shared/domain/inventario-resumen';
+import { GetTablasInventarioUseCase } from '../application/get-tablas-inventario.use-case';
+import { PaginaTablaInventario } from '../domain/tabla-inventario.entity';
 
 const LIMIT_MAXIMO = 200;
 const LIMIT_POR_DEFECTO = 50;
 
-@Controller('bloques')
-export class BloqueInventarioController {
-  constructor(
-    private readonly getListaUseCase: GetBloquesInventarioUseCase,
-    private readonly getResumenUseCase: GetResumenInventarioUseCase,
-  ) {}
-
-  /** Existencias por material para el mapa de inventario (treemap). */
-  @Get('resumen')
-  resumen(): Promise<InventarioVistaConjunta> {
-    return this.getResumenUseCase.execute();
-  }
+@Controller('tablas')
+export class TablaInventarioController {
+  constructor(private readonly getListaUseCase: GetTablasInventarioUseCase) {}
 
   @Get()
   list(
@@ -37,7 +26,7 @@ export class BloqueInventarioController {
     limit?: number,
     @Query('offset', new DefaultValuePipe(0), ParseIntPipe)
     offset?: number,
-  ): Promise<PaginaBloqueInventario> {
+  ): Promise<PaginaTablaInventario> {
     return this.getListaUseCase.execute({
       material: material && material.trim() !== '' ? material.trim() : null,
       q: q && q.trim() !== '' ? q.trim() : null,

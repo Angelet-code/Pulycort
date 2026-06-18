@@ -378,6 +378,28 @@ export interface JornadaTelar {
   segmentos: SegmentoEstado[];
 }
 
+/**
+ * Rendimiento m²/m³ desglosado por grosor de corte de la tabla. El rendimiento
+ * depende sobre todo del grosor (a menor grosor, más m² por m³: el techo físico
+ * es ~1 m³ ÷ grosor), así que el agregado único mezcla cortes no comparables.
+ * Cada fila agrega los lotes con parte real de ese grosor con el mismo criterio
+ * que `rendimientoM2M3`: Σ m² del parte ÷ Σ m³ de bloque.
+ */
+export interface RendimientoEspesor {
+  /** Grosor de corte de la tabla en cm (clave del grupo, 1 decimal). */
+  espesorCorteCm: number;
+  /** m²/m³ medio del grupo; null si su base es toda de medidas dudosas. */
+  rendimientoM2M3: number | null;
+  /** Lotes con parte real y m³ que entran en este grosor. */
+  bloques: number;
+  /** De esos, los de medidas dudosas (no se restan; el sesgo solo es por defecto). */
+  bloquesDudosos: number;
+  /** Σ m² reales de los partes del grupo. */
+  m2: number;
+  /** Σ m³ de los bloques del grupo. */
+  m3: number;
+}
+
 export interface Estadisticas {
   rango: RangoEstadisticas;
   /** Agregación de `produccionPorDia`: por día, semana o mes según el rango. */
@@ -394,6 +416,8 @@ export interface Estadisticas {
   bloquesRendimiento: number;
   /** De esa base, bloques cuyas medidas de máquina no encajan con su parte. */
   bloquesRendimientoDudosos: number;
+  /** Desglose de `rendimientoM2M3` por grosor de corte, ordenado por grosor. */
+  rendimientoPorEspesor: RendimientoEspesor[];
   mermaMediaPct: number | null;
   pctMarchaGlobal: number;
   pctParoGlobal: number;
@@ -517,4 +541,157 @@ export interface PaginaPartes {
   hasta: string;
   total: number;
   partes: ParteTrabajo[];
+}
+
+/**
+ * Una de las fuentes de medida de un bloque, normalizada a METROS. Cada
+ * dimensión es null si la fuente no la trae; `volumenM3` solo si están las tres
+ * y son > 0. `imposible` = la medida sigue fuera de rango físico tras normalizar
+ * cm→m (corrupción real). Sirve para comparar lado a lado proveedor / fábrica /
+ * consola del telar y localizar de dónde sale el descuadre.
+ */
+export interface MedidaBloqueFuente {
+  largoM: number | null;
+  altoM: number | null;
+  gruesoM: number | null;
+  volumenM3: number | null;
+  imposible: boolean;
+}
+
+/**
+ * Una lectura del telar del bloque, con las medidas de bloque que llevaba esa
+ * lectura (consola, cm). La lectura ya trae su `sospechosa`/`motivosSospecha`/
+ * `alertas` del validador, así que la UI las pinta directamente. Sirve para ver
+ * "qué pasó" lectura a lectura (cuándo cambió la medida de consola, qué
+ * incidencias, paros, consumo, altura…). No se deja nada fuera.
+ */
+export interface LecturaBloqueDudosa {
+  lectura: LecturaTelar;
+  /** Medidas de bloque tecleadas en esa lectura (consola). 0 si la lectura no las trae. */
+  largoCm: number;
+  altoCm: number;
+  gruesoCm: number;
+}
+
+/**
+ * Un bloque/lote cuyas medidas son DUDOSAS: reúne TODAS sus fuentes de medida
+ * (proveedor de inventario, fábrica/MRP, consola del telar y parte de trabajo) y
+ * qué pasó en el telar con ese lote, para diagnosticar el origen del ruido del
+ * dato. Entra en la lista si tiene al menos una bandera de medida/identidad
+ * activa (las alertas de lectura no lo incluyen, pero sí se muestran en su
+ * detalle). Todas las cifras con su unidad; lo que no consta va a null.
+ */
+export interface BloqueDudoso {
+  // ── Identidad ──
+  /** = CicloBloque.id (`${telarId}-${pm}-${desdeMs}`). */
+  id: string;
+  /** Nº de lote (PM = n_bloque, identificador único de bloque 1:1). */
+  pmLote: number;
+  telarId: number;
+  telarNombre: string;
+  inicioCorte: string;
+  finCorte: string | null;
+  enCurso: boolean;
+  materialId: string;
+  /** Operarios del lote (nombres resueltos), de las lecturas del run. */
+  operarios: string[];
+
+  // ── Por qué es dudoso ──
+  /** Etiquetas legibles de las banderas activas (para la columna "Motivos"). */
+  motivos: string[];
+  medidasIncoherentes: boolean;
+  volumenIncompatibleParte: boolean;
+  volumenImposible: boolean;
+  pmDuplicado: boolean;
+  parteEnOtroTelar: boolean;
+
+  // ── Fuentes 1 y 2: inventario (alta/stock de Odoo) ──
+  /**
+   * Medidas de alta del bloque en el inventario. null = el PM no está dado de
+   * alta (ni en `lot_block_creation` ni en `stock_lot`): sin entrada que comparar.
+   */
+  inventario: {
+    /** De qué era salió: alta reciente (`lot_block_creation`) o stock (`stock_lot`). */
+    fuente: 'alta' | 'stock';
+    /** Medida del proveedor (`*_supplier`). */
+    proveedor: MedidaBloqueFuente;
+    /** Medida de fábrica/MRP (`*_mrp`); suele faltar hasta procesar el bloque. */
+    fabrica: MedidaBloqueFuente;
+    /** Merma de compra %: (m³ proveedor − m³ fábrica)/m³ proveedor; null sin las dos. */
+    mermaPct: number | null;
+    /** Nº de filas del PM en `lot_block_creation` (debe ser 1; >1 = duplicado). */
+    bloques: number;
+  } | null;
+
+  // ── Fuente 3: consola del telar (produccion_mapeada) ──
+  /**
+   * Medida del bloque según la consola del telar, en METROS (misma forma que
+   * proveedor/fábrica para compararlas lado a lado). La consola hereda la medida
+   * del bloque anterior = ruido; por eso suele no cuadrar con el alta.
+   */
+  consola: MedidaBloqueFuente;
+  /**
+   * Nº de lote (PM) del bloque cortado JUSTO ANTES en este mismo telar: al empezar
+   * este corte la consola arrastraba su valor (no se reinicia al cambiar de bloque),
+   * verificado contra datos reales —la 1ª lectura de este run = la última del run
+   * anterior—; por eso la medida de consola no cuadra con el alta. Es el run
+   * inmediatamente previo en el tiempo, con lote distinto, dentro de la ventana
+   * analizada. null = no hay run anterior en la ventana (primer corte cargado de
+   * ese telar): no se inventa cuál.
+   */
+  loteBloqueAnterior: number | null;
+
+  // ── Fuente 4: producción + parte de trabajo ──
+  horasMarcha: number;
+  horasParo: number;
+  numParos: number;
+  numLecturas: number;
+  numLecturasConAlertas: number;
+  numLecturasSospechosas: number;
+  paquetes: ResumenPaquetes | null;
+  espesorCorteCm: number | null;
+  /** m³ "oficial" del lote (el de `CicloBloque.volumenM3`, del inventario). */
+  volumenInventarioM3: number | null;
+  rendimientoM2M3: number | null;
+  tablasPrevistas: number | null;
+  m2Previstos: number | null;
+
+  // ── Señales de coherencia física (para detectar errores) ──
+  /** m³ de piedra que salió en tabla = m² del parte × espesor de corte. */
+  piedraCortadaM3: number | null;
+  /** Merma de aserrado %: (m³ bloque − piedra cortada)/m³ bloque. Negativa = imposible. */
+  mermaAserradoPct: number | null;
+  /** Techo físico del rendimiento a este grosor: 1/grosor (= 100/espesorCorteCm) m²/m³. */
+  techoRendimientoM2M3: number | null;
+  /** Rendimiento como % del techo físico. >100 % = físicamente imposible. */
+  rendimientoSobreTechoPct: number | null;
+  /** Nº de medidas de bloque distintas que dio la consola durante el corte. */
+  consolaMedidasDistintas: number;
+  /** La medida de consola cambió durante el corte (>1 distinta): ruido/heredada. */
+  consolaInestable: boolean;
+
+  // ── Detalle fino: todas las lecturas del lote en ese telar ──
+  lecturas: LecturaBloqueDudosa[];
+}
+
+export interface MedidasDudosasPagina {
+  telarId: number | null;
+  /** Ventana efectiva analizada (ISO): desde, y hasta exclusivo o "ahora". */
+  desde: string;
+  hasta: string;
+  /** Nº total de bloques dudosos en la ventana (antes de recortar). */
+  total: number;
+  /** Nº total de lotes aserrados en la ventana (denominador: dudosos de cuántos). */
+  totalBloques: number;
+  /** true si se recortó la lista (total > bloques devueltos). */
+  truncado: boolean;
+  /** Conteo de bloques por bandera sobre el TOTAL (no solo los devueltos). */
+  conteo: {
+    medidasIncoherentes: number;
+    volumenIncompatibleParte: number;
+    volumenImposible: number;
+    pmDuplicado: number;
+    parteEnOtroTelar: number;
+  };
+  bloques: BloqueDudoso[];
 }

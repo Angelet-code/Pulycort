@@ -109,6 +109,64 @@ model LotBlockCreation {
   @@map("lot_block_creation")
 }
 
+// Log VIVO de altas de TABLAS cortadas (gemelo de `lot_block_creation` para
+// tablas): cada alta es un paquete/lote de tablas dado de entrada, con su nº de
+// tablas (`n_tables`), paquetes (`packages_tables`), proveedor (`ref`) y medidas
+// de proveedor/fábrica (en metros, con la misma corrupción de unidades del
+// grueso que el resto del inventario). Es la fuente que faltaba: la vista
+// `/tablas` solo miraba `stock_lot` on-hand (7 lotes) e infracontaba; aquí están
+// las 115 altas. El material vive en DOS eras como en bloques: la nueva en
+// `product_id_tmpl` ("M2 TABLA <piedra>") y la antigua en `product_id` (código de
+// telar) con `ref`=proveedor. Las losas tienen su propia tabla `lot_slabs_creation`
+// (aún sin conectar). Ver 00_gestion/TAREAS.md y la entidad del módulo.
+model LotTablesCreation {
+  id             Int       @id @default(autoincrement())
+  productId      Int?      @map("product_id")
+  productIdTmpl  Int?      @map("product_id_tmpl")
+  name           String?
+  ref            String?
+  nTables        Int?      @map("n_tables")
+  packagesTables Int?      @map("packages_tables")
+  finished       String?
+  deliveryDone   Boolean?  @map("delivery_done")
+  largoSupplier  Float?    @map("largo_supplier")
+  altoSupplier   Float?    @map("alto_supplier")
+  gruesoSupplier Float?    @map("grueso_supplier")
+  largoMrp       Float?    @map("largo_mrp")
+  altoMrp        Float?    @map("alto_mrp")
+  gruesoMrp      Float?    @map("grueso_mrp")
+  createDate     DateTime? @map("create_date") @db.Timestamp(6)
+  writeDate      DateTime? @map("write_date") @db.Timestamp(6)
+
+  @@map("lot_tables_creation")
+}
+
+// Log VIVO de altas de LOSAS (formato pequeño, p. ej. 60×30 / 60×40 cm): gemelo
+// de `lot_tables_creation` pero para losas, con `n_slabs` en vez de `n_tables` y
+// sin `packages_tables`. Misma doble era de material (nueva `product_id_tmpl`
+// "M2 LOSA <piedra>", antigua `product_id`). Alimenta la forma "Losas" del treemap
+// de inventario (m² = n_slabs × largo × alto). Ver el módulo `tabla-inventario`.
+model LotSlabsCreation {
+  id             Int       @id @default(autoincrement())
+  productId      Int?      @map("product_id")
+  productIdTmpl  Int?      @map("product_id_tmpl")
+  name           String?
+  ref            String?
+  nSlabs         Int?      @map("n_slabs")
+  finished       String?
+  deliveryDone   Boolean?  @map("delivery_done")
+  largoSupplier  Float?    @map("largo_supplier")
+  altoSupplier   Float?    @map("alto_supplier")
+  gruesoSupplier Float?    @map("grueso_supplier")
+  largoMrp       Float?    @map("largo_mrp")
+  altoMrp        Float?    @map("alto_mrp")
+  gruesoMrp      Float?    @map("grueso_mrp")
+  createDate     DateTime? @map("create_date") @db.Timestamp(6)
+  writeDate      DateTime? @map("write_date") @db.Timestamp(6)
+
+  @@map("lot_slabs_creation")
+}
+
 // Catálogo de productos de Odoo. Se usa para resolver el nombre del material del
 // inventario: `stock_lot.product_id` no guarda el nombre, solo un id que apunta
 // aquí (o a una variante `product_product` que cuelga de aquí). Conviven dos

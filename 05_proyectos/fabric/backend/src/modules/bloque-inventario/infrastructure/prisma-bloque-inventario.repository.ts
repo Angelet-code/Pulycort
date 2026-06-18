@@ -6,19 +6,23 @@ import {
   volumenBloqueM3,
 } from '../../../shared/domain/medidas-bloque';
 import {
+  MaterialNombresResolver,
+  etiquetaMaterial,
+} from '../../../shared/infrastructure/odoo/material-nombres.resolver';
+import {
   BloqueInventario,
   FiltrosBloqueInventario,
   PaginaBloqueInventario,
   TipoBloque,
 } from '../domain/bloque-inventario.entity';
 import {
-  FormaInventario,
+  AcumuladorMaterial,
   InventarioVistaConjunta,
-  ResumenInventario,
-} from '../domain/resumen-inventario.entity';
+  construirResumen,
+  formaPendiente,
+} from '../../../shared/domain/inventario-resumen';
 import { BloqueInventarioRepository } from '../domain/bloque-inventario.repository';
 
-const TTL_CATALOGOS_MS = 5 * 60_000;
 const TTL_RESUMEN_MS = 30_000;
 /** La lista unida (stock + altas) cambia poco; se cachea unos segundos. */
 const TTL_LISTA_MS = 30_000;
@@ -103,76 +107,6 @@ function mermaCompra(
   return ((sup.m3 - mrp.m3) / sup.m3) * 100;
 }
 
-/**
- * Existencias de un material a partir de su acumulador, ordenadas de mayor a
- * menor y con los totales de la forma. Redondea el m³ a 2 decimales.
- */
-function construirResumen(
-  forma: FormaInventario,
-  unidad: string,
-  porMaterial: Map<string, { cantidad: number; piezas: number }>,
-): ResumenInventario {
-  const materiales = [...porMaterial.entries()]
-    .map(([material, v]) => ({
-      material,
-      cantidad: Math.round(v.cantidad * 100) / 100,
-      piezas: v.piezas,
-    }))
-    .sort((a, b) => b.cantidad - a.cantidad);
-  return {
-    forma,
-    unidad,
-    pendiente: false,
-    totalCantidad: Math.round(materiales.reduce((s, m) => s + m.cantidad, 0) * 100) / 100,
-    totalPiezas: materiales.reduce((s, m) => s + m.piezas, 0),
-    materiales,
-  };
-}
-
-/**
- * Texto del nombre de un producto de Odoo. `product_template.name` es jsonb
- * traducido ({en_US, es_ES}); preferimos español. Tolera el caso de un name
- * guardado como texto plano por si cambia el despliegue de Odoo.
- */
-function textoNombre(name: Prisma.JsonValue | null | undefined): string | null {
-  if (name == null) {
-    return null;
-  }
-  if (typeof name === 'string') {
-    return name;
-  }
-  if (typeof name === 'object' && !Array.isArray(name)) {
-    const traducciones = name as Record<string, unknown>;
-    const valor =
-      traducciones['es_ES'] ??
-      traducciones['en_US'] ??
-      Object.values(traducciones)[0];
-    return typeof valor === 'string' ? valor : null;
-  }
-  return null;
-}
-
-/**
- * Normaliza el nombre de material quitando el prefijo "M3 BLOQUE" del producto
- * de compra a granel ("M3 BLOQUE MARFIL" → "MARFIL"). Es solo presentación.
- */
-function limpiarNombreMaterial(nombre: string | null): string | null {
-  if (nombre === null) {
-    return null;
-  }
-  const limpio = nombre.replace(/^M3\s+BLOQUE\s+/i, '').trim();
-  return limpio === '' ? null : limpio;
-}
-
-/**
- * Etiqueta de material para mostrar/filtrar: el nombre resuelto o, si no hay
- * fila en `product_template`, "Material {id}". Única fuente del fallback (la
- * usan el catálogo, el filtro y cada fila), para que el frontend no lo recomponga.
- */
-function etiquetaMaterial(id: number, nombres: Map<number, string>): string {
-  return nombres.get(id) ?? `Material ${id}`;
-}
-
 /** Normaliza `type_product_lot` al tipo de dominio (siempre uno de los dos). */
 function tipoBloque(valor: string | null): TipoBloque {
   return valor === 'block' ? 'block' : 'othermaterial';
@@ -186,15 +120,12 @@ export class PrismaBloqueInventarioRepository implements BloqueInventarioReposit
   private resumenCache: { en: number; data: InventarioVistaConjunta } | null = null;
   /** PM/bloques consumidos (aserrado/salida/producción/disco-puente). */
   private consumoCache: { en: number; set: Set<number> } | null = null;
-  /**
-   * Nombre de material por id de producto (rara vez cambia; cacheado, con caché
-   * negativa para los ids sin fila y TTL para que un alta tardía acabe
-   * resolviéndose sin reiniciar el proceso).
-   */
-  private readonly nombreProductoCache = new Map<number, string | null>();
-  private nombreProductoCacheEn = 0;
+  /** Resuelve el nombre de material de cada id de producto (Odoo); caché propia. */
+  private readonly resolverNombres: MaterialNombresResolver;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {
+    this.resolverNombres = new MaterialNombresResolver(prisma);
+  }
 
   async findMany(
     filtros: FiltrosBloqueInventario,
@@ -252,8 +183,9 @@ export class PrismaBloqueInventarioRepository implements BloqueInventarioReposit
   /**
    * Existencias por material para el mapa de inventario. Agrega la lista unida
    * (stock on-hand + altas recientes) sumando el m³ del proveedor por nombre de
-   * material. Tablas y losas aún no tienen fuente conectada: van como
-   * `pendiente`, vacías — sin inventar nada. Cacheado (TTL corto).
+   * material. La forma `tablas` la stubea como `pendiente` y la rellena el
+   * use-case del resumen con el inventario de tablas (no acopla este repo a esa
+   * fuente); `losas` sigue sin fuente. Cacheado (TTL corto).
    */
   async resumen(): Promise<InventarioVistaConjunta> {
     if (this.resumenCache && Date.now() - this.resumenCache.en < TTL_RESUMEN_MS) {
@@ -261,7 +193,7 @@ export class PrismaBloqueInventarioRepository implements BloqueInventarioReposit
     }
 
     const lista = await this.listaCompleta();
-    const porMaterial = new Map<string, { cantidad: number; piezas: number }>();
+    const porMaterial: AcumuladorMaterial = new Map();
     for (const bloque of lista) {
       const material = bloque.materialNombre ?? 'Material desconocido';
       const acc = porMaterial.get(material) ?? { cantidad: 0, piezas: 0 };
@@ -277,9 +209,10 @@ export class PrismaBloqueInventarioRepository implements BloqueInventarioReposit
       generadoEn: new Date().toISOString(),
       formas: [
         construirResumen('bloques', 'm³', porMaterial),
-        // Sin fuente de tablas/losas conectada todavía (no se inventa nada).
-        { forma: 'tablas', unidad: 'm²', pendiente: true, totalCantidad: 0, totalPiezas: 0, materiales: [] },
-        { forma: 'losas', unidad: 'm²', pendiente: true, totalCantidad: 0, totalPiezas: 0, materiales: [] },
+        // El use-case del resumen reemplaza esta por el inventario de tablas.
+        formaPendiente('tablas', 'm²'),
+        // Losas: sin fuente conectada todavía (no se inventa nada).
+        formaPendiente('losas', 'm²'),
       ],
     };
     this.resumenCache = { en: Date.now(), data };
@@ -342,7 +275,7 @@ export class PrismaBloqueInventarioRepository implements BloqueInventarioReposit
         .map((a) => a.productId ?? a.productIdTmpl)
         .filter((id): id is number => id !== null),
     ];
-    const nombres = await this.nombresProducto(idsMaterial);
+    const nombres = await this.resolverNombres.resolver(idsMaterial);
 
     const data: BloqueInventario[] = [
       ...lotesStock.map((lote) => this.toDomainStock(lote, nombres)),
@@ -388,77 +321,6 @@ export class PrismaBloqueInventarioRepository implements BloqueInventarioReposit
     }
     this.consumoCache = { en: Date.now(), set };
     return set;
-  }
-
-  /**
-   * Nombre de cada id de producto, normalizado (sin el prefijo "M3 BLOQUE").
-   * Resuelve contra `product_template` y, para las altas que referencian una
-   * variante (`product_product`), por su plantilla. Cacheado: solo consulta los
-   * ids no vistos.
-   */
-  private async nombresProducto(ids: number[]): Promise<Map<number, string>> {
-    if (Date.now() - this.nombreProductoCacheEn > TTL_CATALOGOS_MS) {
-      this.nombreProductoCache.clear();
-      this.nombreProductoCacheEn = Date.now();
-    }
-    const unicos = [...new Set(ids)];
-    const faltan = unicos.filter((id) => !this.nombreProductoCache.has(id));
-    if (faltan.length > 0) {
-      const productos = await this.prisma.productTemplate.findMany({
-        where: { id: { in: faltan } },
-        select: { id: true, name: true },
-      });
-      for (const producto of productos) {
-        this.nombreProductoCache.set(
-          producto.id,
-          limpiarNombreMaterial(textoNombre(producto.name)),
-        );
-      }
-      // Algunos ids son variantes (`product_product.id`), no plantillas: se
-      // resuelven por su `product_tmpl_id`.
-      const faltanComoPlantilla = faltan.filter(
-        (id) => !this.nombreProductoCache.has(id),
-      );
-      if (faltanComoPlantilla.length > 0) {
-        const variantes = await this.prisma.productProduct.findMany({
-          where: { id: { in: faltanComoPlantilla } },
-          select: { id: true, productTmplId: true },
-        });
-        const plantillaIds = [
-          ...new Set(variantes.map((variante) => variante.productTmplId)),
-        ];
-        const plantillas = await this.prisma.productTemplate.findMany({
-          where: { id: { in: plantillaIds } },
-          select: { id: true, name: true },
-        });
-        const nombrePorPlantilla = new Map(
-          plantillas.map((producto) => [
-            producto.id,
-            limpiarNombreMaterial(textoNombre(producto.name)),
-          ]),
-        );
-        for (const variante of variantes) {
-          const nombre = nombrePorPlantilla.get(variante.productTmplId) ?? null;
-          if (nombre !== null) {
-            this.nombreProductoCache.set(variante.id, nombre);
-          }
-        }
-      }
-      // Caché negativa: los ids sin fila se marcan null para no reconsultarlos.
-      for (const id of faltan) {
-        if (!this.nombreProductoCache.has(id)) {
-          this.nombreProductoCache.set(id, null);
-        }
-      }
-    }
-    const mapa = new Map<number, string>();
-    for (const id of unicos) {
-      const nombre = this.nombreProductoCache.get(id);
-      if (nombre != null) {
-        mapa.set(id, nombre);
-      }
-    }
-    return mapa;
   }
 
   /** Mapea un lote on-hand de `stock_lot` (era "stock"). */

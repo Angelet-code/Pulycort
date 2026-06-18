@@ -452,9 +452,12 @@ function generarLecturasTelar(
           alturaActualMm: altura
         };
       } else {
-        // Marcha: golpes con deriva suave, amperios correlados con ruido.
+        // Marcha: golpes con deriva suave, amperios correlados con ruido. La
+        // base está en escala de consola (×10); se divide entre 10 para emitir
+        // golpes/min reales (~80–90), igual que hace el backend con el dato real.
         derivaGolpes = Math.max(-40, Math.min(40, derivaGolpes + entre(rng, -9, 9)));
-        const golpes = Math.round(ciclo.golpesBase + derivaGolpes + entre(rng, -6, 6));
+        const golpes =
+          Math.round(ciclo.golpesBase + derivaGolpes + entre(rng, -6, 6)) / 10;
         const amperios = Math.round(ciclo.amperiosBase + entre(rng, -7, 7));
         lectura = {
           ...base,

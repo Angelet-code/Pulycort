@@ -9,12 +9,15 @@ import {
   DetalleTelar,
   Estadisticas,
   FiltrosInventario,
+  FiltrosInventarioTablas,
   FiltrosLecturas,
   FiltrosPartesDiscoPuente,
   FiltrosPartesReforzadora,
   FiltrosPartesTrabajo,
   InventarioVistaConjunta,
+  MedidasDudosasPagina,
   PaginaInventario,
+  PaginaInventarioTablas,
   PaginaLecturas,
   PaginaPartes,
   PaginaPartesDiscoPuente,
@@ -64,6 +67,14 @@ export class ConmutadorFabricApi extends FabricApi {
     return this.activa.getPartes(rango, telarId);
   }
 
+  override getMedidasDudosas(
+    desde: string | null,
+    hasta: string | null,
+    telarId: number | null
+  ): Observable<MedidasDudosasPagina> {
+    return this.activa.getMedidasDudosas(desde, hasta, telarId);
+  }
+
   override getLecturas(filtros: FiltrosLecturas): Observable<PaginaLecturas> {
     return this.activa.getLecturas(filtros);
   }
@@ -88,6 +99,12 @@ export class ConmutadorFabricApi extends FabricApi {
 
   override getInventario(filtros: FiltrosInventario): Observable<PaginaInventario> {
     return this.activa.getInventario(filtros);
+  }
+
+  override getInventarioTablas(
+    filtros: FiltrosInventarioTablas
+  ): Observable<PaginaInventarioTablas> {
+    return this.activa.getInventarioTablas(filtros);
   }
 
   override getResumenInventario(): Observable<InventarioVistaConjunta> {

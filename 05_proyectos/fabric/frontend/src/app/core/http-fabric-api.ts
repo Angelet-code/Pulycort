@@ -7,12 +7,15 @@ import {
   DetalleTelar,
   Estadisticas,
   FiltrosInventario,
+  FiltrosInventarioTablas,
   FiltrosLecturas,
   FiltrosPartesDiscoPuente,
   FiltrosPartesReforzadora,
   FiltrosPartesTrabajo,
   InventarioVistaConjunta,
+  MedidasDudosasPagina,
   PaginaInventario,
+  PaginaInventarioTablas,
   PaginaLecturas,
   PaginaPartes,
   PaginaPartesDiscoPuente,
@@ -63,6 +66,27 @@ export class HttpFabricApi extends FabricApi {
       params = params.set('telar', String(telarId));
     }
     return this.http.get<PaginaPartes>(`${FABRIC_API_BASE}/api/partes`, { params });
+  }
+
+  override getMedidasDudosas(
+    desde: string | null,
+    hasta: string | null,
+    telarId: number | null
+  ): Observable<MedidasDudosasPagina> {
+    let params = new HttpParams();
+    if (desde) {
+      params = params.set('desde', desde);
+    }
+    if (hasta) {
+      params = params.set('hasta', hasta);
+    }
+    if (telarId !== null) {
+      params = params.set('telar', String(telarId));
+    }
+    return this.http.get<MedidasDudosasPagina>(
+      `${FABRIC_API_BASE}/api/salud/medidas-dudosas`,
+      { params }
+    );
   }
 
   override getLecturas(filtros: FiltrosLecturas): Observable<PaginaLecturas> {
@@ -192,6 +216,27 @@ export class HttpFabricApi extends FabricApi {
       params = params.set('hasta', filtros.hasta);
     }
     return this.http.get<PaginaInventario>(`${FABRIC_API_BASE}/bloques`, { params });
+  }
+
+  override getInventarioTablas(
+    filtros: FiltrosInventarioTablas
+  ): Observable<PaginaInventarioTablas> {
+    let params = new HttpParams()
+      .set('limit', String(filtros.limit))
+      .set('offset', String(filtros.offset));
+    if (filtros.material) {
+      params = params.set('material', filtros.material);
+    }
+    if (filtros.q) {
+      params = params.set('q', filtros.q);
+    }
+    if (filtros.desde) {
+      params = params.set('desde', filtros.desde);
+    }
+    if (filtros.hasta) {
+      params = params.set('hasta', filtros.hasta);
+    }
+    return this.http.get<PaginaInventarioTablas>(`${FABRIC_API_BASE}/tablas`, { params });
   }
 
   override getResumenInventario(): Observable<InventarioVistaConjunta> {

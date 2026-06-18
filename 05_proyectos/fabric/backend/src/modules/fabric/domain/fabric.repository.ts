@@ -1,6 +1,7 @@
 import {
   DetalleTelar,
   Estadisticas,
+  MedidasDudosasPagina,
   PaginaPartes,
   RangoEstadisticas,
   SaludDatos,
@@ -16,4 +17,9 @@ export abstract class FabricRepository {
     rango: RangoEstadisticas,
     telarId: number | null,
   ): Promise<PaginaPartes>;
+  abstract getMedidasDudosas(
+    desde: Date | null,
+    hasta: Date | null,
+    telarId: number | null,
+  ): Promise<MedidasDudosasPagina>;
 }

@@ -12,7 +12,7 @@ import {
   formatNumero
 } from '../../core/format';
 import { materialPorId } from '../../core/materiales';
-import { CicloBloque, Estadisticas, RangoEstadisticas } from '../../core/models';
+import { CicloBloque, Estadisticas, RangoEstadisticas, RendimientoEspesor } from '../../core/models';
 import { KpiTileComponent } from '../../shared/kpi-tile.component';
 import { SelectorPeriodoComponent } from '../../shared/selector-periodo.component';
 import { BarraApilada, GraficoBarrasComponent } from '../../shared/grafico-barras.component';
@@ -116,6 +116,61 @@ import { MetricaComponent } from '../../shared/metrica.component';
         } @else {
           <div class="estado-vacio">
             La fuente actual no contiene los m² de los partes de paquetes
+          </div>
+        }
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Rendimiento por grosor de tabla</h2>
+          <span class="soft">m² de tablas por m³ de bloque · a menor grosor, más m²/m³</span>
+        </div>
+        @if (e.rendimientoPorEspesor.length > 0) {
+          <div class="tabla-scroll">
+            <table class="tabla tabla-compacta">
+              <thead>
+                <tr>
+                  <th>Grosor de tabla</th>
+                  <th class="derecha">Rendimiento medio</th>
+                  <th class="derecha">Lotes</th>
+                  <th class="derecha">m² de tablas</th>
+                  <th class="derecha">m³ de piedra</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (fila of e.rendimientoPorEspesor; track fila.espesorCorteCm) {
+                  <tr>
+                    <td>
+                      <span class="metrica" style="font-size: 13px">
+                        <span class="valor">{{ espesorTexto(fila.espesorCorteCm) }}</span>
+                        <span class="unidad">cm</span>
+                      </span>
+                    </td>
+                    <td class="derecha">
+                      <span class="celda-bloque" style="justify-content: flex-end">
+                        <fabric-metrica [valor]="fila.rendimientoM2M3" unidad="m²/m³" [decimales]="2" [tam]="13" />
+                        @if (fila.bloquesDudosos > 0) {
+                          <span class="aviso-medidas" [title]="avisoEspesor(fila)">⚠</span>
+                        }
+                      </span>
+                    </td>
+                    <td class="derecha">
+                      <fabric-metrica [valor]="fila.bloques" [unidad]="fila.bloques === 1 ? 'lote' : 'lotes'" [tam]="13" />
+                    </td>
+                    <td class="derecha">
+                      <fabric-metrica [valor]="fila.m2" unidad="m²" [decimales]="1" [tam]="13" />
+                    </td>
+                    <td class="derecha">
+                      <fabric-metrica [valor]="fila.m3" unidad="m³" [decimales]="2" [tam]="13" />
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <div class="estado-vacio">
+            Sin lotes con parte real y grosor de tabla en el periodo
           </div>
         }
       </section>
@@ -795,6 +850,16 @@ export class ProduccionComponent {
    */
   espesorTexto(v: number | null): string {
     return v == null ? '—' : formatNumero(v, Number.isInteger(v) ? 0 : 1);
+  }
+
+  /** Aviso de la fila de rendimiento por grosor cuando parte de su base es dudosa. */
+  avisoEspesor(fila: RendimientoEspesor): string {
+    const base = `${formatNumero(fila.bloquesDudosos)} de ${formatNumero(fila.bloques)} ${
+      fila.bloques === 1 ? 'lote' : 'lotes'
+    } con medidas dudosas`;
+    return fila.rendimientoM2M3 === null
+      ? `${base}: sin base fiable para este grosor`
+      : `${base}: el rendimiento de este grosor es orientativo`;
   }
 
   /** m² reales del parte si existen; si no, la estimación marcada con ≈. */

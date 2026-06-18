@@ -21,6 +21,7 @@ import {
   EventoParte,
   TipoEvento,
   FiltrosInventario,
+  FiltrosInventarioTablas,
   FormaInventario,
   FuenteDato,
   Granularidad,
@@ -37,6 +38,7 @@ import {
   LecturaCuarentena,
   LecturaTelar,
   PaginaInventario,
+  PaginaInventarioTablas,
   PaginaLecturas,
   PaginaPartes,
   PaginaPartesDiscoPuente,
@@ -50,14 +52,17 @@ import {
   ProduccionDia,
   ProduccionMaterial,
   ProduccionOperario,
+  MedidasDudosasPagina,
   PuntoSerie,
   RangoEstadisticas,
+  RendimientoEspesor,
   RoturaFleje,
   SaludDatos,
   SaludTelar,
   SegmentoEstado,
   SnapshotPlanta,
   SnapshotTelar,
+  TablaInventario,
   TipoIncidencia,
   VigiaFleje
 } from '../models';
@@ -397,6 +402,44 @@ export class MockFabricApi extends FabricApi {
     );
     const horasMarchaGlobal = porTelar.reduce((suma, t) => suma + t.horasMarcha, 0);
 
+    // Desglose del rendimiento por grosor de corte (igual criterio que el real:
+    // Σ m² del parte ÷ Σ m³ de bloque, agrupado por espesorCorteCm). En demo
+    // todos los lotes tienen parte y medidas coherentes (bloquesDudosos = 0).
+    const porEspesor = new Map<
+      number,
+      { espesorCorteCm: number; m2: number; m3: number; bloques: number }
+    >();
+    for (const ciclo of ciclosCompletados) {
+      if (
+        ciclo.espesorCorteCm === null ||
+        ciclo.paquetes === null ||
+        ciclo.volumenM3 === null ||
+        ciclo.volumenM3 <= 0
+      ) {
+        continue;
+      }
+      const grupo = porEspesor.get(ciclo.espesorCorteCm) ?? {
+        espesorCorteCm: ciclo.espesorCorteCm,
+        m2: 0,
+        m3: 0,
+        bloques: 0
+      };
+      grupo.m2 += ciclo.paquetes.metrosCuadrados;
+      grupo.m3 += ciclo.volumenM3;
+      grupo.bloques += 1;
+      porEspesor.set(ciclo.espesorCorteCm, grupo);
+    }
+    const rendimientoPorEspesor: RendimientoEspesor[] = [...porEspesor.values()]
+      .map((g) => ({
+        espesorCorteCm: g.espesorCorteCm,
+        bloques: g.bloques,
+        bloquesDudosos: 0,
+        m2: Math.round(g.m2 * 10) / 10,
+        m3: Math.round(g.m3 * 100) / 100,
+        rendimientoM2M3: g.m3 > 0 ? Math.round((g.m2 / g.m3) * 100) / 100 : null
+      }))
+      .sort((a, b) => a.espesorCorteCm - b.espesorCorteCm);
+
     const estadisticas: Estadisticas = {
       rango,
       granularidad,
@@ -411,6 +454,7 @@ export class MockFabricApi extends FabricApi {
       // En demo todos los bloques con salida tienen parte y medidas coherentes.
       bloquesRendimiento: salidas.length,
       bloquesRendimientoDudosos: 0,
+      rendimientoPorEspesor,
       mermaMediaPct: mermas.length > 0 ? Math.round(media(mermas) * 10) / 10 : null,
       pctMarchaGlobal: horasTotales > 0 ? (horasMarchaGlobal / horasTotales) * 100 : 0,
       pctParoGlobal:
@@ -434,6 +478,34 @@ export class MockFabricApi extends FabricApi {
       )
     };
     return this.conLatencia(estadisticas);
+  }
+
+  override getMedidasDudosas(
+    _desde: string | null,
+    _hasta: string | null,
+    telarId: number | null
+  ): Observable<MedidasDudosasPagina> {
+    // Vista SOLO-REAL: las medidas dudosas son un diagnóstico de datos reales (el
+    // Demo no tiene corrupción de medida que diagnosticar). En Demo la subpestaña
+    // se oculta y la vista redirige a Fuentes, así que esto no llega a pintarse;
+    // se devuelve vacío solo para cumplir el contrato de la fachada.
+    const iso = new Date(this.reloj.ahora()).toISOString();
+    return this.conLatencia({
+      telarId,
+      desde: iso,
+      hasta: iso,
+      total: 0,
+      totalBloques: 0,
+      truncado: false,
+      conteo: {
+        medidasIncoherentes: 0,
+        volumenIncompatibleParte: 0,
+        volumenImposible: 0,
+        pmDuplicado: 0,
+        parteEnOtroTelar: 0
+      },
+      bloques: []
+    });
   }
 
   override getSaludDatos(): Observable<SaludDatos> {
@@ -700,7 +772,9 @@ export class MockFabricApi extends FabricApi {
           velocidad: Math.round(l.velocidadMmH),
           incidencia: l.incidencia,
           consumo: Math.round(l.amperios),
-          golpesXMinuto: Math.round(l.golpesPorMinuto),
+          // golpes/min ya en escala real (~80–90, con un decimal): no se redondea
+          // para espejar al backend real, que devuelve el valor crudo entre 10.
+          golpesXMinuto: l.golpesPorMinuto,
           alturaActual: Math.round(l.alturaActualMm),
           fechaHora: l.fechaHora
         });
@@ -1144,6 +1218,80 @@ export class MockFabricApi extends FabricApi {
     });
   }
 
+  override getInventarioTablas(
+    filtros: FiltrosInventarioTablas
+  ): Observable<PaginaInventarioTablas> {
+    const ahora = this.reloj.ahora();
+    this.asegurarVentana(ahora);
+
+    // Tablas EN EXISTENCIAS: cada parte de paquetes ya hecho es un lote de tablas
+    // cortadas en almacén. La fuente real (stock_lot type='tables') aún no está
+    // conectada en este PC; la demo anticipa el aspecto del listado. El backend
+    // real devuelve m² null hasta confirmar la cantidad; la demo, que conoce la
+    // geometría simulada, sí lo trae.
+    const filas: TablaInventario[] = this.eventosHasta(ahora)
+      .filter((e) => e.tipo === 'paquetes' && e.paquetes !== null)
+      .map((evento, i) => {
+        const p = evento.paquetes!;
+        const materialId = evento.materialId ?? 'desconocido';
+        return {
+          id: i + 1,
+          name: String(evento.pmLote ?? evento.bloque ?? ''),
+          material: evento.materialId,
+          materialNombre: materialPorId(materialId).nombre,
+          tipo: 'tables',
+          ubicacion: 'WH/Stock',
+          largo: p.largoTablaM,
+          alto: p.altoTablaM,
+          grueso: p.gruesoTablaM,
+          paquetes: p.numPaquetes,
+          nTablas: p.numTablas,
+          // La simulación no modela el acabado de la tabla: campo solo del real.
+          acabado: null,
+          m2: p.metrosCuadrados,
+          createDate: evento.fechaHora,
+          writeDate: evento.fechaHora
+        } satisfies TablaInventario;
+      });
+    filas.sort((a, b) => epoch(b.createDate ?? '') - epoch(a.createDate ?? ''));
+
+    const materiales = [
+      ...new Set(
+        filas.map((f) => f.materialNombre).filter((n): n is string => n !== null)
+      )
+    ].sort((a, b) => a.localeCompare(b, 'es'));
+
+    const q = filtros.q?.toLowerCase() ?? null;
+    const desdeMs = filtros.desde ? new Date(`${filtros.desde}T00:00:00`).getTime() : null;
+    const hastaMs = filtros.hasta
+      ? new Date(`${filtros.hasta}T00:00:00`).getTime() + 86_400_000
+      : null;
+    const filtradas = filas.filter((f) => {
+      if (filtros.material && f.materialNombre !== filtros.material) {
+        return false;
+      }
+      if (q !== null && !f.name?.toLowerCase().includes(q)) {
+        return false;
+      }
+      const t = epoch(f.createDate ?? '');
+      if (desdeMs !== null && t < desdeMs) {
+        return false;
+      }
+      if (hastaMs !== null && t >= hastaMs) {
+        return false;
+      }
+      return true;
+    });
+
+    return this.conLatencia({
+      total: filtradas.length,
+      limit: filtros.limit,
+      offset: filtros.offset,
+      items: filtradas.slice(filtros.offset, filtros.offset + filtros.limit),
+      materiales
+    });
+  }
+
   override getResumenInventario(): Observable<InventarioVistaConjunta> {
     const ahora = this.reloj.ahora();
     this.asegurarVentana(ahora);
@@ -1170,9 +1318,9 @@ export class MockFabricApi extends FabricApi {
       porBloques.set(nombre, acc);
     }
 
-    // Tablas: vista PREVIA de la demo (m² por material de los paquetes ya
-    // hechos). La fuente real aún no trae tablas en existencias → en real va
-    // como pendiente; aquí la demo enseña a qué se parecerá el mapa.
+    // Tablas: m² por material de los paquetes ya hechos en la simulación. En
+    // real esta forma sale del inventario de tablas (stock on-hand + altas de
+    // lot_tables_creation); la demo enseña la misma forma del mapa.
     const porTablas = new Map<string, { cantidad: number; piezas: number }>();
     for (const evento of this.eventosHasta(ahora)) {
       if (evento.tipo !== 'paquetes' || !evento.paquetes) {
@@ -1188,7 +1336,8 @@ export class MockFabricApi extends FabricApi {
     const formas: ResumenInventario[] = [
       this.aResumenForma('bloques', 'm³', porBloques),
       this.aResumenForma('tablas', 'm²', porTablas),
-      // La simulación no modela losas: pendiente, igual que el modo real.
+      // La simulación no modela losas → pendiente en Demo (en Real sí salen, del
+      // inventario de losas: stock on-hand + altas de lot_slabs_creation).
       { forma: 'losas', unidad: 'm²', pendiente: true, totalCantidad: 0, totalPiezas: 0, materiales: [] }
     ];
     return this.conLatencia({ generadoEn: new Date(ahora).toISOString(), formas });

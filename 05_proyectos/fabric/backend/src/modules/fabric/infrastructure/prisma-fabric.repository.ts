@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../../../shared/infrastructure/database/prisma/prisma.service';
 import {
   bloqueImposible,
+  dimensionBloqueAMetros,
   volumenBloqueM3,
   volumenMenorQuePiedraCortada,
 } from '../../../shared/domain/medidas-bloque';
@@ -37,9 +38,13 @@ import {
   JornadaTelar,
   KpisPlanta,
   LecturaAviso,
+  LecturaBloqueDudosa,
   LecturaCuarentena,
   LecturaTelar,
+  BloqueDudoso,
+  MedidaBloqueFuente,
   Medidas,
+  MedidasDudosasPagina,
   PaginaPartes,
   ParoPorCausa,
   ProduccionDia,
@@ -47,6 +52,7 @@ import {
   ProduccionOperario,
   PuntoSerie,
   RangoEstadisticas,
+  RendimientoEspesor,
   ResumenPaquetes,
   SaludDatos,
   SaludPartes,
@@ -869,6 +875,131 @@ function derivarRuns(lecturasTelar: LecturaInterna[]): RunBloque[] {
   return runs;
 }
 
+/** Tope de bloques dudosos devueltos por consulta (la lista avisa si recorta). */
+const MAX_BLOQUES_DUDOSOS = 400;
+
+/** Medidas crudas de inventario (proveedor + fábrica) de una fila de alta/stock. */
+interface MedidasCrudasInv {
+  largoSupplier: number | null;
+  altoSupplier: number | null;
+  gruesoSupplier: number | null;
+  largoMrp: number | null;
+  altoMrp: number | null;
+  gruesoMrp: number | null;
+}
+
+/** Detalle de inventario por PM para diagnóstico: proveedor y fábrica por separado. */
+interface DetalleInventarioLote {
+  fuente: 'alta' | 'stock';
+  proveedor: MedidaBloqueFuente;
+  fabrica: MedidaBloqueFuente;
+  mermaPct: number | null;
+  bloques: number;
+}
+
+/**
+ * Pasa una dimensión de bloque a metros (normaliza cm→m), o null si no la trae.
+ * En `lot_block_creation` las columnas `*_supplier` son NOT NULL: una medida no
+ * introducida llega como 0, no como null → un 0 es "ausente", no "0 m".
+ */
+function dimAMetrosONull(valor: number | null): number | null {
+  return valor === null || valor <= 0 ? null : redondea(dimensionBloqueAMetros(valor), 3);
+}
+
+/**
+ * Medidas de una fuente (proveedor o fábrica) normalizadas a metros, con su m³
+ * (solo si están las tres dimensiones y son > 0) y la bandera de imposible. Las
+ * dimensiones que la fuente no trae (null o 0) quedan en null (no se inventan).
+ */
+function medidaFuente(
+  largo: number | null,
+  alto: number | null,
+  grueso: number | null,
+): MedidaBloqueFuente {
+  const completa =
+    largo !== null && largo > 0 && alto !== null && alto > 0 && grueso !== null && grueso > 0;
+  const m3 = completa ? volumenBloqueM3(largo, alto, grueso) : 0;
+  return {
+    largoM: dimAMetrosONull(largo),
+    altoM: dimAMetrosONull(alto),
+    gruesoM: dimAMetrosONull(grueso),
+    volumenM3: completa && m3 > 0 ? redondea(m3, 2) : null,
+    imposible: completa ? bloqueImposible(largo, alto, grueso) : false,
+  };
+}
+
+/** Merma de compra % entre dos medidas; null si falta alguna o es imposible. */
+function mermaEntreMedidas(
+  proveedor: MedidaBloqueFuente,
+  fabrica: MedidaBloqueFuente,
+): number | null {
+  if (
+    proveedor.volumenM3 === null ||
+    proveedor.volumenM3 <= 0 ||
+    fabrica.volumenM3 === null ||
+    proveedor.imposible ||
+    fabrica.imposible
+  ) {
+    return null;
+  }
+  return redondea(((proveedor.volumenM3 - fabrica.volumenM3) / proveedor.volumenM3) * 100, 1);
+}
+
+/** ¿El ciclo tiene alguna bandera de medida/identidad dudosa? (alcance de la vista). */
+function esBloqueDudoso(ciclo: CicloBloque): boolean {
+  return (
+    ciclo.medidasIncoherentes ||
+    ciclo.volumenIncompatibleParte ||
+    ciclo.volumenImposible ||
+    ciclo.pmDuplicado ||
+    ciclo.parteEnOtroTelar
+  );
+}
+
+/** Etiquetas legibles de las banderas de medida dudosa activas de un ciclo. */
+function motivosDeBloqueDudoso(ciclo: CicloBloque): string[] {
+  const motivos: string[] = [];
+  if (ciclo.medidasIncoherentes) {
+    motivos.push('Medidas de consola incompatibles con el parte');
+  }
+  if (ciclo.volumenImposible) {
+    motivos.push('Medida de inventario físicamente imposible');
+  }
+  if (ciclo.volumenIncompatibleParte) {
+    motivos.push('m³ de inventario menor que la piedra cortada (m² × espesor)');
+  }
+  if (ciclo.pmDuplicado) {
+    motivos.push('Nº de lote (PM) duplicado en el inventario');
+  }
+  if (ciclo.parteEnOtroTelar) {
+    motivos.push('El parte de aserrado de este lote consta en otro telar');
+  }
+  return motivos;
+}
+
+/** Proyecta una lectura interna a la pública (sin las columnas de bloque extra). */
+function aLecturaPublica(l: LecturaInterna): LecturaTelar {
+  return {
+    id: l.id,
+    telarId: l.telarId,
+    fechaHora: l.fechaHora,
+    recibidaEn: l.recibidaEn,
+    bloque: l.bloque,
+    pmLote: l.pmLote,
+    incidencia: l.incidencia,
+    potenciaKw: l.potenciaKw,
+    amperios: l.amperios,
+    golpesPorMinuto: l.golpesPorMinuto,
+    velocidadMmH: l.velocidadMmH,
+    alturaActualMm: l.alturaActualMm,
+    operario1: l.operario1,
+    operario2: l.operario2,
+    sospechosa: l.sospechosa,
+    motivosSospecha: l.motivosSospecha,
+    alertas: l.alertas,
+  };
+}
+
 @Injectable()
 export class PrismaFabricRepository implements FabricRepository {
   private readonly cache = new Map<string, { en: number; valor: unknown }>();
@@ -1103,6 +1234,14 @@ export class PrismaFabricRepository implements FabricRepository {
       let m3ConParte = 0;
       let bloquesRendimiento = 0;
       let bloquesRendimientoDudosos = 0;
+      // Mismo agregado, partido por grosor de corte de la tabla: el rendimiento
+      // ≈ 1/grosor, así que el número único mezcla cortes no comparables. Clave =
+      // espesorCorteCm del parte (1 decimal); solo entran lotes que ya cuentan en
+      // el agregado global (parte real + m³ > 0) y que además traen grosor.
+      const porEspesor = new Map<
+        number,
+        { espesorCorteCm: number; m2: number; m3: number; bloques: number; bloquesDudosos: number }
+      >();
       const partesUsadosIds = new Set<number>();
       for (const { telarId, run } of runsCompletados) {
         totalBloques += 1;
@@ -1155,6 +1294,23 @@ export class PrismaFabricRepository implements FabricRepository {
             if (ciclo.medidasIncoherentes) {
               bloquesRendimientoDudosos += 1;
             }
+            // Desglose por grosor (solo lotes con espesor de corte conocido).
+            if (ciclo.espesorCorteCm !== null) {
+              const grupo = porEspesor.get(ciclo.espesorCorteCm) ?? {
+                espesorCorteCm: ciclo.espesorCorteCm,
+                m2: 0,
+                m3: 0,
+                bloques: 0,
+                bloquesDudosos: 0,
+              };
+              grupo.m2 += paquetes.metrosCuadrados;
+              grupo.m3 += volumenM3;
+              grupo.bloques += 1;
+              if (ciclo.medidasIncoherentes) {
+                grupo.bloquesDudosos += 1;
+              }
+              porEspesor.set(ciclo.espesorCorteCm, grupo);
+            }
           }
         }
         totalM2 += m2;
@@ -1173,6 +1329,21 @@ export class PrismaFabricRepository implements FabricRepository {
         porMaterial.set(materialId, acumulado);
       }
       ciclosCompletados.sort((a, b) => epoch(b.inicioCorte) - epoch(a.inicioCorte));
+
+      // Igual criterio que el agregado global, pero por grosor (sin base sana
+      // del grupo → null, mismo motivo que rendimientoM2M3). Más fino primero:
+      // así la columna de rendimiento decrece de arriba abajo (≈ 1/grosor).
+      const rendimientoPorEspesor: RendimientoEspesor[] = [...porEspesor.values()]
+        .map((g) => ({
+          espesorCorteCm: g.espesorCorteCm,
+          bloques: g.bloques,
+          bloquesDudosos: g.bloquesDudosos,
+          m2: redondea(g.m2, 1),
+          m3: redondea(g.m3, 2),
+          rendimientoM2M3:
+            g.m3 > 0 && g.bloques > g.bloquesDudosos ? redondea(g.m2 / g.m3, 2) : null,
+        }))
+        .sort((a, b) => a.espesorCorteCm - b.espesorCorteCm);
 
       // Producción real por operario, solo con los partes que han entrado en
       // el cruce (mismos bloques y misma ventana temporal que el resto de KPIs).
@@ -1262,6 +1433,7 @@ export class PrismaFabricRepository implements FabricRepository {
             : null,
         bloquesRendimiento,
         bloquesRendimientoDudosos,
+        rendimientoPorEspesor,
         mermaMediaPct: null,
         pctMarchaGlobal: horasTotales > 0 ? (horasMarchaGlobal / horasTotales) * 100 : 0,
         pctParoGlobal:
@@ -1288,6 +1460,174 @@ export class PrismaFabricRepository implements FabricRepository {
         lecturasSospechosas: sospechosas,
       };
     });
+  }
+
+  /**
+   * Bloques/lotes con medidas DUDOSAS en la ventana: reúne por bloque todas sus
+   * fuentes de medida (proveedor de inventario, fábrica/MRP, consola del telar y
+   * parte) y qué pasó en el telar, para diagnosticar el origen del ruido. Mismo
+   * armazón que `getEstadisticas` (runs no sospechosos cruzados con partes e
+   * inventario), filtrando los ciclos con alguna bandera de medida/identidad.
+   */
+  getMedidasDudosas(
+    desde: Date | null,
+    hasta: Date | null,
+    telarId: number | null,
+  ): Promise<MedidasDudosasPagina> {
+    // Clave estable por los filtros (no por el "ahora", que el TTL ya refresca).
+    const claveDesde = desde ? desde.getTime() : 'def';
+    const claveHasta = hasta ? hasta.getTime() : 'now';
+    return this.cacheado(
+      `medidas-dudosas-${claveDesde}-${claveHasta}-${telarId ?? 'all'}`,
+      TTL_SALUD_MS,
+      async () => {
+        const ahora = Date.now();
+        // Ventana: desde (o 30 d atrás por defecto, para no barrer todo el
+        // histórico — esta vista deriva los ciclos en memoria); hasta exclusivo
+        // (o ahora). El frontend manda fechas naturales; el controlador las parsea.
+        const desdeMs = desde ? desde.getTime() : ahora - 30 * 86_400_000;
+        const hastaMs = hasta ? Math.min(hasta.getTime(), ahora) : ahora;
+        const telarValido =
+          telarId !== null && TELAR_IDS.includes(telarId) ? telarId : null;
+        const telaresPedidos = telarValido !== null ? [telarValido] : TELAR_IDS;
+
+        const porTelar = await this.lecturasDesde(desdeMs);
+        this.materialesActual = await this.resolverMateriales();
+        const nombres = await this.nombresOperarios();
+
+        // Runs completados (sin el run en curso) sobre las lecturas NO
+        // sospechosas, igual base que getEstadisticas.
+        const runsCompletados: { telarId: number; run: RunBloque }[] = [];
+        // Lote del bloque cortado justo antes en cada telar (su medida es la que
+        // la consola heredó en el run siguiente). Clave por referencia de run.
+        const lotePrevioPorRun = new Map<RunBloque, number | null>();
+        for (const id of telaresPedidos) {
+          const validas = (porTelar.get(id) ?? []).filter((l) => !l.sospechosa);
+          const runs = derivarRuns(validas);
+          // `runs` ya viene en orden ascendente (lecturasDesde ordena por fecha):
+          // el run anterior con lote DISTINTO es "el bloque anterior" del que la
+          // consola arrastra la medida. Se salta el mismo lote (corte reanudado).
+          for (let i = 0; i < runs.length; i++) {
+            let previo: number | null = null;
+            for (let j = i - 1; j >= 0; j--) {
+              if (runs[j].bloque !== runs[i].bloque) {
+                previo = runs[j].bloque;
+                break;
+              }
+            }
+            lotePrevioPorRun.set(runs[i], previo);
+          }
+          const actual = this.runActual(runs, ahora);
+          for (const run of runs) {
+            // Completado y dentro de la ventana: el corte empezó antes de `hasta`
+            // (el extremo inferior lo acota ya `lecturasDesde(desdeMs)`).
+            if (run !== actual && run.desdeMs < hastaMs) {
+              runsCompletados.push({ telarId: id, run });
+            }
+          }
+        }
+
+        // Cruce con partes reales (op 4) por telar + nº de bloque y ventana.
+        const partesRows = await this.partesPaquetesDeBloques(
+          runsCompletados.map((rc) => rc.run.bloque),
+        );
+        const partesPorClave = new Map<string, FilaParte[]>();
+        const partesPorBloque = new Map<number, FilaParte[]>();
+        for (const fila of partesRows) {
+          if (fila.nBloque === null || fila.nTelar === null) {
+            continue;
+          }
+          const clave = claveBloque(fila.nTelar, fila.nBloque);
+          if (!partesPorClave.has(clave)) {
+            partesPorClave.set(clave, []);
+          }
+          partesPorClave.get(clave)!.push(fila);
+          if (!partesPorBloque.has(fila.nBloque)) {
+            partesPorBloque.set(fila.nBloque, []);
+          }
+          partesPorBloque.get(fila.nBloque)!.push(fila);
+        }
+
+        const inventario = await this.inventarioPorPm(
+          runsCompletados.map((rc) => rc.run.bloque),
+        );
+
+        // Construir cada ciclo y quedarse con los dudosos por medida/identidad.
+        const dudosos: { telarId: number; run: RunBloque; ciclo: CicloBloque }[] = [];
+        for (const { telarId: id, run } of runsCompletados) {
+          const delBloque = partesDeVentana(
+            partesPorClave.get(claveBloque(id, run.bloque)) ?? [],
+            run.desdeMs,
+            run.hastaMs,
+          );
+          const paquetes = delBloque.length > 0 ? resumenDePartes(delBloque) : null;
+          const telaresParte = new Set(
+            partesDeVentana(
+              partesPorBloque.get(run.bloque) ?? [],
+              run.desdeMs,
+              run.hastaMs,
+              MARGEN_PM_OTRO_TELAR_MS,
+            ).map((p) => Number(p.nTelar)),
+          );
+          const parteEnOtroTelar = telaresParte.size > 0 && !telaresParte.has(id);
+          const ciclo = this.aCicloBloque(
+            run,
+            ahora,
+            false,
+            paquetes,
+            inventario.get(run.bloque) ?? null,
+            parteEnOtroTelar,
+          );
+          if (esBloqueDudoso(ciclo)) {
+            dudosos.push({ telarId: id, run, ciclo });
+          }
+        }
+
+        // Conteo por bandera sobre el TOTAL de dudosos (no solo los devueltos),
+        // calculado en backend para que los KPIs no infracuenten si se trunca.
+        const conteo = {
+          medidasIncoherentes: dudosos.filter((d) => d.ciclo.medidasIncoherentes).length,
+          volumenIncompatibleParte: dudosos.filter((d) => d.ciclo.volumenIncompatibleParte)
+            .length,
+          volumenImposible: dudosos.filter((d) => d.ciclo.volumenImposible).length,
+          pmDuplicado: dudosos.filter((d) => d.ciclo.pmDuplicado).length,
+          parteEnOtroTelar: dudosos.filter((d) => d.ciclo.parteEnOtroTelar).length,
+        };
+
+        // Más recientes primero; se recorta a un tope (la página avisa si trunca).
+        dudosos.sort((a, b) => b.run.desdeMs - a.run.desdeMs);
+        const total = dudosos.length;
+        const recortados = dudosos.slice(0, MAX_BLOQUES_DUDOSOS);
+
+        // Detalle de inventario (proveedor/fábrica por separado, de las dos eras).
+        const detalleInv = await this.detalleInventarioPorPm(
+          recortados.map((d) => d.run.bloque),
+        );
+
+        const bloques = recortados.map(({ telarId: id, run, ciclo }) =>
+          this.aBloqueDudoso(
+            id,
+            run,
+            ciclo,
+            porTelar.get(id) ?? [],
+            detalleInv.get(run.bloque) ?? null,
+            nombres,
+            lotePrevioPorRun.get(run) ?? null,
+          ),
+        );
+
+        return {
+          telarId: telarValido,
+          desde: new Date(desdeMs).toISOString(),
+          hasta: new Date(hastaMs).toISOString(),
+          total,
+          totalBloques: runsCompletados.length,
+          truncado: total > recortados.length,
+          conteo,
+          bloques,
+        } satisfies MedidasDudosasPagina;
+      },
+    );
   }
 
   getSaludDatos(): Promise<SaludDatos> {
@@ -2047,7 +2387,10 @@ export class PrismaFabricRepository implements FabricRepository {
       potenciaKw: potencia,
       // consumo = amperios (≈ 2 × potencia, verificado en VERIFICACION.md §0).
       amperios: fila.consumo ?? 0,
-      golpesPorMinuto: fila.golpesXMinuto ?? 0,
+      // La columna cruda llega en golpes×10 (los reales rondan ~80–90 gpm en
+      // marcha, no ~800): se divide entre 10 en el origen para que todo lo que
+      // venga después (snapshot, series, medias) use ya golpes/min reales.
+      golpesPorMinuto: (fila.golpesXMinuto ?? 0) / 10,
       velocidadMmH: fila.velocidad ?? 0,
       alturaActualMm: fila.alturaActual ?? 0,
       operario1: fila.operario1 !== null ? String(fila.operario1) : null,
@@ -2142,6 +2485,202 @@ export class PrismaFabricRepository implements FabricRepository {
         },
       ]),
     );
+  }
+
+  /**
+   * Detalle de inventario por PM para el diagnóstico de medidas dudosas: a
+   * diferencia de `inventarioPorPm` (que colapsa proveedor+fábrica en un único
+   * m³), aquí se exponen las DOS medidas por separado y de las DOS eras del
+   * inventario. La "alta" (`lot_block_creation`) es la entrada reciente del
+   * bloque y se prefiere como origen; si el PM no está ahí se busca en el stock
+   * (`stock_lot`). No filtra por consumo ni por on-hand (estos bloques ya se
+   * cortaron), así que recupera la medida aunque el bloque ya no esté en
+   * existencias. null por PM = no está dado de alta en ninguna era.
+   */
+  private async detalleInventarioPorPm(
+    pms: number[],
+  ): Promise<Map<number, DetalleInventarioLote>> {
+    const numeros = [...new Set(pms.filter((n) => Number.isInteger(n) && n > 0))];
+    if (numeros.length === 0) {
+      return new Map();
+    }
+    const nombres = numeros.map(String);
+    const medidasSelect = {
+      name: true,
+      largoSupplier: true,
+      altoSupplier: true,
+      gruesoSupplier: true,
+      largoMrp: true,
+      altoMrp: true,
+      gruesoMrp: true,
+    } as const;
+    const [altas, stocks] = await Promise.all([
+      this.prisma.lotBlockCreation.findMany({
+        where: { name: { in: nombres } },
+        select: medidasSelect,
+      }),
+      this.prisma.stockLot.findMany({
+        where: { name: { in: nombres } },
+        select: medidasSelect,
+      }),
+    ]);
+
+    const conteoAlta = new Map<number, number>();
+    const primeraAlta = new Map<number, MedidasCrudasInv>();
+    for (const fila of altas) {
+      const pm = Number(fila.name?.trim());
+      if (!Number.isInteger(pm)) {
+        continue;
+      }
+      conteoAlta.set(pm, (conteoAlta.get(pm) ?? 0) + 1);
+      if (!primeraAlta.has(pm)) {
+        primeraAlta.set(pm, fila);
+      }
+    }
+    const primeraStock = new Map<number, MedidasCrudasInv>();
+    for (const fila of stocks) {
+      const pm = Number(fila.name?.trim());
+      if (!Number.isInteger(pm) || primeraStock.has(pm)) {
+        continue;
+      }
+      primeraStock.set(pm, fila);
+    }
+
+    const mapa = new Map<number, DetalleInventarioLote>();
+    for (const pm of numeros) {
+      const alta = primeraAlta.get(pm);
+      const fila = alta ?? primeraStock.get(pm);
+      if (!fila) {
+        continue;
+      }
+      const proveedor = medidaFuente(
+        fila.largoSupplier,
+        fila.altoSupplier,
+        fila.gruesoSupplier,
+      );
+      const fabrica = medidaFuente(fila.largoMrp, fila.altoMrp, fila.gruesoMrp);
+      mapa.set(pm, {
+        fuente: alta ? 'alta' : 'stock',
+        proveedor,
+        fabrica,
+        mermaPct: mermaEntreMedidas(proveedor, fabrica),
+        bloques: conteoAlta.get(pm) ?? 1,
+      });
+    }
+    return mapa;
+  }
+
+  /** Ensambla un BloqueDudoso reuniendo todas las fuentes de un ciclo dudoso. */
+  private aBloqueDudoso(
+    telarId: number,
+    run: RunBloque,
+    ciclo: CicloBloque,
+    lecturasTelar: LecturaInterna[],
+    inv: DetalleInventarioLote | null,
+    nombres: Map<number, string>,
+    loteBloqueAnterior: number | null,
+  ): BloqueDudoso {
+    // Todas las lecturas de ESTE lote en ESTE telar dentro de la ventana del run
+    // (incluidas las sospechosas, que no entran en el run pero sí "pasaron").
+    const lecturas: LecturaBloqueDudosa[] = lecturasTelar
+      .filter(
+        (l) =>
+          l.bloque === run.bloque &&
+          epoch(l.recibidaEn) >= run.desdeMs &&
+          epoch(l.recibidaEn) <= run.hastaMs,
+      )
+      .sort((a, b) => epoch(a.recibidaEn) - epoch(b.recibidaEn))
+      .map((l) => ({
+        lectura: aLecturaPublica(l),
+        largoCm: l.largoCm,
+        altoCm: l.altoCm,
+        gruesoCm: l.gruesoCm,
+      }));
+    // Operarios del lote: nombres distintos de los que trabajaron el run.
+    const operarios = [
+      ...new Set(
+        lecturas
+          .flatMap((l) => [l.lectura.operario1, l.lectura.operario2])
+          .map((codigo) => this.nombreOperario(codigo, nombres))
+          .filter((n): n is string => n !== null),
+      ),
+    ];
+    // Consola del telar en metros (misma forma que proveedor/fábrica).
+    const m = ciclo.bloque.medidasFabrica;
+    const consola = medidaFuente(m.largoCm, m.altoCm, m.gruesoCm);
+
+    // ── Señales de coherencia física (para detectar errores) ──
+    const esp = ciclo.espesorCorteCm; // cm
+    const m2Parte = ciclo.paquetes?.metrosCuadrados ?? null;
+    const m3Bloque = ciclo.volumenM3; // m³ oficial del inventario
+    const techoRendimientoM2M3 = esp !== null && esp > 0 ? redondea(100 / esp, 1) : null;
+    // Piedra que salió en tabla: m² × espesor (m). Es el mínimo físico que ocupa.
+    const piedraCortadaM3 =
+      m2Parte !== null && esp !== null && esp > 0 ? redondea(m2Parte * (esp / 100), 2) : null;
+    const mermaAserradoPct =
+      m3Bloque !== null && m3Bloque > 0 && piedraCortadaM3 !== null
+        ? redondea(((m3Bloque - piedraCortadaM3) / m3Bloque) * 100, 1)
+        : null;
+    // Rendimiento BRUTO (sin anular por incompatibilidad) frente al techo 1/grosor.
+    const rendBruto = m2Parte !== null && m3Bloque !== null && m3Bloque > 0 ? m2Parte / m3Bloque : null;
+    const rendimientoSobreTechoPct =
+      rendBruto !== null && techoRendimientoM2M3 !== null && techoRendimientoM2M3 > 0
+        ? redondea((rendBruto / techoRendimientoM2M3) * 100, 0)
+        : null;
+    // Medidas de consola distintas durante el corte (>1 = la consola arrastró ruido).
+    const medidasConsola = new Set(
+      lecturas
+        .filter((l) => l.largoCm > 0 && l.altoCm > 0 && l.gruesoCm > 0)
+        .map((l) => `${l.largoCm}x${l.altoCm}x${l.gruesoCm}`),
+    );
+    const consolaMedidasDistintas = medidasConsola.size;
+    return {
+      id: ciclo.id,
+      pmLote: ciclo.pmLote,
+      telarId,
+      telarNombre: NOMBRES_TELAR.get(telarId) ?? `Telar ${telarId}`,
+      inicioCorte: ciclo.inicioCorte,
+      finCorte: ciclo.finCorte,
+      enCurso: ciclo.enCurso,
+      materialId: ciclo.bloque.materialId,
+      operarios,
+      motivos: motivosDeBloqueDudoso(ciclo),
+      medidasIncoherentes: ciclo.medidasIncoherentes,
+      volumenIncompatibleParte: ciclo.volumenIncompatibleParte,
+      volumenImposible: ciclo.volumenImposible,
+      pmDuplicado: ciclo.pmDuplicado,
+      parteEnOtroTelar: ciclo.parteEnOtroTelar,
+      inventario: inv
+        ? {
+            fuente: inv.fuente,
+            proveedor: inv.proveedor,
+            fabrica: inv.fabrica,
+            mermaPct: inv.mermaPct,
+            bloques: inv.bloques,
+          }
+        : null,
+      consola,
+      loteBloqueAnterior,
+      horasMarcha: ciclo.horasMarcha,
+      horasParo: ciclo.horasParo,
+      numParos: ciclo.numParos,
+      numLecturas: lecturas.length,
+      numLecturasConAlertas: lecturas.filter((l) => l.lectura.alertas.length > 0).length,
+      numLecturasSospechosas: lecturas.filter((l) => l.lectura.sospechosa).length,
+      paquetes: ciclo.paquetes,
+      espesorCorteCm: ciclo.espesorCorteCm,
+      volumenInventarioM3: ciclo.volumenM3,
+      rendimientoM2M3: ciclo.rendimientoM2M3,
+      tablasPrevistas: ciclo.tablasPrevistas,
+      m2Previstos: ciclo.m2Previstos,
+      piedraCortadaM3,
+      mermaAserradoPct,
+      techoRendimientoM2M3,
+      rendimientoSobreTechoPct,
+      consolaMedidasDistintas,
+      consolaInestable: consolaMedidasDistintas > 1,
+      lecturas,
+    };
   }
 
   private aCicloBloque(

@@ -177,6 +177,10 @@ export class PrismaProduccionMapeadaRepository
       pmLote: fila.nBloque,
       // `grueso` es NUMERIC en Postgres → Prisma lo entrega como Decimal.
       grueso: fila.grueso === null ? null : fila.grueso.toNumber(),
+      // La columna cruda llega en golpes×10: se divide entre 10 para dar
+      // golpes/min reales (mismo criterio que el resto del backend).
+      golpesXMinuto:
+        fila.golpesXMinuto === null ? null : fila.golpesXMinuto / 10,
       consumoBanda: banda,
       consumoIntensidad: banda && u ? intensidadConsumo(potencia, u) : 0,
     };

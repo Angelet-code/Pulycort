@@ -83,9 +83,10 @@ type TileEtiquetado = RectTreemap<ResumenMaterial> & {
  * elige la forma —Bloques (m³), Tablas o Losas (m²)— y un clic en un material
  * abre el nivel 2: ese material desglosado por forma.
  *
- * Hoy solo Bloques tiene fuente real (el stock REAL de Odoo: `stock_lot` on-hand
- * vía `stock_quant`, m³ de los bloques en existencias); Tablas y Losas llegan como `pendiente` hasta
- * que se conecten (principio de VERIFICACION.md: no inventar). Toda la
+ * Las tres formas tienen fuente real en modo Real: Bloques (m³, del stock REAL de
+ * Odoo `stock_lot` on-hand vía `stock_quant`), Tablas (m², stock on-hand + altas de
+ * `lot_tables_creation`) y Losas (m², stock on-hand + altas de `lot_slabs_creation`).
+ * En Demo la simulación aún no modela losas → esa forma llega `pendiente`. Toda la
  * agregación la hace el backend/mock; aquí solo se dibuja, con su unidad al lado.
  */
 @Component({
@@ -269,6 +270,46 @@ type TileEtiquetado = RectTreemap<ResumenMaterial> & {
           }
           }
         }
+      }
+
+      @if (vista() && materialSel() === null && !resumenActivo()?.pendiente) {
+        <footer class="metodo-inventario">
+          <div class="lista-titulo soft">Cómo se calcula</div>
+          @switch (forma()) {
+            @case ('bloques') {
+              <p class="metodo-texto">
+                <b>Bloques (m³).</b> Existencias reales de Odoo: lotes de
+                <code>stock_lot</code> con cantidad on-hand en <code>stock_quant</code>
+                (ubicación interna), unidos a las altas de recepción de
+                <code>lot_block_creation</code> que aún no constan cortadas. El nombre del
+                material sale de <code>product_template</code>. El m³ de cada bloque =
+                largo × alto × grueso (medida del proveedor, en metros).
+              </p>
+            }
+            @case ('tablas') {
+              <p class="metodo-texto">
+                <b>Tablas (m²).</b> Lotes de tabla on-hand de <code>stock_lot</code>
+                (tipo <code>tables</code>) vía <code>stock_quant</code>, más las altas de
+                entrada de <code>lot_tables_creation</code> que aún no han salido. El
+                material sale de <code>product_template</code>. El m² de cada alta =
+                nº de tablas (<code>n_tables</code>) × largo × alto.
+              </p>
+            }
+            @case ('losas') {
+              <p class="metodo-texto">
+                <b>Losas (m²).</b> Lotes de losa on-hand de <code>stock_lot</code>
+                (tipo <code>slabs</code>) vía <code>stock_quant</code>, más las altas de
+                <code>lot_slabs_creation</code>. El material sale de
+                <code>product_template</code>. El m² de cada alta =
+                nº de losas (<code>n_slabs</code>) × largo × alto.
+              </p>
+            }
+          }
+          <p class="metodo-pie soft">
+            Si a una pieza le falta una medida fiable, cuenta en el recuento pero no
+            suma superficie ni volumen (no se estima lo que no está en el dato).
+          </p>
+        </footer>
       }
     </section>
   `,
@@ -536,6 +577,26 @@ type TileEtiquetado = RectTreemap<ResumenMaterial> & {
       text-decoration: underline;
       text-underline-offset: 2px;
       margin-left: 6px;
+    }
+
+    /* Cómo se calcula cada forma de existencia (al pie de la vista). */
+    .metodo-inventario {
+      margin-top: 4px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+    }
+    .metodo-texto {
+      margin: 8px 0 0;
+      font-size: 12.5px;
+      line-height: 1.55;
+      color: var(--text-muted);
+    }
+    .metodo-texto b {
+      color: var(--text);
+    }
+    .metodo-pie {
+      margin: 8px 0 0;
+      font-size: 11.5px;
     }
 
     @media (max-width: 720px) {

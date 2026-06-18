@@ -50,7 +50,7 @@ Esto no hace falta verificarlo de nuevo, lo medí directamente en las capturas d
 - **amperios ≈ 2 × potencia** — visto en Telar 1: 46→93, 44→88, 45→90, 50→101, 51→102.
 - **velocidad de descenso está en mm/h** — del 12:37 (altura 1.644) al 16:14 (altura 1.110) del Telar 2: bajó 534 mm en ~3,6 h ≈ **148 mm/h**, y la columna "Velocidad" de esas filas marca **150**. Cuadra. La velocidad real de la máquina es fiable.
 - **altura actual desciende con el corte** — en el Telar 2 la altura baja de forma sostenida a lo largo del día.
-- **rangos**: golpes/min 810–950 · velocidad en valores discretos 0/110/130/150/170/300 · potencia hasta ~76 kW.
+- **rangos**: golpes en la columna cruda 810–950 (viene ×10 → ~81–95 golpes/min reales) · velocidad en valores discretos 0/110/130/150/170/300 · potencia hasta ~76 kW.
 - **catálogo de operarios, incidencias y operaciones** — son los textos reales del sistema.
 
 ---
@@ -77,7 +77,7 @@ Toda métrica de **tiempo** (utilización, minutos de paro, horas de marcha, MTB
 | Medidas del lote (fuente) | columnas largo/alto/grueso | ⚠️ | Son atributos/verificación del PM/lote, no identificador físico. Confirmar unidad (se asume cm) y semántica |
 | **Avance del corte (%)** | (altura_inicial − altura_actual) / altura_inicial | ⚠️ | Depende de que "altura actual" llegue a ~0 al terminar y de cuál es la altura inicial (1ª lectura del lote). Verificar el ciclo completo de un PM/lote |
 | **ETA "Termina ~…"** | ahora + altura_actual / velocidad | ✅ | Cálculo trazable con columnas reales (altura mm ÷ velocidad mm/h). Solo confirmar unidades |
-| Golpes / Potencia / Descenso | columnas directas | ✅ | Solo display |
+| Golpes / Potencia / Descenso | columnas directas; **golpes ÷ 10** (la cruda viene ×10) | ✅ | Potencia/descenso solo display; golpes lo divide el backend |
 | Desvío de ritmo (real vs consigna) | Δaltura / Δt frente a velocidad | ✅ | Cálculo trazable |
 | Utilización hoy (%) | Σ min marcha / (telares × min desde 00:00) | ⛔/⚠️ | Doble problema: cadencia (§cadencia) **y** el denominador. ¿"Disponible" = 24 h naturales, horas de turno, u horas planificadas de corte? Sin definirlo, el % no significa nada. **Decisión de negocio pendiente** |
 | Producción hoy (m²) | Σ "Metros cuadrados tablas" de partes "Hacer paquetes" de hoy | ✅ | Confirmar que el m² del parte es fiable y si es por paquete o acumulado |
@@ -118,7 +118,7 @@ Toda métrica de **tiempo** (utilización, minutos de paro, horas de marcha, MTB
 | Producción por material | ✅ | Real |
 | % tiempo en marcha global | ⛔/⚠️ | Cadencia + definición del denominador |
 | Minutos de paro por telar | ⚠️ | Cadencia |
-| Golpes/velocidad/amperios medios | ✅ | Medias de columnas reales |
+| Golpes/velocidad/amperios medios | ✅ | Medias de columnas reales (golpes ÷ 10) |
 | Roturas de fleje (listado) | ✅ | Identificables por incidencia |
 | Jornada Gantt | ✅ | Real |
 
@@ -170,6 +170,37 @@ Comprobado contra el endpoint real (2026-06-14): **285 bloques / 26 materiales**
 inventa nada. Incertidumbres registradas en `00_gestion/TAREAS.md` (snapshot congelado ~9,5 meses;
 15 altas sin medida usable; `othermaterial`).
 
+### Vista `/partes/tablas` — Inventario de tablas
+
+Las tablas que **realmente hay ahora** en almacén. Gemelo del inventario de bloques: UNE **dos
+eras** (verificado contra BD el 2026-06-18; corrige el "las tablas no tienen era alta" del primer
+montaje, 2026-06-18):
+
+- **Era `stock`** — lote `stock_lot` `type_product_lot='tables'` on-hand (`stock_quant.quantity > 0`
+  en ubicación interna). Es la existencia confirmada por Odoo: **7 lotes** (por sí sola, "poquísimas
+  tablas").
+- **Era `alta`** — paquete de tablas recibido en **`lot_tables_creation`** (el log VIVO de altas,
+  gemelo de `lot_block_creation`) que **aún no consta en `stock_lot`** y no está entregado
+  (`delivery_done`). Aporta **50** lotes. Se marcan "Recepción reciente".
+
+Un alta cuyo lote SÍ figura en `stock_lot` pero está **agotado** (0 on-hand) se considera ya salida
+del almacén y **no se muestra** (es el "consumo" nativo de la tabla: Odoo rastrea su depleción, a
+diferencia de los bloques). Se excluyen así 58 altas; la frontera (envío real vs. snapshot obsoleto)
+queda **pendiente de confirmar** con Pulycort.
+
+| Valor | Cómo se obtiene | Estado | Qué falta |
+|---|---|---|---|
+| Procedencia | `fuente` = `stock` (on-hand de Odoo) o `alta` (recepción reciente, sin existencias aún en Odoo) | ✅ | Confirmar si las 58 altas con lote agotado son envíos (excluir, como ahora) o stock no sincronizado (incluir → ~113) |
+| Nº de lote / material | `name` y `product_id`/`product_id_tmpl` ("M2 TABLA <piedra>" → piedra) resueltos contra `product_template` | ✅ | Id sin nombre en Odoo → "Material N" |
+| Medidas (largo × alto × grueso) | `*_supplier`, metros (normaliza cm→m por umbral) | ⚠️ | largo/alto limpios; el **grueso** llega con unidades inconsistentes entre lotes (0,02 / 2 / 20) — semántica sin confirmar |
+| Paquetes / Tablas | `packages_tables`; `qty_creation` (stock) / `n_tables` (alta) | ⚠️ | Crudo; en el alta `n_tables` es recuento explícito |
+| **m²** | en altas = `n_tables` × largo × alto (recuento explícito; guarda de medida imposible → "—") | ✅/⛔ | ✅ en altas (verificado: 47215 = 71×1,65×0,68 = 79,66 m²); ⛔ "—" en stock hasta fijar el recuento on-hand |
+| Acabado / Ubicación | `finished`; `stock_location.complete_name` (solo stock) | ✅ | — |
+
+Comprobado contra el endpoint real y el navegador (2026-06-18): **57 tablas** (7 stock + 50 alta),
+materiales reales (TRAVERTINOS, MARFIL, MARRON, KOALA, MARQUINA, ARENISCA…). Pendientes en
+`00_gestion/TAREAS.md` (reconciliación de las 58 agotadas; m² de altas; losas `lot_slabs_creation`).
+
 ### Vista `/datos` — Salud del dato
 
 La vista es valiosa y conceptualmente correcta. **Modelo de dos niveles (v2, 2026-06-16):**
@@ -187,7 +218,7 @@ necesita confirmar con producción/informática:
 | Salto de altura imposible | Aviso | sube en corte, o baja > 1,5× velocidad máx | Confirmar velocidad máxima real (asumí 310 mm/h) |
 | % lecturas limpias por telar | KPI | lecturas sin descarte **y** sin ningún aviso | Es el indicador de calidad del telar (más estricto que "no descartada"); baja en cuanto hay avisos |
 
-**Retirados el 2026-06-16 a la espera de aclararlos** (ver `00_gestion/TAREAS.md`): "amperios desacoplados de la potencia" (`|A − 2·kW| > 35%`, se apoyaba en la inferencia sin confirmar `consumo` = amperios), "amperios sin potencia que los justifique" y "golpes fuera de rango" (≠0 y fuera de 700–1000; el rango habitual ronda ~150 gpm pero las 4 máquinas emiten golpes de forma incoherente). Mientras no se aclaren, **no descartan ni avisan**.
+**Retirados el 2026-06-16 a la espera de aclararlos** (ver `00_gestion/TAREAS.md`): "amperios desacoplados de la potencia" (`|A − 2·kW| > 35%`, se apoyaba en la inferencia sin confirmar `consumo` = amperios), "amperios sin potencia que los justifique" y "golpes fuera de rango" (≠0 y fuera de 700–1000 en la columna cruda; los reales rondan ~80–90 gpm —la cruda viene ×10, el backend la divide entre 10— pero las 4 máquinas emiten golpes de forma incoherente). Mientras no se aclaren, **no descartan ni avisan**.
 
 **Pestaña "Fuentes"** (Salud → Fuentes): lista **las 11 tablas reales que lee Fabric**, agrupadas por origen, con su descripción, quién las introduce y un veredicto de salud **derivado del dato real**, no supuesto: nº de registros (`count`), última actualización (registro más reciente) y el diagnóstico. Lo calcula el backend (`getSaludDatos` → `fuentesDatos`); si una tabla no se puede leer, su tarjeta degrada a "—"/"sin datos" sin tumbar la página. Los grupos:
 

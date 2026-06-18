@@ -102,6 +102,8 @@ export const routes: Routes = [
         { label: 'Fuentes', link: '/salud/fuentes' },
         { label: 'Cobertura', link: '/salud/cobertura' },
         { label: 'Cuarentena', link: '/salud/cuarentena' },
+        // Diagnóstico de datos reales: no se ofrece en Demo (ver soloReal).
+        { label: 'Medidas dudosas', link: '/salud/medidas-dudosas', soloReal: true },
         { label: 'Detecciones', link: '/salud/detecciones' }
       ]
     },
@@ -128,6 +130,14 @@ export const routes: Routes = [
           import('./vistas/datos/salud-datos.component').then((m) => m.SaludDatosComponent),
         data: { vista: 'cuarentena' },
         title: 'Fabric — Cuarentena'
+      },
+      {
+        path: 'medidas-dudosas',
+        loadComponent: () =>
+          import('./vistas/medidas-dudosas/medidas-dudosas.component').then(
+            (m) => m.MedidasDudosasComponent
+          ),
+        title: 'Fabric — Medidas dudosas'
       },
       {
         path: 'detecciones',

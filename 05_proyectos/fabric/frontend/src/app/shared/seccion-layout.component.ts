@@ -15,10 +15,15 @@ import { FuenteDatosService } from '../core/fuente-datos.service';
 export interface SubPestana {
   label: string;
   link: string;
+  /**
+   * Solo se ofrece con datos reales: vistas de diagnóstico que no tienen sentido
+   * en Demo (p. ej. Medidas dudosas, que diagnostica corrupción de datos reales).
+   */
+  soloReal?: boolean;
 }
 
 /** Rutas cuyo contenido no depende de la fuente (no llevan el chip Demo/Real). */
-const VISTAS_SIN_FUENTE = ['/detecciones', '/tablas'];
+const VISTAS_SIN_FUENTE = ['/detecciones'];
 
 /**
  * Armazón de una sección con sub-pestañas (Partes, Inventario, Salud): pinta la
@@ -33,7 +38,7 @@ const VISTAS_SIN_FUENTE = ['/detecciones', '/tablas'];
   template: `
     <div class="barra-sub">
       <nav class="subpestanas" aria-label="Sub-secciones">
-        @for (tab of subpestanas(); track tab.link) {
+        @for (tab of subpestanasVisibles(); track tab.link) {
           <a [routerLink]="tab.link" routerLinkActive="activa" class="subtab">{{ tab.label }}</a>
         }
       </nav>
@@ -79,6 +84,12 @@ export class SeccionLayoutComponent {
     this.route.data.pipe(map((d) => (d['subpestanas'] as SubPestana[] | undefined) ?? [])),
     { initialValue: [] as SubPestana[] }
   );
+
+  /** Las que se ofrecen según la fuente: las `soloReal` se ocultan en Demo. */
+  readonly subpestanasVisibles = computed(() => {
+    const reales = this.fuenteDatos.esReal();
+    return this.subpestanas().filter((tab) => reales || !tab.soloReal);
+  });
 
   /** URL actual; el chip de fuente solo aplica a las vistas que leen de la BD. */
   private readonly url = toSignal(

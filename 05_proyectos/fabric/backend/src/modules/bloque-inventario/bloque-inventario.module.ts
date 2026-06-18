@@ -6,9 +6,12 @@ import { PrismaBloqueInventarioRepository } from './infrastructure/prisma-bloque
 import { BloqueInventarioController } from './presentation/bloque-inventario.controller';
 import { PrismaModule } from '../../shared/infrastructure/database/prisma/prisma.module';
 import { PrismaService } from '../../shared/infrastructure/database/prisma/prisma.service';
+import { TablaInventarioModule } from '../tabla-inventario/tabla-inventario.module';
 
 @Module({
-  imports: [PrismaModule],
+  // TablaInventarioModule aporta el TablaInventarioRepository que el use-case del
+  // resumen usa para la forma "tablas" del treemap.
+  imports: [PrismaModule, TablaInventarioModule],
   controllers: [BloqueInventarioController],
   providers: [
     GetBloquesInventarioUseCase,

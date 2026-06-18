@@ -9,6 +9,7 @@ import { ParteDiscoPuenteModule } from './modules/parte-disco-puente/parte-disco
 import { ParteReforzadoraModule } from './modules/parte-reforzadora/parte-reforzadora.module';
 import { ParteTrabajoModule } from './modules/parte-trabajo/parte-trabajo.module';
 import { ProduccionMapeadaModule } from './modules/produccion-mapeada/produccion-mapeada.module';
+import { TablaInventarioModule } from './modules/tabla-inventario/tabla-inventario.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { ProduccionMapeadaModule } from './modules/produccion-mapeada/produccion
     ParteReforzadoraModule,
     ParteTrabajoModule,
     ProduccionMapeadaModule,
+    TablaInventarioModule,
   ],
   controllers: [AppController],
   providers: [AppService],

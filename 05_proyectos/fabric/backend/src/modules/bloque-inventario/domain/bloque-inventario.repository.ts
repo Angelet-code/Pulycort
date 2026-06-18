@@ -2,7 +2,7 @@ import {
   FiltrosBloqueInventario,
   PaginaBloqueInventario,
 } from './bloque-inventario.entity';
-import { InventarioVistaConjunta } from './resumen-inventario.entity';
+import { InventarioVistaConjunta } from '../../../shared/domain/inventario-resumen';
 
 export abstract class BloqueInventarioRepository {
   abstract findMany(

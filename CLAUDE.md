@@ -93,12 +93,22 @@ paquetes, tablas y m² reales), producción y paros (`/produccion`), inventario 
 existencias on-hand vía `stock_quant`, con medida del proveedor frente a medida de
 fábrica/mrp, m³ y merma derivados; `lot_block_creation` quedó descartada por ser un log
 obsoleto disjunto del stock real), salud del dato
-(`/datos`, cuarentena de lecturas corruptas con su motivo) y salud del sistema
-(`/sistema`, registro curado de problemas de máquinas/datos/cálculos con evidencia,
-solución recomendada y responsable; mantener a mano junto a `00_gestion/TAREAS.md`).
+(`/salud`, con subpestañas: Fuentes, Cobertura, Cuarentena de lecturas corruptas con su
+motivo, **Medidas dudosas** y Detecciones). **Medidas dudosas** (`/salud/medidas-dudosas`,
+endpoint `GET /api/salud/medidas-dudosas`) lista los bloques cuyas medidas no cuadran
+(`medidasIncoherentes` / `volumenIncompatibleParte` / `volumenImposible` / `pmDuplicado` /
+`parteEnOtroTelar`) y, por fila expandible, reúne TODAS sus fuentes de medida —proveedor y
+fábrica/MRP del inventario (`detalleInventarioPorPm`, busca en `lot_block_creation` y
+`stock_lot`), consola del telar y parte— más todas las lecturas del lote, para diagnosticar
+el origen del ruido del dato. "Detecciones" (`/salud/detecciones`) es el registro curado de
+problemas de máquinas/datos/cálculos con evidencia, solución recomendada y responsable;
+mantener a mano junto a `00_gestion/TAREAS.md`.
 El rendimiento m²/m³ de `/produccion` es un agregado de bloques con parte real: las
 medidas de consola llegan heredadas del bloque anterior y el m³ bloque a bloque es ruido
 (el cruce lecturas-partes va acotado a la ventana del corte; bloques imposibles marcados ⚠).
+Como el rendimiento depende sobre todo del grosor de corte (≈ 1/grosor: a menor grosor,
+más m²/m³), ese agregado se desglosa además por grosor de tabla (`rendimientoPorEspesor`,
+mismo criterio Σm²/Σm³ por `espesorCorteCm`); el número único mezcla cortes no comparables.
 
 **Dos fuentes con switch Demo | Real en la barra superior**, detrás de la fachada
 `FabricApi` (`core/fabric-api.ts`) vía `conmutador-fabric-api.ts`: la demo es la simulación

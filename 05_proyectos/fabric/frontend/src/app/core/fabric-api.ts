@@ -4,12 +4,15 @@ import {
   DetalleTelar,
   Estadisticas,
   FiltrosInventario,
+  FiltrosInventarioTablas,
   FiltrosLecturas,
   FiltrosPartesDiscoPuente,
   FiltrosPartesReforzadora,
   FiltrosPartesTrabajo,
   InventarioVistaConjunta,
+  MedidasDudosasPagina,
   PaginaInventario,
+  PaginaInventarioTablas,
   PaginaLecturas,
   PaginaPartes,
   PaginaPartesDiscoPuente,
@@ -36,6 +39,12 @@ export abstract class FabricApi {
     rango: RangoEstadisticas,
     telarId: number | null
   ): Observable<PaginaPartes>;
+  /** Bloques con medidas dudosas y todas sus fuentes de medida (diagnóstico). */
+  abstract getMedidasDudosas(
+    desde: string | null,
+    hasta: string | null,
+    telarId: number | null
+  ): Observable<MedidasDudosasPagina>;
   /** Registro en crudo de lecturas (la tabla `produccion_mapeada` real). */
   abstract getLecturas(filtros: FiltrosLecturas): Observable<PaginaLecturas>;
   /** Partes de operario en crudo (la tabla `parte_trabajo_mapeada` real). */
@@ -52,6 +61,10 @@ export abstract class FabricApi {
   ): Observable<PaginaPartesReforzadora>;
   /** Bloques en existencias del stock real (`stock_lot` on-hand vía `stock_quant`). */
   abstract getInventario(filtros: FiltrosInventario): Observable<PaginaInventario>;
+  /** Tablas en existencias del stock real (`stock_lot` on-hand, `type_product_lot='tables'`). */
+  abstract getInventarioTablas(
+    filtros: FiltrosInventarioTablas
+  ): Observable<PaginaInventarioTablas>;
   /** Existencias por material para el mapa de inventario (bloques en m³; tablas/losas pendientes). */
   abstract getResumenInventario(): Observable<InventarioVistaConjunta>;
   /** Mapa de cobertura: catálogo de planta + volumen real de cada máquina conectada. */

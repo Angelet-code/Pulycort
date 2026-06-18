@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { GetDetalleTelarUseCase } from './application/get-detalle-telar.use-case';
 import { GetEstadisticasUseCase } from './application/get-estadisticas.use-case';
+import { GetMedidasDudosasUseCase } from './application/get-medidas-dudosas.use-case';
 import { GetPartesUseCase } from './application/get-partes.use-case';
 import { GetSaludDatosUseCase } from './application/get-salud-datos.use-case';
 import { GetSnapshotPlantaUseCase } from './application/get-snapshot-planta.use-case';
@@ -19,6 +20,7 @@ import { PrismaService } from '../../shared/infrastructure/database/prisma/prism
     GetEstadisticasUseCase,
     GetSaludDatosUseCase,
     GetPartesUseCase,
+    GetMedidasDudosasUseCase,
     {
       provide: FabricRepository,
       inject: [PrismaService],

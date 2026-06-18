@@ -200,9 +200,11 @@ const ETIQUETA_BANDA_CONSUMO: Record<BandaConsumo, string> = {
                   <td class="derecha"><fabric-metrica [valor]="fila.alturaActual" unidad="mm" [tam]="13" /></td>
                   <td
                     class="soft"
+                    [class.es-marcha]="esMarcha(fila.incidencia)"
                     [class.es-paro]="esParo(fila.incidencia)"
                     [class.es-paro-rotura]="esParoRotura(fila.incidencia)"
-                    [class.es-modo]="esModo(fila.incidencia)"
+                    [class.es-modo-manual]="esModoManual(fila.incidencia)"
+                    [class.es-modo-automatico]="esModoAutomatico(fila.incidencia)"
                     [title]="incidenciaTitulo(fila.incidencia)"
                   >{{ incidenciaTexto(fila.incidencia) }}</td>
                 </tr>
@@ -272,8 +274,14 @@ const ETIQUETA_BANDA_CONSUMO: Record<BandaConsumo, string> = {
     .telar {
       font-weight: 750;
     }
+    /* "Marcha telar": el telar trabajando, en verde claro para leerse de un
+       vistazo (gana al .soft global por el atributo de scope del componente). */
+    .es-marcha {
+      color: var(--green-text);
+      font-weight: 650;
+    }
     /* "Paro telar" resaltado en ámbar para que destaque sobre el resto de
-       lecturas (gana al .soft global por el atributo de scope del componente). */
+       lecturas. */
     .es-paro {
       color: var(--amber);
       font-weight: 700;
@@ -282,7 +290,13 @@ const ETIQUETA_BANDA_CONSUMO: Record<BandaConsumo, string> = {
       color: var(--red);
       font-weight: 700;
     }
-    .es-modo {
+    /* Modo manual: el operario lleva el mando; en rojo para que destaque. */
+    .es-modo-manual {
+      color: var(--red);
+      font-weight: 700;
+    }
+    /* Modo automático: marcha normal del telar, en azul. */
+    .es-modo-automatico {
       color: var(--blue);
       font-weight: 650;
     }
@@ -435,14 +449,23 @@ export class PartesComponent {
     return ETIQUETA_INCIDENCIA[c as TipoIncidencia] ? (c as TipoIncidencia) : null;
   }
 
-  /** Rótulo de la incidencia; los códigos sin mapear se muestran en crudo. */
+  /**
+   * Rótulo de la incidencia. Los códigos 1-5 se rotulan a su etiqueta. El `0`
+   * lo emite siempre el telar 4 (la consola no manda código de estado), así que
+   * no es marcha ni paro: se muestra como "Sin información" en vez del crudo
+   * (el marcha/paro de ese telar se infiere por potencia en el estado, no aquí).
+   * Cualquier otro código sin mapear sí se muestra en crudo.
+   */
   incidenciaTexto(codigo: string | null): string {
     const tipo = this.tipoDeIncidencia(codigo);
     if (tipo) {
       return ETIQUETA_INCIDENCIA[tipo];
     }
     const c = (codigo ?? '').trim();
-    return c === '' ? '—' : c;
+    if (c === '') {
+      return '—';
+    }
+    return c === '0' ? 'Sin información' : c;
   }
 
   /** Tooltip: deja ver el código crudo y avisa de los que no tienen mapeo. */
@@ -451,7 +474,18 @@ export class PartesComponent {
     if (c === '') {
       return null;
     }
-    return this.tipoDeIncidencia(codigo) ? `Código ${c}` : `Código ${c} · sin mapear`;
+    if (this.tipoDeIncidencia(codigo)) {
+      return `Código ${c}`;
+    }
+    if (c === '0') {
+      return 'Código 0 · el telar 4 no envía código de incidencia; el estado marcha/paro se infiere por potencia';
+    }
+    return `Código ${c} · sin mapear`;
+  }
+
+  /** Marcha del telar (trabajando): se resalta en verde claro. */
+  esMarcha(codigo: string | null): boolean {
+    return this.tipoDeIncidencia(codigo) === 'marcha';
   }
 
   /** Un paro se resalta en ámbar para que destaque entre las lecturas. */
@@ -464,19 +498,28 @@ export class PartesComponent {
     return this.tipoDeIncidencia(codigo) === 'paro-rotura-material';
   }
 
-  /** Los modos de operación (manual/automático) se marcan en azul. */
-  esModo(codigo: string | null): boolean {
-    const tipo = this.tipoDeIncidencia(codigo);
-    return tipo === 'modo-manual' || tipo === 'modo-automatico';
+  /** Modo manual: el operario lleva el mando; se marca en rojo. */
+  esModoManual(codigo: string | null): boolean {
+    return this.tipoDeIncidencia(codigo) === 'modo-manual';
+  }
+
+  /** Modo automático: marcha normal del telar; se marca en azul. */
+  esModoAutomatico(codigo: string | null): boolean {
+    return this.tipoDeIncidencia(codigo) === 'modo-automatico';
   }
 
   /**
-   * Color del número de potencia según la banda de consumo atípico: degradado
-   * amarillo (recién "alto") → naranja → rojo (extremo). '' si la lectura es
-   * normal (el número se queda en su color por defecto). La banda y la
-   * intensidad las calcula el backend; en demo no llegan y no se colorea.
+   * Color del número de potencia. En un paro telar la potencia suele dar un pico
+   * al frenar la máquina, que NO es consumo de producción: se pinta en gris
+   * apagado para no leerlo como consumo atípico. Si no, sigue la banda de consumo
+   * atípico: degradado amarillo (recién "alto") → naranja → rojo (extremo). '' si
+   * la lectura es normal (el número se queda en su color por defecto). La banda y
+   * la intensidad las calcula el backend; en demo no llegan y no se colorea.
    */
   colorConsumo(fila: LecturaCruda): string {
+    if (this.esParo(fila.incidencia)) {
+      return 'var(--text-soft)';
+    }
     if (!fila.consumoBanda) {
       return '';
     }
@@ -484,9 +527,12 @@ export class PartesComponent {
     return `rgb(${r}, ${g}, ${b})`;
   }
 
-  /** Tinte de fondo de la celda, más intenso cuanto más extremo el consumo. */
+  /**
+   * Tinte de fondo de la celda, más intenso cuanto más extremo el consumo.
+   * Un paro telar nunca se tiñe de alarma (su pico de potencia es normal).
+   */
   fondoConsumo(fila: LecturaCruda): string | null {
-    if (!fila.consumoBanda) {
+    if (this.esParo(fila.incidencia) || !fila.consumoBanda) {
       return null;
     }
     const t = fila.consumoIntensidad ?? 0;
@@ -494,8 +540,15 @@ export class PartesComponent {
     return `rgba(${r}, ${g}, ${b}, ${(0.1 + 0.28 * t).toFixed(2)})`;
   }
 
-  /** Tooltip: en qué banda cae y dónde están los cortes de ESE telar. */
+  /**
+   * Tooltip de la celda de potencia: en un paro telar explica que el pico es
+   * normal al frenar; si no, en qué banda de consumo atípico cae y dónde están
+   * los cortes de ESE telar.
+   */
   tooltipConsumo(fila: LecturaCruda): string | null {
+    if (this.esParo(fila.incidencia)) {
+      return 'Habitualmente hay un pico de potencia cuando se para la máquina; no es consumo de producción.';
+    }
     if (!fila.consumoBanda) {
       return null;
     }
