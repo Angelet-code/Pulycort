@@ -3,13 +3,13 @@ import { FiltrosTablaInventario } from '../domain/tabla-inventario.entity';
 import { PrismaTablaInventarioRepository } from './prisma-tabla-inventario.repository';
 
 /**
- * El inventario de tablas UNE DOS ERAS, como el de bloques: era "stock" (lotes
- * `type_product_lot='tables'` on-hand de `stock_lot`) y era "alta" (paquetes de
- * `lot_tables_creation` aún sin reflejo en el stock). Estos tests fijan: el mapeo
+ * El inventario de tablas une dos eras de Odoo y una procedencia pendiente:
+ * era "stock" (`stock_lot` on-hand), era "alta" (`lot_tables_creation`) y
+ * "aserrado" (partes reales de paquetes pendientes de Odoo). Estos tests fijan: el mapeo
  * en crudo de medidas y conteos (sin inventar: `m2` siempre null, medidas sin
- * convertir más allá de cm→m), la unión y deduplicación de las dos eras (un alta
+ * convertir más allá de cm→m), la unión y deduplicación de las procedencias (un alta
  * cuyo lote ya consta en `stock_lot` —on-hand o agotado— no se muestra), la
- * resolución de nombre de material en sus dos eras y los filtros/catálogo/orden.
+ * resolución de nombre de material y los filtros/catálogo/orden.
  */
 
 const SIN_FILTROS: FiltrosTablaInventario = {
@@ -23,6 +23,7 @@ const SIN_FILTROS: FiltrosTablaInventario = {
 
 const TEMPLATES = [
   { id: 71, name: { es_ES: 'MARFIL' } },
+  { id: 75, name: { es_ES: 'TRAVERTINO TURCO' } },
   { id: 76, name: { es_ES: 'NEGRO MARQUINA' } },
   // Productos de la era nueva: el prefijo de forma se limpia a la piedra.
   { id: 156, name: { es_ES: 'M2 TABLA MARFIL' } },
@@ -88,6 +89,23 @@ function losaAlta(over: Record<string, unknown> = {}) {
   };
 }
 
+/** Agregado de partes de paquetes reales (`operacion='4'`) pendiente de Odoo. */
+function parteAserrado(over: Record<string, unknown> = {}) {
+  return {
+    nBloque: 47001,
+    material: 76,
+    paquetes: 3,
+    nTablas: 52,
+    largo: 245,
+    alto: 122,
+    grueso: 2,
+    m2: 155.43,
+    createDate: new Date('2026-06-10T00:00:00Z'),
+    writeDate: new Date('2026-06-10T00:00:00Z'),
+    ...over,
+  };
+}
+
 /**
  * `lotes` = lotes on-hand (era stock); `altas` = filas de `lot_tables_creation`;
  * `nombresAgotados` = nº de lote que existen en `stock_lot` pero NO on-hand (era
@@ -99,11 +117,17 @@ function repoCon(
   altas: ReturnType<typeof tablaAlta>[] = [],
   nombresAgotados: string[] = [],
   altasLosas: ReturnType<typeof losaAlta>[] = [],
+  partesAserrado: ReturnType<typeof parteAserrado>[] = [],
+  materialesAserradoFallback: { nBloque: number; material: number | null }[] = [],
 ): PrismaTablaInventarioRepository {
   const nombresStock = [
     ...lotes.map((l) => ({ name: l.name })),
     ...nombresAgotados.map((name) => ({ name })),
   ];
+  const queryRaw = jest
+    .fn()
+    .mockResolvedValueOnce(partesAserrado)
+    .mockResolvedValue(materialesAserradoFallback);
   const prisma = {
     stockLot: {
       findMany: jest.fn((args: { select?: { name?: boolean } }) =>
@@ -112,6 +136,7 @@ function repoCon(
     },
     lotTablesCreation: { findMany: jest.fn().mockResolvedValue(altas) },
     lotSlabsCreation: { findMany: jest.fn().mockResolvedValue(altasLosas) },
+    $queryRaw: queryRaw,
     productTemplate: { findMany: jest.fn().mockResolvedValue(TEMPLATES) },
     productProduct: { findMany: jest.fn().mockResolvedValue([]) },
   };
@@ -229,6 +254,93 @@ describe('PrismaTablaInventarioRepository — era "alta" (lot_tables_creation)',
   });
 });
 
+describe('PrismaTablaInventarioRepository — era "aserrado" (partes de paquetes)', () => {
+  it('incluye partes reales de paquetes pendientes de Odoo como fuente="aserrado"', async () => {
+    const item = (
+      await repoCon([], [], [], [], [parteAserrado()]).findMany(SIN_FILTROS)
+    ).items[0];
+    expect(item).toMatchObject({
+      id: -47001,
+      fuente: 'aserrado',
+      name: '47001',
+      material: 76,
+      materialNombre: 'NEGRO MARQUINA',
+      tipo: 'tables',
+      ubicacion: null,
+      largo: 2.45,
+      alto: 1.22,
+      grueso: 0.02,
+      paquetes: 3,
+      nTablas: 52,
+      acabado: null,
+      m2: 155.43,
+    });
+  });
+
+  it('ordena los aserrados pendientes con el resto por fecha descendente', async () => {
+    const pagina = await repoCon(
+      [loteTabla({ name: '500', createDate: new Date('2026-06-01T00:00:00Z') })],
+      [tablaAlta({ name: '46500', createDate: new Date('2026-06-05T00:00:00Z') })],
+      [],
+      [],
+      [parteAserrado({ nBloque: 47001, createDate: new Date('2026-06-10T00:00:00Z') })],
+    ).findMany(SIN_FILTROS);
+    expect(pagina.items.map((t) => t.fuente)).toEqual(['aserrado', 'alta', 'stock']);
+  });
+
+  it('filtra y cataloga materiales de aserrado igual que las otras eras', async () => {
+    const repo = repoCon(
+      [],
+      [],
+      [],
+      [],
+      [
+        parteAserrado({ nBloque: 47001, material: 76 }),
+        parteAserrado({ nBloque: 47002, material: 71 }),
+      ],
+    );
+    const todas = await repo.findMany(SIN_FILTROS);
+    expect(todas.materiales).toEqual(['MARFIL', 'NEGRO MARQUINA']);
+
+    const soloMarfil = await repo.findMany({ ...SIN_FILTROS, material: 'MARFIL' });
+    expect(soloMarfil.items.map((t) => t.name)).toEqual(['47002']);
+  });
+
+  it('recupera el material pendiente desde PM/lote cuando el parte viene sin material', async () => {
+    const item = (
+      await repoCon(
+        [],
+        [],
+        [],
+        [],
+        [parteAserrado({ material: null })],
+        [{ nBloque: 47001, material: 75 }],
+      ).findMany(SIN_FILTROS)
+    ).items[0];
+    expect(item).toMatchObject({
+      material: 75,
+      materialNombre: 'TRAVERTINO TURCO',
+    });
+  });
+
+  it('mantiene material null si ninguna fuente fiable lo recupera', async () => {
+    const item = (
+      await repoCon([], [], [], [], [parteAserrado({ material: null })]).findMany(
+        SIN_FILTROS,
+      )
+    ).items[0];
+    expect(item).toMatchObject({
+      material: null,
+      materialNombre: null,
+    });
+  });
+
+  it('no inventa filas cuando la consulta no devuelve partes validos', async () => {
+    const pagina = await repoCon([], [], [], [], []).findMany(SIN_FILTROS);
+    expect(pagina.total).toBe(0);
+  });
+});
+
 describe('PrismaTablaInventarioRepository.resumenTablas — agregación m² del treemap', () => {
   it('agrega las altas por material en m² y cuenta el stock sin m² como pieza', async () => {
     const r = await repoCon(
@@ -247,6 +359,22 @@ describe('PrismaTablaInventarioRepository.resumenTablas — agregación m² del 
       { material: 'MARFIL', cantidad: 89.76, piezas: 3 },
     ]);
     expect(r.totalCantidad).toBe(89.76);
+    expect(r.totalPiezas).toBe(3);
+  });
+
+  it('agrega los m² reales de aserrado pendiente al resumen de tablas', async () => {
+    const r = await repoCon(
+      [loteTabla({ name: '500', productId: 71 })],
+      [tablaAlta({ id: 100, name: '46500' })],
+      [],
+      [],
+      [parteAserrado({ nBloque: 47001, material: 76, m2: 155.43 })],
+    ).resumenTablas();
+    expect(r.materiales).toEqual([
+      { material: 'NEGRO MARQUINA', cantidad: 155.43, piezas: 1 },
+      { material: 'MARFIL', cantidad: 44.88, piezas: 2 },
+    ]);
+    expect(r.totalCantidad).toBe(200.31);
     expect(r.totalPiezas).toBe(3);
   });
 });

@@ -25,14 +25,15 @@ const LIMIT = 50;
 const REFRESCO_MS = 60_000;
 
 /**
- * Inventario de tablas en existencias, gemelo del de bloques: une dos eras (lo
+ * Inventario de tablas en existencias, gemelo del de bloques: une tres procedencias (lo
  * hace el backend) — `fuente='stock'` = existencias on-hand del stock de Odoo
  * (`stock_lot`+`stock_quant`, `type_product_lot='tables'`) y `fuente='alta'` =
  * paquetes de tablas recibidos (`lot_tables_creation`) aún sin existencias en el
- * stock (se marcan "Recepción reciente"). Las medidas llegan en metros (el backend
+ * stock (se marcan "Recepción reciente"); `fuente='aserrado'` = partes reales de
+ * paquetes pendientes de alta/depuración en Odoo. Las medidas llegan en metros (el backend
  * normaliza cm→m; el grueso trae unidades inconsistentes entre lotes, a confirmar)
- * y el nº de paquetes/tablas en crudo; el m² queda en "—" hasta confirmar el
- * recuento de tablas: no se interpreta nada que no esté en la fuente. Valores con
+ * y el nº de paquetes/tablas en crudo; el m² de aserrado viene del parte real:
+ * no se interpreta nada que no esté en la fuente. Valores con
  * su unidad al lado; todo lo que la fuente no trae se pinta "—".
  */
 @Component({
@@ -162,6 +163,12 @@ const REFRESCO_MS = 60_000;
                         title="Paquete de tablas recibido recientemente (registrado en el alta de entrada), aún sin existencias en el stock de Odoo. Se cuenta en el inventario hasta que se da entrada al stock o sale."
                         >Recepción reciente</span
                       >
+                    } @else if (fila.fuente === 'aserrado') {
+                      <span
+                        class="tag-aserrado"
+                        title="Tablas reales producidas en el parte de paquetes del telar, pendientes de alta o depuración en Odoo. No garantiza stock actual depurado."
+                        >Aserrado pendiente de Odoo</span
+                      >
                     } @else {
                       <span class="soft">—</span>
                     }
@@ -234,18 +241,25 @@ const REFRESCO_MS = 60_000;
       font-weight: 650;
       white-space: nowrap;
     }
-    /* Procedencia "alta": tabla recibida aún sin existencias en el stock de Odoo. */
-    .tag-reciente {
+    /* Procedencia sin ubicación Odoo: alta reciente o aserrado pendiente. */
+    .tag-reciente,
+    .tag-aserrado {
       display: inline-flex;
       align-items: center;
       padding: 1px 8px;
       border-radius: var(--radius-pill);
-      border: 1px solid var(--amber);
-      color: var(--amber);
       font-size: 11px;
       font-weight: 650;
       white-space: nowrap;
       cursor: help;
+    }
+    .tag-reciente {
+      border: 1px solid var(--amber);
+      color: var(--amber);
+    }
+    .tag-aserrado {
+      border: 1px solid var(--teal);
+      color: var(--teal);
     }
   `
 })
@@ -255,7 +269,7 @@ export class TablasComponent {
 
   readonly formatNumero = formatNumero;
   readonly tituloMedidas = 'largo × alto × grueso, en metros; el grueso llega con unidades inconsistentes en algunos lotes (a confirmar)';
-  readonly tituloM2 = 'Superficie en m². En las altas = nº de tablas × largo × alto (recuento explícito); en el stock on-hand va "—" hasta confirmar el recuento';
+  readonly tituloM2 = 'Superficie en m². En las altas = nº de tablas × largo × alto; en aserrado viene del parte real; en el stock on-hand va "—" hasta confirmar el recuento';
 
   readonly q = signal<string | null>(null);
   readonly material = signal<string | null>(null);

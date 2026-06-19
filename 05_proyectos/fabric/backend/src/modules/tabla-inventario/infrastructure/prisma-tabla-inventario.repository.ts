@@ -23,7 +23,7 @@ import {
 } from '../domain/tabla-inventario.entity';
 import { TablaInventarioRepository } from '../domain/tabla-inventario.repository';
 
-/** La lista unida (stock + altas) cambia poco; se cachea unos segundos. */
+/** La lista unida (stock + altas + aserrado pendiente) cambia poco; se cachea unos segundos. */
 const TTL_LISTA_MS = 30_000;
 
 /**
@@ -95,6 +95,25 @@ type AltaComun = {
   writeDate: Date | null;
 };
 
+/** Parte real de paquetes agregado por PM/lote, pendiente de reflejo en Odoo. */
+type AserradoPendiente = {
+  nBloque: number;
+  material: number | null;
+  paquetes: number | null;
+  nTablas: number;
+  largo: number | null;
+  alto: number | null;
+  grueso: number | null;
+  m2: number;
+  createDate: Date | null;
+  writeDate: Date | null;
+};
+
+type MaterialAserradoFallback = {
+  nBloque: number;
+  material: number | null;
+};
+
 /** Normaliza `type_product_lot` al tipo de dominio (tabla o losa). */
 function tipoTabla(valor: string | null): TipoTabla {
   return valor === 'slabs' ? 'slabs' : 'tables';
@@ -110,6 +129,24 @@ function tipoTabla(valor: string | null): TipoTabla {
  */
 function aMetros(valor: number | null): number | null {
   return valor === null ? null : dimensionBloqueAMetros(valor);
+}
+
+/**
+ * Medidas de tabla del parte de paquetes: largo/alto suelen venir en metros o cm
+ * (>10 => cm); el grueso se considera cm si supera 0,5 m, como en Produccion.
+ */
+function medidaParteTablaAMetros(
+  valor: number | null,
+  umbralCm: number,
+): number | null {
+  if (valor === null) {
+    return null;
+  }
+  return valor > umbralCm ? valor / 100 : valor;
+}
+
+function redondea2(valor: number): number {
+  return Math.round(valor * 100) / 100;
 }
 
 /**
@@ -138,7 +175,7 @@ function areaPiezasM2(
 
 @Injectable()
 export class PrismaTablaInventarioRepository implements TablaInventarioRepository {
-  /** Lista unida (stock on-hand + altas no salidas) por tipo: tablas / losas. */
+  /** Lista unida (stock on-hand + altas no salidas + aserrado pendiente) por tipo. */
   private readonly listaCache = new Map<
     TipoTabla,
     { en: number; data: TablaInventario[] }
@@ -240,7 +277,8 @@ export class PrismaTablaInventarioRepository implements TablaInventarioRepositor
   /**
    * Lista UNIDA de existencias de un tipo = era "stock" (lotes on-hand de
    * `stock_lot`) ∪ era "alta" (paquetes recientes de `lot_tables_creation` /
-   * `lot_slabs_creation` que aún no figuran en el stock de Odoo). El alta solo
+   * `lot_slabs_creation` que aún no figuran en el stock de Odoo) ∪ partes de
+   * aserrado pendientes de Odoo (solo tablas). El alta solo
    * aporta los lotes SIN fila en `stock_lot`: si una pieza ya entró al stock y se
    * agotó (0 on-hand), Odoo la da por salida y no se muestra — es el equivalente de
    * "consumida" (a diferencia de los bloques, el stock de tablas/losas SÍ refleja
@@ -252,7 +290,7 @@ export class PrismaTablaInventarioRepository implements TablaInventarioRepositor
       return cached.data;
     }
 
-    const [lotesStock, altasRaw, lotesTodos] = await Promise.all([
+    const [lotesStock, altasRaw, lotesTodos, aserradosRaw] = await Promise.all([
       this.prisma.stockLot.findMany({
         where: { typeProductLot: tipo, quants: { some: QUANT_ON_HAND } },
         // Solo un quant on-hand, para la ubicación; `orderBy` lo hace determinista
@@ -273,7 +311,9 @@ export class PrismaTablaInventarioRepository implements TablaInventarioRepositor
         where: { typeProductLot: tipo },
         select: { name: true },
       }),
+      tipo === 'tables' ? this.partesAserradoPendientes() : Promise.resolve([]),
     ]);
+    const aserrados = await this.completarMaterialesAserrado(aserradosRaw);
 
     const nombresEnStock = new Set(
       lotesTodos.map((l) => l.name).filter((n): n is string => n !== null),
@@ -291,11 +331,14 @@ export class PrismaTablaInventarioRepository implements TablaInventarioRepositor
       return !nombresEnStock.has(a.name);
     });
 
-    // Resolver nombres de material de las dos eras en una sola pasada.
+    // Resolver nombres de material de todas las procedencias en una sola pasada.
     const idsMaterial = [
       ...lotesStock.map((l) => l.productId),
       ...altasEnAlmacen
         .map((a) => a.productId ?? a.productIdTmpl)
+        .filter((id): id is number => id !== null),
+      ...aserrados
+        .map((a) => a.material)
         .filter((id): id is number => id !== null),
     ];
     const nombres = await this.resolverNombres.resolver(idsMaterial);
@@ -303,9 +346,217 @@ export class PrismaTablaInventarioRepository implements TablaInventarioRepositor
     const data: TablaInventario[] = [
       ...lotesStock.map((lote) => this.toDomainStock(lote, nombres)),
       ...altasEnAlmacen.map((alta) => this.toDomainAlta(alta, nombres, tipo)),
+      ...aserrados.map((parte) => this.toDomainAserrado(parte, nombres)),
     ];
     this.listaCache.set(tipo, { en: Date.now(), data });
     return data;
+  }
+
+  /**
+   * Tablas reales salidas del telar segun partes de paquetes, pero aun no
+   * representadas por un lote de tabla/losa en Odoo. No estima nada: exige tablas
+   * y m2 reales, y deduplica contra stock y altas ya existentes. Algunas filas
+   * historicas de paquetes traen `material` null; se completan despues por PM/lote
+   * (`completarMaterialesAserrado`) para no agruparlas como "Material desconocido"
+   * cuando Odoo si conserva la piedra.
+   */
+  private partesAserradoPendientes(): Promise<AserradoPendiente[]> {
+    return this.prisma.$queryRaw<AserradoPendiente[]>(Prisma.sql`
+      WITH paquetes AS (
+        SELECT
+          p.n_bloque AS "nBloque",
+          MODE() WITHIN GROUP (ORDER BY p.material NULLS LAST) AS "material",
+          SUM(COALESCE(p.n_paquete, 0))::int AS "paquetes",
+          SUM(COALESCE(p.n_tablas, 0))::int AS "nTablas",
+          (ARRAY_AGG(p.largo_tablas ORDER BY p.create_date DESC NULLS LAST, p.id DESC))[1] AS "largo",
+          (ARRAY_AGG(p.alto_tablas ORDER BY p.create_date DESC NULLS LAST, p.id DESC))[1] AS "alto",
+          (ARRAY_AGG(p.grueso_tablas ORDER BY p.create_date DESC NULLS LAST, p.id DESC))[1] AS "grueso",
+          SUM(COALESCE(p.metros_cuadrados_tablas, 0))::float AS "m2",
+          MAX(p.create_date) AS "createDate",
+          MAX(p.write_date) AS "writeDate"
+        FROM parte_trabajo_mapeada p
+        WHERE p.operacion = '4'
+          AND p.n_bloque IS NOT NULL
+          -- PM/lote 0 no identifica un bloque real y romperia el id = -n_bloque.
+          AND p.n_bloque > 0
+        GROUP BY p.n_bloque
+        HAVING SUM(COALESCE(p.n_tablas, 0)) > 0
+           AND SUM(COALESCE(p.metros_cuadrados_tablas, 0)) > 0
+      )
+      SELECT paquetes.*
+      FROM paquetes
+      WHERE NOT EXISTS (
+        SELECT 1
+        FROM stock_lot sl
+        WHERE sl.type_product_lot IN ('tables', 'slabs')
+          AND sl.name = paquetes."nBloque"::text
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM lot_tables_creation lt
+        WHERE lt.name = paquetes."nBloque"::text
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM lot_slabs_creation ls
+        WHERE ls.name = paquetes."nBloque"::text
+      )
+    `);
+  }
+
+  /**
+   * Recupera el material de paquetes historicos cuyo parte op. 4 venia sin
+   * material. Precedencia: Odoo por PM/lote (stock/alta y variante MATERIAL),
+   * cualquier otro parte del mismo PM, y finalmente lectura de produccion solo si
+   * el telar no tiene el material estancado. Si ninguna fuente es fiable, queda
+   * null y se mantiene "Material desconocido".
+   */
+  private async completarMaterialesAserrado(
+    partes: AserradoPendiente[],
+  ): Promise<AserradoPendiente[]> {
+    const sinMaterial = partes.filter((p) => p.material === null);
+    if (sinMaterial.length === 0) {
+      return partes;
+    }
+
+    const valoresPm = sinMaterial.map((p) => Prisma.sql`(${p.nBloque}::int)`);
+    const filas = await this.prisma.$queryRaw<MaterialAserradoFallback[]>(Prisma.sql`
+      WITH objetivo(n_bloque) AS (
+        VALUES ${Prisma.join(valoresPm)}
+      ),
+      producto_directo AS (
+        SELECT o.n_bloque AS "nBloque", sl.product_id AS producto, 10 AS prioridad
+        FROM objetivo o
+        JOIN stock_lot sl ON sl.name = o.n_bloque::text
+        UNION ALL
+        SELECT o.n_bloque, l.product_id, 20
+        FROM objetivo o
+        JOIN lot_block_creation l ON l.name = o.n_bloque::text
+        WHERE l.product_id IS NOT NULL
+        UNION ALL
+        SELECT o.n_bloque, l.product_id_tmpl, 30
+        FROM objetivo o
+        JOIN lot_block_creation l ON l.name = o.n_bloque::text
+        WHERE l.product_id_tmpl IS NOT NULL
+      ),
+      directo_exacto AS (
+        SELECT pd."nBloque", pt.id AS material, pd.prioridad
+        FROM producto_directo pd
+        JOIN product_template pt ON pt.id = pd.producto
+        WHERE pt.default_code IS NOT NULL
+      ),
+      variante_material AS (
+        SELECT
+          o.n_bloque AS "nBloque",
+          COALESCE(pt.name->>'es_ES', pt.name->>'en_US') AS base,
+          COALESCE(pav.name->>'es_ES', pav.name->>'en_US') AS atributo,
+          40 AS prioridad
+        FROM objetivo o
+        JOIN stock_lot sl ON sl.name = o.n_bloque::text
+        JOIN product_product pp ON pp.id = sl.product_id
+        JOIN product_template pt ON pt.id = pp.product_tmpl_id
+        JOIN product_variant_combination pvc ON pvc.product_product_id = pp.id
+        JOIN product_template_attribute_value ptav ON ptav.id = pvc.product_template_attribute_value_id
+        JOIN product_attribute_value pav ON pav.id = ptav.product_attribute_value_id
+        JOIN product_attribute pa ON pa.id = pav.attribute_id
+        WHERE UPPER(COALESCE(pa.name->>'es_ES', pa.name->>'en_US')) = 'MATERIAL'
+      ),
+      alta_atributo_material AS (
+        SELECT
+          o.n_bloque AS "nBloque",
+          COALESCE(pt.name->>'es_ES', pt.name->>'en_US') AS base,
+          COALESCE(pav.name->>'es_ES', pav.name->>'en_US') AS atributo,
+          50 AS prioridad
+        FROM objetivo o
+        JOIN lot_block_creation l ON l.name = o.n_bloque::text
+        JOIN product_template pt ON pt.id = l.product_id_tmpl
+        JOIN product_attribute_value pav ON pav.id = l.attribute_value_id
+        JOIN product_attribute pa ON pa.id = pav.attribute_id
+        WHERE UPPER(COALESCE(pa.name->>'es_ES', pa.name->>'en_US')) = 'MATERIAL'
+      ),
+      nombres_atributo AS (
+        SELECT "nBloque", prioridad,
+               CASE
+                 WHEN UPPER(atributo) = UPPER(base_singular) THEN atributo
+                 ELSE base_singular || ' ' || atributo
+               END AS nombre
+        FROM (
+          SELECT "nBloque", prioridad, atributo,
+                 regexp_replace(
+                   regexp_replace(base, '^M[23]\\s+(BLOQUE|TABLA|LOSA)\\s+', '', 'i'),
+                   'S$',
+                   ''
+                 ) AS base_singular
+          FROM variante_material
+          UNION ALL
+          SELECT "nBloque", prioridad, atributo,
+                 regexp_replace(
+                   regexp_replace(base, '^M[23]\\s+(BLOQUE|TABLA|LOSA)\\s+', '', 'i'),
+                   'S$',
+                   ''
+                 ) AS base_singular
+          FROM alta_atributo_material
+        ) s
+      ),
+      atributo_exacto AS (
+        SELECT na."nBloque", pt.id AS material, na.prioridad
+        FROM nombres_atributo na
+        JOIN product_template pt
+          ON UPPER(COALESCE(pt.name->>'es_ES', pt.name->>'en_US')) = UPPER(na.nombre)
+        WHERE pt.default_code IS NOT NULL
+      ),
+      partes_pm AS (
+        SELECT o.n_bloque AS "nBloque",
+               MODE() WITHIN GROUP (ORDER BY p.material NULLS LAST) AS material,
+               70 AS prioridad
+        FROM objetivo o
+        JOIN parte_trabajo_mapeada p ON p.n_bloque = o.n_bloque
+        WHERE p.material IS NOT NULL
+        GROUP BY o.n_bloque
+      ),
+      telares_estancados AS (
+        SELECT telar_n
+        FROM produccion_mapeada
+        WHERE telar_n IN ('1', '2', '3', '4') AND material IS NOT NULL
+        GROUP BY telar_n
+        HAVING COUNT(DISTINCT material) <= 1
+      ),
+      produccion_ultima AS (
+        SELECT DISTINCT ON (o.n_bloque)
+               o.n_bloque AS "nBloque",
+               p.material,
+               90 AS prioridad
+        FROM objetivo o
+        JOIN produccion_mapeada p ON p.n_bloque = o.n_bloque
+        LEFT JOIN telares_estancados te ON te.telar_n = p.telar_n
+        WHERE p.material IS NOT NULL
+          AND p.telar_n IN ('1', '2', '3', '4')
+          AND te.telar_n IS NULL
+        ORDER BY o.n_bloque, p.fecha_hora DESC NULLS LAST, p.id DESC
+      ),
+      candidatos AS (
+        SELECT * FROM directo_exacto
+        UNION ALL SELECT * FROM atributo_exacto
+        UNION ALL SELECT * FROM partes_pm
+        UNION ALL SELECT * FROM produccion_ultima
+      )
+      SELECT DISTINCT ON ("nBloque") "nBloque", material
+      FROM candidatos
+      WHERE material IS NOT NULL
+      ORDER BY "nBloque", prioridad
+    `);
+
+    const porPm = new Map(
+      filas
+        .filter((fila) => fila.material !== null)
+        .map((fila) => [fila.nBloque, fila.material!]),
+    );
+
+    return partes.map((parte) =>
+      parte.material === null && porPm.has(parte.nBloque)
+        ? { ...parte, material: porPm.get(parte.nBloque)! }
+        : parte,
+    );
   }
 
   /** Altas normalizadas del tipo: tablas (`n_tables`) o losas (`n_slabs`). */
@@ -407,6 +658,32 @@ export class PrismaTablaInventarioRepository implements TablaInventarioRepositor
       m2: areaPiezasM2(alta.largoSupplier, alta.altoSupplier, alta.nPiezas),
       createDate: alta.createDate,
       writeDate: alta.writeDate,
+    };
+  }
+
+  /** Mapea partes reales de paquetes pendientes de alta/depuracion en Odoo. */
+  private toDomainAserrado(
+    parte: AserradoPendiente,
+    nombres: Map<number, string>,
+  ): TablaInventario {
+    return {
+      id: -parte.nBloque,
+      fuente: 'aserrado',
+      name: String(parte.nBloque),
+      material: parte.material,
+      materialNombre:
+        parte.material !== null ? etiquetaMaterial(parte.material, nombres) : null,
+      tipo: 'tables',
+      ubicacion: null,
+      largo: medidaParteTablaAMetros(parte.largo, 10),
+      alto: medidaParteTablaAMetros(parte.alto, 10),
+      grueso: medidaParteTablaAMetros(parte.grueso, 0.5),
+      paquetes: parte.paquetes,
+      nTablas: parte.nTablas,
+      acabado: null,
+      m2: redondea2(Number(parte.m2)),
+      createDate: parte.createDate,
+      writeDate: parte.writeDate,
     };
   }
 }

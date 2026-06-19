@@ -1,6 +1,7 @@
 /**
  * Tabla en existencias del inventario. Gemelo simétrico del inventario de
- * bloques y, como él, UNE DOS ERAS de datos (verificado contra BD 2026-06-18):
+ * bloques y, como él, une dos eras de Odoo más una procedencia de aserrado
+ * pendiente (verificado contra BD 2026-06-18):
  *
  * - `fuente='stock'`: lote `type_product_lot='tables'` de `stock_lot` on-hand
  *   (con `stock_quant` en ubicación interna y `quantity > 0`). Son las
@@ -9,6 +10,10 @@
  *   (el log VIVO de altas, gemelo de `lot_block_creation`) que aún no consta en el
  *   stock de Odoo y no ha salido. Sin esta era la vista infracontaba (mostraba 7
  *   de las 115 altas) — el origen de "veo poquísimas tablas".
+ * - `fuente='aserrado'`: tablas reales producidas en partes de paquetes
+ *   (`parte_trabajo_mapeada.operacion='4'`) que aún no están representadas como
+ *   lote de tabla/losa en Odoo. Es producción real pendiente de alta/depuración,
+ *   no una garantía de stock actual depurado.
  *
  * Una tabla cuyo lote SÍ figura en `stock_lot` pero está agotado (0 on-hand) se
  * considera ya salida del almacén y NO se muestra: es el equivalente de "bloque
@@ -31,22 +36,24 @@
  * - `paquetes` (`packages_tables`) y `nTablas` (`qty_creation` en stock /
  *   `n_tables` en el alta) se devuelven en crudo.
  * - `m2`: en la era **alta** SÍ se deriva = `n_tables` × largo × alto (recuento
- *   explícito, medidas por tabla en metros; el grueso no entra). En la era
+ *   explícito, medidas por tabla en metros; el grueso no entra); en la era
+ *   **aserrado** viene del parte real (`metros_cuadrados_tablas`). En la era
  *   **stock** se deja `null`: el recuento on-hand es ambiguo (`qty_creation` al
  *   alta vs la cantidad de `stock_quant`), no se inventa un área no garantizada.
  */
 export type TipoTabla = 'tables' | 'slabs';
 
-/** Era/origen de una tabla del inventario (las dos fuentes que se unen). */
-export type FuenteTabla = 'stock' | 'alta';
+/** Era/origen de una tabla del inventario (las fuentes que se unen). */
+export type FuenteTabla = 'stock' | 'alta' | 'aserrado';
 
 export type TablaInventario = {
-  /** Id de la fila origen (`stock_lot.id` o `lot_tables_creation.id` según `fuente`). */
+  /** Id de la fila origen; en `aserrado` se usa `-n_bloque` para evitar colisiones. */
   id: number;
   /**
    * Era/origen del dato: `stock` = existencias on-hand de Odoo (`stock_lot` +
    * `stock_quant`); `alta` = paquete recibido reciente de `lot_tables_creation`
-   * aún sin reflejo en el stock. Ver doc.
+   * aún sin reflejo en el stock; `aserrado` = parte real de paquetes pendiente de
+   * reflejo/depuración en Odoo. Ver doc.
    */
   fuente: FuenteTabla;
   /** Nº de lote de la tabla (`stock_lot.name` o `lot_tables_creation.name`). */
@@ -74,7 +81,7 @@ export type TablaInventario = {
   nTablas: number | null;
   /** Acabado del lote (`finished`); código en crudo. */
   acabado: string | null;
-  /** Superficie en m²: en altas = `n_tables` × largo × alto; null en stock (recuento on-hand ambiguo). */
+  /** Superficie en m²: en altas = `n_tables` × largo × alto; en aserrado = parte real; null en stock. */
   m2: number | null;
   createDate: Date | null;
   writeDate: Date | null;

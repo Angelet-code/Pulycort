@@ -17,12 +17,19 @@ import { MetricaComponent } from '../../shared/metrica.component';
 
 const LIMIT = 50;
 const REFRESCO_MS = 60_000;
+const ACABADOS_DISCO_PUENTE: Record<string, string> = {
+  '5': 'Apomazado',
+  '1': 'Pulido',
+  '10': 'Envejecido',
+  '0': ''
+};
 
 /**
  * Partes del disco puente: el registro de la máquina puente (recorta las tablas
  * que salen del telar) tal cual está en la tabla real `parte_discopuente_mapeada`.
- * Valores en crudo, sin interpretar: `operacion` y `acabado` son códigos/textos
- * de TotWare sin tabla de significados confirmada; `metro2Entrada/Salida` y la
+ * Valores en crudo salvo el acabado, que se etiqueta con el mapeo confirmado
+ * para esta máquina. `operacion` sigue siendo un código/texto de TotWare;
+ * `metro2Entrada/Salida` y la
  * eficiencia llegan ya calculados por el mapeador. Lo que la fuente no trae se
  * enseña como "—" (no se inventa).
  */
@@ -118,6 +125,8 @@ const REFRESCO_MS = 60_000;
               <tr>
                 <th>Fecha y hora</th>
                 <th>Operación</th>
+                <th>Operario 1</th>
+                <th>Operario 2</th>
                 <th class="derecha">Nº de lote</th>
                 <th>Material</th>
                 <th>Acabado</th>
@@ -153,6 +162,8 @@ const REFRESCO_MS = 60_000;
                       <span class="soft">—</span>
                     }
                   </td>
+                  <td>{{ operario(fila.operario1) }}</td>
+                  <td>{{ operario(fila.operario2) }}</td>
                   <td class="derecha num">
                     {{ num(fila.pmLote ?? fila.nBloque) }}
                     @if (fila.nBloque !== null && fila.nBloque > 0 && !fila.bloqueConocido) {
@@ -177,7 +188,7 @@ const REFRESCO_MS = 60_000;
                       <span class="soft">—</span>
                     }
                   </td>
-                  <td>{{ fila.acabado ?? '—' }}</td>
+                  <td>{{ nombreAcabado(fila.acabado) }}</td>
                   <td class="derecha num">{{ medidas(fila.largo, fila.alto, fila.grueso) }}</td>
                   <td class="derecha"><fabric-metrica [valor]="fila.nPaquete" unidad="paq." [tam]="13" /></td>
                   <td class="derecha"><fabric-metrica [valor]="fila.nTablas" unidad="tablas" [tam]="13" /></td>
@@ -381,6 +392,18 @@ export class PartesDiscoPuenteComponent {
   /** Código de operación sin tabla de significados confirmada (no se interpreta). */
   nombreOperacion(operacion: string): string {
     return `Op. ${operacion}`;
+  }
+
+  operario(valor: number | string | null): string {
+    return valor === null || valor === '' ? '—' : String(valor);
+  }
+
+  nombreAcabado(acabado: string | null): string {
+    if (acabado === null) {
+      return '—';
+    }
+    const codigo = acabado.trim();
+    return ACABADOS_DISCO_PUENTE[codigo] ?? acabado;
   }
 
   fechaHora(iso: string | null): string {

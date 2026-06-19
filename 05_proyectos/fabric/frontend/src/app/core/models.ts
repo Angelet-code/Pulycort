@@ -611,6 +611,72 @@ export interface LecturaBloqueDudosa {
   gruesoCm: number;
 }
 
+export type TonoDiagnostico = 'ok' | 'aviso' | 'mal';
+
+export type OrigenDiagnostico =
+  | 'operario-consola'
+  | 'plc-lecturas'
+  | 'interpretacion-bd'
+  | 'lote-equivocado'
+  | 'inventario-parte'
+  | 'sin-determinar';
+
+export interface DiagnosticoBloqueDudoso {
+  origen: OrigenDiagnostico;
+  etiqueta: string;
+  tono: TonoDiagnostico;
+  evidencia: string;
+  revisarEn: string[];
+}
+
+export interface CoincidenciaMedidaConsola {
+  pmLote: number;
+  telarId: number;
+  inicioCorte: string;
+  finCorte: string | null;
+  esBloqueAnterior: boolean;
+}
+
+export interface MedidaConsolaDudosa {
+  clave: string;
+  largoCm: number;
+  altoCm: number;
+  gruesoCm: number;
+  medida: MedidaBloqueFuente;
+  primeraLectura: string;
+  ultimaLectura: string;
+  lecturas: number;
+  coincideConLoteAnterior: boolean;
+  coincidencias: CoincidenciaMedidaConsola[];
+}
+
+export interface ParteTrabajoBloqueDudoso {
+  id: number;
+  telarId: number | null;
+  fechaHora: string | null;
+  operacionCodigo: string | null;
+  operacionEtiqueta: string;
+  accionCodigo: string | null;
+  accionEtiqueta: string | null;
+  pmLote: number | null;
+  esDelTelarDelRun: boolean;
+  paquetes: ResumenPaquetes | null;
+  operario1: string | null;
+  operario2: string | null;
+  materialId: string | null;
+}
+
+export interface EventoTimelineBloqueDudoso {
+  tipo: 'lectura' | 'parte';
+  fechaHora: string;
+  titulo: string;
+  detalle: string;
+  tono: TonoDiagnostico;
+  medidaCambio: boolean;
+  lecturaId: string | null;
+  parteId: number | null;
+}
+
 /**
  * Un bloque/lote con medidas DUDOSAS: reúne todas sus fuentes de medida
  * (proveedor / fábrica-MRP / consola del telar / parte) y qué pasó en el telar,
@@ -634,6 +700,8 @@ export interface BloqueDudoso {
   volumenImposible: boolean;
   pmDuplicado: boolean;
   parteEnOtroTelar: boolean;
+  /** Nuevo payload de diagnostico; opcional para tolerar backends anteriores. */
+  diagnostico?: DiagnosticoBloqueDudoso;
 
   inventario: {
     fuente: 'alta' | 'stock';
@@ -651,6 +719,8 @@ export interface BloqueDudoso {
    * la última del anterior). null = sin run anterior en la ventana analizada.
    */
   loteBloqueAnterior: number | null;
+  /** Todas las medidas distintas que emitio la consola; opcional por compatibilidad. */
+  medidasConsola?: MedidaConsolaDudosa[];
 
   horasMarcha: number;
   horasParo: number;
@@ -659,6 +729,8 @@ export interface BloqueDudoso {
   numLecturasConAlertas: number;
   numLecturasSospechosas: number;
   paquetes: ResumenPaquetes | null;
+  /** Partes individuales relacionados; opcional por compatibilidad. */
+  partes?: ParteTrabajoBloqueDudoso[];
   espesorCorteCm: number | null;
   volumenInventarioM3: number | null;
   rendimientoM2M3: number | null;
@@ -680,6 +752,8 @@ export interface BloqueDudoso {
   consolaInestable: boolean;
 
   lecturas: LecturaBloqueDudosa[];
+  /** Lecturas y partes intercalados; opcional por compatibilidad. */
+  lineaTiempo?: EventoTimelineBloqueDudoso[];
 }
 
 export interface MedidasDudosasPagina {
@@ -1159,18 +1233,21 @@ export interface InventarioVistaConjunta {
 
 /**
  * Tabla en existencias del inventario. Gemelo del bloque y, como él, une dos eras
+ * de Odoo más una procedencia de aserrado pendiente
  * (lo hace el backend/mock): `fuente='stock'` = existencias on-hand de Odoo
- * (`stock_lot`+`stock_quant`, `type_product_lot='tables'`) y `fuente='alta'` =
+ * (`stock_lot`+`stock_quant`, `type_product_lot='tables'`), `fuente='alta'` =
  * paquete de tablas dado de entrada en `lot_tables_creation` aún sin reflejo en el
- * stock. El backend resuelve el material contra `product_template` (sin el prefijo
+ * stock y `fuente='aserrado'` = parte real de paquetes pendiente de alta/depuración
+ * en Odoo. El backend resuelve el material contra `product_template` (sin el prefijo
  * de forma "M2 TABLA"/"M3 BLOQUE"). En demo los valores salen de la simulación.
  *
  * Las medidas (`largo`/`alto`/`grueso`) llegan en metros (el backend normaliza
  * cm→m): largo/alto limpios, el `grueso` con unidades inconsistentes entre lotes
  * (semántica a confirmar). `paquetes` (`packages_tables`) y `nTablas`
  * (`qty_creation` en stock / `n_tables` en el alta) llegan en crudo. `m2`: en las
- * altas = `n_tables` × largo × alto (recuento explícito); en el stock on-hand va
- * `null` hasta confirmar el recuento (no se inventa). La demo lo trae como anticipo.
+ * altas = `n_tables` × largo × alto (recuento explícito); en aserrado viene del
+ * parte real; en el stock on-hand va `null` hasta confirmar el recuento (no se
+ * inventa). La demo lo trae como anticipo.
  */
 export type TipoTabla = 'tables' | 'slabs';
 
@@ -1178,10 +1255,11 @@ export interface TablaInventario {
   id: number;
   /**
    * Era/origen del dato: `stock` = existencias on-hand de Odoo; `alta` = paquete
-   * de tablas recibido (`lot_tables_creation`) aún sin existencias en el stock.
+   * de tablas recibido (`lot_tables_creation`) aún sin existencias en el stock;
+   * `aserrado` = parte real de paquetes pendiente de alta/depuración en Odoo.
    * Opcional para tolerar backends/demo anteriores al campo.
    */
-  fuente?: 'stock' | 'alta';
+  fuente?: 'stock' | 'alta' | 'aserrado';
   /** Nº de lote de la tabla (`stock_lot.name` o `lot_tables_creation.name`). */
   name: string | null;
   /** Id de producto del material (en demo, id de la simulación). */
@@ -1202,7 +1280,7 @@ export interface TablaInventario {
   nTablas: number | null;
   /** Acabado del lote (`finished`); código en crudo. */
   acabado: string | null;
-  /** Superficie en m²: en altas = nº de tablas × largo × alto; null en stock (recuento ambiguo). */
+  /** Superficie en m²: en altas = nº de tablas × largo × alto; en aserrado = parte real; null en stock. */
   m2: number | null;
   createDate: string | null;
   writeDate: string | null;

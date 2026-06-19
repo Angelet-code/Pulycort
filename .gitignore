@@ -14,6 +14,24 @@ No Tocar/
 04_analisis_y_entregables/outputs/odoo_actual_scraping_2026-06-11/
 04_analisis_y_entregables/informes/caso_pedido_01_flujo_comercial_real_2026-06-11.md
 
+# Tarifas / precios / costes y fuentes comerciales (confidencial, repo publico)
+03_documentacion_curada/07_tarifas_por_material/
+04_analisis_y_entregables/outputs/tarifas_por_material_2026/
+90_tools/_out/
+01_entrada/*.xls
+01_entrada/*.xlsx
+01_entrada/*.XLS
+01_entrada/*.XLSX
+01_entrada/*.pdf
+01_entrada/*.PDF
+01_entrada/rvtarifasmaterialesyhojascalculo.zip
+01_entrada/rvtarifasmaterialesyhojascalculo/
+
+# Grabaciones y transcripciones de reuniones internas (PII)
+01_entrada/*.mp4
+04_analisis_y_entregables/outputs/reunion-angel-angelramon-2026-06-15/
+04_analisis_y_entregables/informes/resumen_reunion_angel_angelramon_2026-06-15.md
+
 __pycache__/
 .pytest_cache/
 *.py[cod]

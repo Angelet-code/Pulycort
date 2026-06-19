@@ -85,7 +85,8 @@ type TileEtiquetado = RectTreemap<ResumenMaterial> & {
  *
  * Las tres formas tienen fuente real en modo Real: Bloques (m³, del stock REAL de
  * Odoo `stock_lot` on-hand vía `stock_quant`), Tablas (m², stock on-hand + altas de
- * `lot_tables_creation`) y Losas (m², stock on-hand + altas de `lot_slabs_creation`).
+ * `lot_tables_creation` + aserrado pendiente de Odoo desde partes de paquetes) y
+ * Losas (m², stock on-hand + altas de `lot_slabs_creation`).
  * En Demo la simulación aún no modela losas → esa forma llega `pendiente`. Toda la
  * agregación la hace el backend/mock; aquí solo se dibuja, con su unidad al lado.
  */
@@ -290,9 +291,10 @@ type TileEtiquetado = RectTreemap<ResumenMaterial> & {
               <p class="metodo-texto">
                 <b>Tablas (m²).</b> Lotes de tabla on-hand de <code>stock_lot</code>
                 (tipo <code>tables</code>) vía <code>stock_quant</code>, más las altas de
-                entrada de <code>lot_tables_creation</code> que aún no han salido. El
-                material sale de <code>product_template</code>. El m² de cada alta =
-                nº de tablas (<code>n_tables</code>) × largo × alto.
+                entrada de <code>lot_tables_creation</code> que aún no han salido y los
+                partes de paquetes de telar pendientes de Odoo. El material sale de
+                <code>product_template</code>. El m² de cada alta = nº de tablas
+                (<code>n_tables</code>) × largo × alto; en aserrado viene del parte real.
               </p>
             }
             @case ('losas') {

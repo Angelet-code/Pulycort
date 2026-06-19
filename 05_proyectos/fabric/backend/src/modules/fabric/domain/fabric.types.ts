@@ -573,6 +573,80 @@ export interface LecturaBloqueDudosa {
   gruesoCm: number;
 }
 
+export type TonoDiagnostico = 'ok' | 'aviso' | 'mal';
+
+export type OrigenDiagnostico =
+  | 'operario-consola'
+  | 'plc-lecturas'
+  | 'interpretacion-bd'
+  | 'lote-equivocado'
+  | 'inventario-parte'
+  | 'sin-determinar';
+
+/**
+ * Lectura resumida para orientar la limpieza: no decide la verdad del dato, solo
+ * explica la hipotesis mas probable, la evidencia y donde mirar primero.
+ */
+export interface DiagnosticoBloqueDudoso {
+  origen: OrigenDiagnostico;
+  etiqueta: string;
+  tono: TonoDiagnostico;
+  evidencia: string;
+  revisarEn: string[];
+}
+
+/** Otro run que vio la misma medida de consola en la ventana analizada. */
+export interface CoincidenciaMedidaConsola {
+  pmLote: number;
+  telarId: number;
+  inicioCorte: string;
+  finCorte: string | null;
+  esBloqueAnterior: boolean;
+}
+
+/** Una medida distinta que emitio la consola durante el corte del lote. */
+export interface MedidaConsolaDudosa {
+  clave: string;
+  largoCm: number;
+  altoCm: number;
+  gruesoCm: number;
+  medida: MedidaBloqueFuente;
+  primeraLectura: string;
+  ultimaLectura: string;
+  lecturas: number;
+  coincideConLoteAnterior: boolean;
+  coincidencias: CoincidenciaMedidaConsola[];
+}
+
+/** Parte de trabajo individual relacionado con el lote (no solo el resumen op. 4). */
+export interface ParteTrabajoBloqueDudoso {
+  id: number;
+  telarId: number | null;
+  fechaHora: string | null;
+  operacionCodigo: string | null;
+  operacionEtiqueta: string;
+  accionCodigo: string | null;
+  accionEtiqueta: string | null;
+  pmLote: number | null;
+  esDelTelarDelRun: boolean;
+  paquetes: ResumenPaquetes | null;
+  operario1: string | null;
+  operario2: string | null;
+  materialId: string | null;
+}
+
+/** Evento ya mezclado para la linea temporal del detalle expandible. */
+export interface EventoTimelineBloqueDudoso {
+  tipo: 'lectura' | 'parte';
+  fechaHora: string;
+  titulo: string;
+  detalle: string;
+  tono: TonoDiagnostico;
+  medidaCambio: boolean;
+  lecturaId: string | null;
+  parteId: number | null;
+}
+
 /**
  * Un bloque/lote cuyas medidas son DUDOSAS: reúne TODAS sus fuentes de medida
  * (proveedor de inventario, fábrica/MRP, consola del telar y parte de trabajo) y
@@ -604,6 +678,9 @@ export interface BloqueDudoso {
   volumenImposible: boolean;
   pmDuplicado: boolean;
   parteEnOtroTelar: boolean;
+
+  // ── Diagnostico operativo ──
+  diagnostico: DiagnosticoBloqueDudoso;
 
   // ── Fuentes 1 y 2: inventario (alta/stock de Odoo) ──
   /**
@@ -640,6 +717,8 @@ export interface BloqueDudoso {
    * ese telar): no se inventa cuál.
    */
   loteBloqueAnterior: number | null;
+  /** Todas las medidas distintas que emitio la consola durante el corte. */
+  medidasConsola: MedidaConsolaDudosa[];
 
   // ── Fuente 4: producción + parte de trabajo ──
   horasMarcha: number;
@@ -649,6 +728,8 @@ export interface BloqueDudoso {
   numLecturasConAlertas: number;
   numLecturasSospechosas: number;
   paquetes: ResumenPaquetes | null;
+  /** Partes individuales relacionados con esta PM en la ventana de diagnostico. */
+  partes: ParteTrabajoBloqueDudoso[];
   espesorCorteCm: number | null;
   /** m³ "oficial" del lote (el de `CicloBloque.volumenM3`, del inventario). */
   volumenInventarioM3: number | null;
@@ -672,6 +753,8 @@ export interface BloqueDudoso {
 
   // ── Detalle fino: todas las lecturas del lote en ese telar ──
   lecturas: LecturaBloqueDudosa[];
+  /** Lecturas y partes intercalados para reconstruir que paso en orden temporal. */
+  lineaTiempo: EventoTimelineBloqueDudoso[];
 }
 
 export interface MedidasDudosasPagina {

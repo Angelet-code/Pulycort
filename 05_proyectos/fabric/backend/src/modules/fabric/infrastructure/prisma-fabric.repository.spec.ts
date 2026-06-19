@@ -54,6 +54,9 @@ function fila(opciones: {
   alturaMm?: number;
   sinCreateDate?: boolean;
   nBloque?: number;
+  largo?: number;
+  alto?: number;
+  grueso?: number;
   /** Desfase de create_date (recepción) respecto a la fecha declarada. */
   desfaseRecibidaMs?: number;
 }): FilaPrueba {
@@ -73,9 +76,9 @@ function fila(opciones: {
     golpesXMinuto: 0,
     velocidad: 20,
     alturaActual: opciones.alturaMm ?? 1800,
-    largo: 280,
-    alto: 160,
-    grueso: 190,
+    largo: opciones.largo ?? 280,
+    alto: opciones.alto ?? 160,
+    grueso: opciones.grueso ?? 190,
     material: 1,
     nBloque: opciones.nBloque ?? 47177,
     operario1: null,
@@ -290,6 +293,7 @@ function repoConPartes(
     produccionMapeada: { findMany: jest.fn().mockResolvedValue(filas) },
     parteTrabajoMapeada: { findMany: jest.fn().mockResolvedValue(partes) },
     lotBlockCreation: { findMany: jest.fn().mockResolvedValue(inventario) },
+    stockLot: { findMany: jest.fn().mockResolvedValue([]) },
     $queryRawUnsafe: jest.fn().mockRejectedValue(new Error('permission denied')),
   } as unknown as PrismaService;
   return new PrismaFabricRepository(prisma);
@@ -362,6 +366,81 @@ describe('PrismaFabricRepository · parte de aserrado en otro telar (PM heredada
     ).getEstadisticas('30d');
     const ciclo = est.ciclosCompletados.find((c) => c.telarId === 1 && c.pmLote === 47156);
     expect(ciclo?.parteEnOtroTelar).toBe(false);
+  });
+});
+
+describe('PrismaFabricRepository · detalle de medidas dudosas', () => {
+  beforeEach(() => {
+    jest.spyOn(Date, 'now').mockReturnValue(AHORA);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('diagnostica consola arrastrada cuando la medida coincide con el lote anterior', async () => {
+    const filas = [
+      fila({ telar: 1, nBloque: 47000, haceMs: 6 * HORA, incidencia: '1', largo: 100, alto: 100, grueso: 10 }),
+      fila({ telar: 1, nBloque: 47000, haceMs: 6 * HORA - 10 * MIN, incidencia: '1', largo: 100, alto: 100, grueso: 10 }),
+      fila({ telar: 1, nBloque: 47177, haceMs: 4 * HORA, incidencia: '1', largo: 100, alto: 100, grueso: 10 }),
+      fila({ telar: 1, nBloque: 47177, haceMs: 4 * HORA - 10 * MIN, incidencia: '1', largo: 100, alto: 100, grueso: 10 }),
+    ];
+    const pagina = await repoConPartes(
+      filas,
+      [],
+      [parteOp4({ telar: 1, nBloque: 47177, haceMs: 4 * HORA - 5 * MIN })],
+    ).getMedidasDudosas(null, null, null);
+
+    const bloque = pagina.bloques.find((b) => b.pmLote === 47177)!;
+    expect(bloque.diagnostico.origen).toBe('operario-consola');
+    expect(bloque.diagnostico.tono).toBe('aviso');
+    expect(bloque.medidasConsola[0].coincideConLoteAnterior).toBe(true);
+    expect(bloque.medidasConsola[0].coincidencias).toEqual(
+      expect.arrayContaining([expect.objectContaining({ pmLote: 47000, esBloqueAnterior: true })]),
+    );
+    expect(bloque.lineaTiempo.some((e) => e.tipo === 'parte')).toBe(true);
+    const tiempos = bloque.lineaTiempo.map((e) => new Date(e.fechaHora).getTime());
+    expect(tiempos).toEqual([...tiempos].sort((a, b) => a - b));
+  });
+
+  it('diagnostica numero de lote equivocado cuando el parte esta en otro telar', async () => {
+    const pagina = await repoConPartes(
+      runCompletadoDe(4, 47156),
+      [],
+      [parteOp4({ telar: 1, nBloque: 47156, haceMs: 9 * 24 * HORA })],
+    ).getMedidasDudosas(null, null, null);
+
+    const bloque = pagina.bloques.find((b) => b.pmLote === 47156)!;
+    expect(bloque.parteEnOtroTelar).toBe(true);
+    expect(bloque.diagnostico.origen).toBe('lote-equivocado');
+    expect(bloque.diagnostico.tono).toBe('mal');
+    expect(bloque.partes).toEqual(
+      expect.arrayContaining([expect.objectContaining({ telarId: 1, esDelTelarDelRun: false })]),
+    );
+  });
+
+  it('diagnostica inventario/parte incompatible cuando el m3 no permite la piedra cortada', async () => {
+    const pagina = await repoConPartes(
+      runCompletado(),
+      [
+        {
+          name: '47177',
+          largoMrp: 1,
+          altoMrp: 1,
+          gruesoMrp: 1,
+          largoSupplier: 1,
+          altoSupplier: 1,
+          gruesoSupplier: 1,
+        },
+      ],
+      [parteOp4({ telar: 1, nBloque: 47177 })],
+    ).getMedidasDudosas(null, null, null);
+
+    const bloque = pagina.bloques.find((b) => b.pmLote === 47177)!;
+    expect(bloque.volumenIncompatibleParte).toBe(true);
+    expect(bloque.diagnostico.origen).toBe('inventario-parte');
+    expect(bloque.diagnostico.tono).toBe('mal');
+    expect(bloque.piedraCortadaM3).toBeGreaterThan(bloque.volumenInventarioM3 ?? 0);
   });
 });
 

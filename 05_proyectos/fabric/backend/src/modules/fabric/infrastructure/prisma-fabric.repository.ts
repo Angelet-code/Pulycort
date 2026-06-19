@@ -25,6 +25,8 @@ import {
   ActividadParte,
   Bloque,
   CicloBloque,
+  CoincidenciaMedidaConsola,
+  DiagnosticoBloqueDudoso,
   DesvioRitmo,
   DetalleTelar,
   Estadisticas,
@@ -42,10 +44,13 @@ import {
   LecturaCuarentena,
   LecturaTelar,
   BloqueDudoso,
+  EventoTimelineBloqueDudoso,
   MedidaBloqueFuente,
+  MedidaConsolaDudosa,
   Medidas,
   MedidasDudosasPagina,
   PaginaPartes,
+  ParteTrabajoBloqueDudoso,
   ParoPorCausa,
   ProduccionDia,
   ProduccionMaterial,
@@ -946,6 +951,53 @@ function mermaEntreMedidas(
 }
 
 /** ¿El ciclo tiene alguna bandera de medida/identidad dudosa? (alcance de la vista). */
+function claveMedidaConsolaCm(
+  largoCm: number,
+  altoCm: number,
+  gruesoCm: number,
+): string | null {
+  if (largoCm <= 0 && altoCm <= 0 && gruesoCm <= 0) {
+    return null;
+  }
+  return `${largoCm}x${altoCm}x${gruesoCm}`;
+}
+
+function etiquetaMedidaCm(largoCm: number, altoCm: number, gruesoCm: number): string {
+  return `${redondea(largoCm, 0)}x${redondea(altoCm, 0)}x${redondea(gruesoCm, 0)} cm`;
+}
+
+function etiquetaParteTrabajo(fila: FilaParte): { operacion: string; accion: string | null } {
+  const operacion = fila.operacion ?? null;
+  const accionRaw = fila.accion ?? null;
+  const op = operacion && operacion.trim() !== '' ? Number(operacion) : null;
+  const accion = accionRaw && accionRaw.trim() !== '' ? Number(accionRaw) : null;
+  if (op === 0) {
+    return {
+      operacion: accion !== null ? `Parada: ${TELAR_ACCION[accion] ?? `accion ${accion}`}` : 'Parada',
+      accion: accion !== null ? TELAR_ACCION[accion] ?? `accion ${accion}` : null,
+    };
+  }
+  if (op !== null && TELAR_OPERACION[op] !== undefined) {
+    return { operacion: TELAR_OPERACION[op], accion: null };
+  }
+  return {
+    operacion: operacion ? `Operacion ${operacion}` : 'Parte sin operacion',
+    accion: accion !== null ? TELAR_ACCION[accion] ?? `accion ${accion}` : null,
+  };
+}
+
+const ETIQUETA_INCIDENCIA_BACKEND: Record<TipoIncidencia, string> = {
+  marcha: 'Marcha telar',
+  paro: 'Paro telar',
+  'paro-rotura-material': 'Paro por rotura de material',
+  'modo-manual': 'Modo manual',
+  'modo-automatico': 'Modo automatico',
+  'rotura-fleje': 'Rotura de fleje',
+  'cambio-bloque': 'Cambio de lote',
+  desconocida: 'Desconocida',
+  'sin-datos': 'Sin datos',
+};
+
 function esBloqueDudoso(ciclo: CicloBloque): boolean {
   return (
     ciclo.medidasIncoherentes ||
@@ -1528,6 +1580,27 @@ export class PrismaFabricRepository implements FabricRepository {
         }
 
         // Cruce con partes reales (op 4) por telar + nº de bloque y ventana.
+        const coincidenciasPorMedida = new Map<string, CoincidenciaMedidaConsola[]>();
+        for (const { telarId: id, run } of runsCompletados) {
+          const clavesRun = new Set(
+            run.lecturas
+              .map((l) => claveMedidaConsolaCm(l.largoCm, l.altoCm, l.gruesoCm))
+              .filter((clave): clave is string => clave !== null),
+          );
+          for (const clave of clavesRun) {
+            if (!coincidenciasPorMedida.has(clave)) {
+              coincidenciasPorMedida.set(clave, []);
+            }
+            coincidenciasPorMedida.get(clave)!.push({
+              pmLote: run.bloque,
+              telarId: id,
+              inicioCorte: new Date(run.desdeMs).toISOString(),
+              finCorte: new Date(run.hastaMs).toISOString(),
+              esBloqueAnterior: false,
+            });
+          }
+        }
+
         const partesRows = await this.partesPaquetesDeBloques(
           runsCompletados.map((rc) => rc.run.bloque),
         );
@@ -1603,6 +1676,19 @@ export class PrismaFabricRepository implements FabricRepository {
         const detalleInv = await this.detalleInventarioPorPm(
           recortados.map((d) => d.run.bloque),
         );
+        const partesDetalleRows = await this.partesTrabajoDeBloques(
+          recortados.map((d) => d.run.bloque),
+        );
+        const partesDetallePorBloque = new Map<number, FilaParte[]>();
+        for (const fila of partesDetalleRows) {
+          if (fila.nBloque === null) {
+            continue;
+          }
+          if (!partesDetallePorBloque.has(fila.nBloque)) {
+            partesDetallePorBloque.set(fila.nBloque, []);
+          }
+          partesDetallePorBloque.get(fila.nBloque)!.push(fila);
+        }
 
         const bloques = recortados.map(({ telarId: id, run, ciclo }) =>
           this.aBloqueDudoso(
@@ -1613,6 +1699,13 @@ export class PrismaFabricRepository implements FabricRepository {
             detalleInv.get(run.bloque) ?? null,
             nombres,
             lotePrevioPorRun.get(run) ?? null,
+            partesDeVentana(
+              partesDetallePorBloque.get(run.bloque) ?? [],
+              run.desdeMs,
+              run.hastaMs,
+              MARGEN_PM_OTRO_TELAR_MS,
+            ),
+            coincidenciasPorMedida,
           ),
         );
 
@@ -2245,9 +2338,24 @@ export class PrismaFabricRepository implements FabricRepository {
     if (bloques.length === 0) {
       return [];
     }
-    return this.prisma.parteTrabajoMapeada.findMany({
+    const filas = await this.prisma.parteTrabajoMapeada.findMany({
       where: {
         operacion: '4',
+        nBloque: { in: [...new Set(bloques)] },
+        nTelar: { in: TELAR_IDS.map(String) },
+      },
+      orderBy: [{ createDate: 'asc' }],
+    });
+    return filas.filter((fila) => fila.operacion === '4');
+  }
+
+  /** Partes de trabajo de cualquier operacion para reconstruir la linea temporal. */
+  private async partesTrabajoDeBloques(bloques: number[]): Promise<FilaParte[]> {
+    if (bloques.length === 0) {
+      return [];
+    }
+    return this.prisma.parteTrabajoMapeada.findMany({
+      where: {
         nBloque: { in: [...new Set(bloques)] },
         nTelar: { in: TELAR_IDS.map(String) },
       },
@@ -2579,6 +2687,8 @@ export class PrismaFabricRepository implements FabricRepository {
     inv: DetalleInventarioLote | null,
     nombres: Map<number, string>,
     loteBloqueAnterior: number | null,
+    partesRelacionados: FilaParte[],
+    coincidenciasPorMedida: Map<string, CoincidenciaMedidaConsola[]>,
   ): BloqueDudoso {
     // Todas las lecturas de ESTE lote en ESTE telar dentro de la ventana del run
     // (incluidas las sospechosas, que no entran en el run pero sí "pasaron").
@@ -2628,12 +2738,24 @@ export class PrismaFabricRepository implements FabricRepository {
         ? redondea((rendBruto / techoRendimientoM2M3) * 100, 0)
         : null;
     // Medidas de consola distintas durante el corte (>1 = la consola arrastró ruido).
-    const medidasConsola = new Set(
-      lecturas
-        .filter((l) => l.largoCm > 0 && l.altoCm > 0 && l.gruesoCm > 0)
-        .map((l) => `${l.largoCm}x${l.altoCm}x${l.gruesoCm}`),
+    const medidasConsola = this.medidasConsolaDe(
+      lecturas,
+      run,
+      telarId,
+      loteBloqueAnterior,
+      coincidenciasPorMedida,
     );
-    const consolaMedidasDistintas = medidasConsola.size;
+    const consolaMedidasDistintas = medidasConsola.length;
+    const partes = this.partesBloqueDudoso(partesRelacionados, telarId, nombres);
+    const diagnostico = this.diagnosticoBloqueDudoso(
+      ciclo,
+      medidasConsola,
+      lecturas,
+      partes,
+      piedraCortadaM3,
+      rendimientoSobreTechoPct,
+    );
+    const lineaTiempo = this.lineaTiempoBloqueDudoso(lecturas, partes);
     return {
       id: ciclo.id,
       pmLote: ciclo.pmLote,
@@ -2650,6 +2772,7 @@ export class PrismaFabricRepository implements FabricRepository {
       volumenImposible: ciclo.volumenImposible,
       pmDuplicado: ciclo.pmDuplicado,
       parteEnOtroTelar: ciclo.parteEnOtroTelar,
+      diagnostico,
       inventario: inv
         ? {
             fuente: inv.fuente,
@@ -2661,6 +2784,7 @@ export class PrismaFabricRepository implements FabricRepository {
         : null,
       consola,
       loteBloqueAnterior,
+      medidasConsola,
       horasMarcha: ciclo.horasMarcha,
       horasParo: ciclo.horasParo,
       numParos: ciclo.numParos,
@@ -2668,6 +2792,7 @@ export class PrismaFabricRepository implements FabricRepository {
       numLecturasConAlertas: lecturas.filter((l) => l.lectura.alertas.length > 0).length,
       numLecturasSospechosas: lecturas.filter((l) => l.lectura.sospechosa).length,
       paquetes: ciclo.paquetes,
+      partes,
       espesorCorteCm: ciclo.espesorCorteCm,
       volumenInventarioM3: ciclo.volumenM3,
       rendimientoM2M3: ciclo.rendimientoM2M3,
@@ -2680,7 +2805,284 @@ export class PrismaFabricRepository implements FabricRepository {
       consolaMedidasDistintas,
       consolaInestable: consolaMedidasDistintas > 1,
       lecturas,
+      lineaTiempo,
     };
+  }
+
+  private partesBloqueDudoso(
+    filas: FilaParte[],
+    telarRun: number,
+    nombres: Map<number, string>,
+  ): ParteTrabajoBloqueDudoso[] {
+    return filas
+      .slice()
+      .sort((a, b) => (fechaParteMs(a) ?? 0) - (fechaParteMs(b) ?? 0))
+      .map((fila) => {
+        const etiquetas = etiquetaParteTrabajo(fila);
+        const telarId = fila.nTelar != null ? Number(fila.nTelar) : null;
+        return {
+          id: Number(fila.id),
+          telarId,
+          fechaHora: fechaParteMs(fila) !== null ? new Date(fechaParteMs(fila)!).toISOString() : null,
+          operacionCodigo: fila.operacion ?? null,
+          operacionEtiqueta: etiquetas.operacion,
+          accionCodigo: fila.accion ?? null,
+          accionEtiqueta: etiquetas.accion,
+          pmLote: fila.nBloque ?? null,
+          esDelTelarDelRun: telarId === telarRun,
+          paquetes: fila.operacion === '4' ? resumenDePartes([fila]) : null,
+          operario1: this.nombreOperario(
+            fila.operario1 != null ? String(fila.operario1) : null,
+            nombres,
+          ),
+          operario2: this.nombreOperario(
+            fila.operario2 != null ? String(fila.operario2) : null,
+            nombres,
+          ),
+          materialId: fila.material != null ? String(fila.material) : null,
+        };
+      });
+  }
+
+  private medidasConsolaDe(
+    lecturas: LecturaBloqueDudosa[],
+    run: RunBloque,
+    telarId: number,
+    loteBloqueAnterior: number | null,
+    coincidenciasPorMedida: Map<string, CoincidenciaMedidaConsola[]>,
+  ): MedidaConsolaDudosa[] {
+    const porClave = new Map<
+      string,
+      {
+        largoCm: number;
+        altoCm: number;
+        gruesoCm: number;
+        primeraLectura: string;
+        ultimaLectura: string;
+        lecturas: number;
+      }
+    >();
+    for (const lectura of lecturas) {
+      const clave = claveMedidaConsolaCm(lectura.largoCm, lectura.altoCm, lectura.gruesoCm);
+      if (clave === null) {
+        continue;
+      }
+      const previa = porClave.get(clave);
+      if (previa) {
+        previa.ultimaLectura = lectura.lectura.recibidaEn;
+        previa.lecturas += 1;
+      } else {
+        porClave.set(clave, {
+          largoCm: lectura.largoCm,
+          altoCm: lectura.altoCm,
+          gruesoCm: lectura.gruesoCm,
+          primeraLectura: lectura.lectura.recibidaEn,
+          ultimaLectura: lectura.lectura.recibidaEn,
+          lecturas: 1,
+        });
+      }
+    }
+    const inicioRun = new Date(run.desdeMs).toISOString();
+    return [...porClave.entries()]
+      .map(([clave, m]) => {
+        const coincidencias = (coincidenciasPorMedida.get(clave) ?? [])
+          .filter(
+            (c) =>
+              !(
+                c.pmLote === run.bloque &&
+                c.telarId === telarId &&
+                c.inicioCorte === inicioRun
+              ),
+          )
+          .map((c) => ({
+            ...c,
+            esBloqueAnterior: c.pmLote === loteBloqueAnterior && c.telarId === telarId,
+          }))
+          .sort((a, b) => Number(b.esBloqueAnterior) - Number(a.esBloqueAnterior));
+        return {
+          clave,
+          largoCm: m.largoCm,
+          altoCm: m.altoCm,
+          gruesoCm: m.gruesoCm,
+          medida: medidaFuente(m.largoCm, m.altoCm, m.gruesoCm),
+          primeraLectura: m.primeraLectura,
+          ultimaLectura: m.ultimaLectura,
+          lecturas: m.lecturas,
+          coincideConLoteAnterior: coincidencias.some((c) => c.esBloqueAnterior),
+          coincidencias,
+        };
+      })
+      .sort((a, b) => epoch(a.primeraLectura) - epoch(b.primeraLectura));
+  }
+
+  private diagnosticoBloqueDudoso(
+    ciclo: CicloBloque,
+    medidasConsola: MedidaConsolaDudosa[],
+    lecturas: LecturaBloqueDudosa[],
+    partes: ParteTrabajoBloqueDudoso[],
+    piedraCortadaM3: number | null,
+    rendimientoSobreTechoPct: number | null,
+  ): DiagnosticoBloqueDudoso {
+    const medidaAnterior = medidasConsola.find((m) => m.coincideConLoteAnterior);
+    const revisarConsola = ['telar/consola', 'produccion_mapeada'];
+    if (ciclo.parteEnOtroTelar) {
+      const parteOtroTelar = partes.find((p) => !p.esDelTelarDelRun && p.operacionCodigo === '4');
+      return {
+        origen: 'lote-equivocado',
+        etiqueta: 'Numero de lote equivocado o PM heredada',
+        tono: 'mal',
+        evidencia: parteOtroTelar
+          ? `El parte de paquetes de la PM consta en el telar ${parteOtroTelar.telarId}, no en el telar ${ciclo.telarId}.`
+          : 'El parte de aserrado de la PM consta en otro telar y este run no tiene parte propio.',
+        revisarEn: [...revisarConsola, 'parte_trabajo_mapeada'],
+      };
+    }
+    if (ciclo.volumenIncompatibleParte) {
+      return {
+        origen: 'inventario-parte',
+        etiqueta: 'Medida de inventario o parte incompatible',
+        tono: 'mal',
+        evidencia:
+          piedraCortadaM3 !== null && ciclo.volumenM3 !== null
+            ? `El parte implica ${piedraCortadaM3} m3 de piedra y el inventario declara ${ciclo.volumenM3} m3.`
+            : 'El m3 del inventario no permite la piedra cortada que declara el parte.',
+        revisarEn: ['lot_block_creation', 'stock_lot', 'parte_trabajo_mapeada', 'Odoo'],
+      };
+    }
+    if (ciclo.volumenImposible) {
+      return {
+        origen: 'inventario-parte',
+        etiqueta: 'Medida de inventario no utilizable',
+        tono: 'mal',
+        evidencia: 'La medida del inventario queda fuera de rango fisico tras normalizar cm/m.',
+        revisarEn: ['lot_block_creation', 'stock_lot', 'Odoo'],
+      };
+    }
+    if (ciclo.pmDuplicado) {
+      return {
+        origen: 'interpretacion-bd',
+        etiqueta: 'Identidad PM duplicada',
+        tono: 'mal',
+        evidencia: `El PM aparece en ${ciclo.bloquesEnLote ?? 'varias'} filas de inventario; no se sabe que medida usar.`,
+        revisarEn: ['lot_block_creation', 'stock_lot', 'Odoo'],
+      };
+    }
+    if (medidaAnterior) {
+      const anterior = medidaAnterior.coincidencias.find((c) => c.esBloqueAnterior);
+      return {
+        origen: 'operario-consola',
+        etiqueta: 'Consola no actualizada / datos arrastrados',
+        tono: 'aviso',
+        evidencia: anterior
+          ? `La consola emitio ${etiquetaMedidaCm(
+              medidaAnterior.largoCm,
+              medidaAnterior.altoCm,
+              medidaAnterior.gruesoCm,
+            )}, la misma medida que el lote anterior ${anterior.pmLote}.`
+          : 'Una medida de consola coincide con el lote anterior.',
+        revisarEn: revisarConsola,
+      };
+    }
+    if (ciclo.medidasIncoherentes) {
+      return {
+        origen: 'operario-consola',
+        etiqueta: 'Valores de consola incompatibles con el parte',
+        tono: 'aviso',
+        evidencia: 'La medida tecleada en el telar no encaja geometricamente con las tablas del parte.',
+        revisarEn: [...revisarConsola, 'parte_trabajo_mapeada'],
+      };
+    }
+    const alertas = lecturas.filter((l) => l.lectura.alertas.length > 0).length;
+    const sospechosas = lecturas.filter((l) => l.lectura.sospechosa).length;
+    const gap = this.maxGapMin(lecturas);
+    const muchasAlertas =
+      alertas >= Math.max(3, Math.ceil(Math.max(lecturas.length, 1) * 0.25));
+    if (sospechosas > 0 || muchasAlertas || gap > HUECO_MAX_MS / 60_000) {
+      return {
+        origen: 'plc-lecturas',
+        etiqueta: 'Posible fallo PLC / captura',
+        tono: 'aviso',
+        evidencia: `${alertas} lecturas con avisos, ${sospechosas} en cuarentena y hueco maximo ${redondea(gap, 0)} min.`,
+        revisarEn: ['PLC/telar', 'produccion_mapeada'],
+      };
+    }
+    if (rendimientoSobreTechoPct !== null && rendimientoSobreTechoPct <= 100) {
+      return {
+        origen: 'sin-determinar',
+        etiqueta: 'Sin determinar',
+        tono: 'ok',
+        evidencia: 'La coherencia fisica no demuestra una contradiccion; hace falta revisar el origen manualmente.',
+        revisarEn: ['telar/consola', 'parte_trabajo_mapeada', 'lot_block_creation'],
+      };
+    }
+    return {
+      origen: 'sin-determinar',
+      etiqueta: 'Sin determinar',
+      tono: 'aviso',
+      evidencia: 'Las senales actuales no bastan para asignar un origen probable.',
+      revisarEn: ['telar/consola', 'produccion_mapeada', 'parte_trabajo_mapeada', 'Odoo'],
+    };
+  }
+
+  private maxGapMin(lecturas: LecturaBloqueDudosa[]): number {
+    let max = 0;
+    for (let i = 1; i < lecturas.length; i++) {
+      max = Math.max(max, (epoch(lecturas[i].lectura.recibidaEn) - epoch(lecturas[i - 1].lectura.recibidaEn)) / 60_000);
+    }
+    return max;
+  }
+
+  private lineaTiempoBloqueDudoso(
+    lecturas: LecturaBloqueDudosa[],
+    partes: ParteTrabajoBloqueDudoso[],
+  ): EventoTimelineBloqueDudoso[] {
+    let clavePrevia: string | null = null;
+    const eventosLectura = lecturas.map((l) => {
+      const clave = claveMedidaConsolaCm(l.largoCm, l.altoCm, l.gruesoCm);
+      const medidaCambio = clave !== null && clavePrevia !== null && clave !== clavePrevia;
+      if (clave !== null) {
+        clavePrevia = clave;
+      }
+      const tono: EventoTimelineBloqueDudoso['tono'] = l.lectura.sospechosa
+        ? 'mal'
+        : l.lectura.alertas.length > 0
+          ? 'aviso'
+          : 'ok';
+      const medida = clave === null ? 'sin medida de consola' : etiquetaMedidaCm(l.largoCm, l.altoCm, l.gruesoCm);
+      return {
+        tipo: 'lectura' as const,
+        fechaHora: l.lectura.recibidaEn,
+        titulo: medidaCambio
+          ? 'Cambio de medida de consola'
+          : `Lectura: ${ETIQUETA_INCIDENCIA_BACKEND[l.lectura.incidencia]}`,
+        detalle: `${medida} · ${l.lectura.potenciaKw} kW · ${l.lectura.alturaActualMm} mm`,
+        tono,
+        medidaCambio,
+        lecturaId: l.lectura.id,
+        parteId: null,
+      };
+    });
+    const eventosParte = partes
+      .filter((p) => p.fechaHora !== null)
+      .map((p) => {
+        const resumen = p.paquetes
+          ? `${p.paquetes.numTablas} tablas · ${p.paquetes.metrosCuadrados} m2`
+          : p.accionEtiqueta ?? '';
+        return {
+          tipo: 'parte' as const,
+          fechaHora: p.fechaHora!,
+          titulo: `Parte: ${p.operacionEtiqueta}`,
+          detalle: `T${p.telarId ?? '?'}${resumen ? ` · ${resumen}` : ''}`,
+          tono: p.esDelTelarDelRun ? 'ok' : 'aviso',
+          medidaCambio: false,
+          lecturaId: null,
+          parteId: p.id,
+        } satisfies EventoTimelineBloqueDudoso;
+      });
+    return [...eventosLectura, ...eventosParte].sort((a, b) => {
+      const t = epoch(a.fechaHora) - epoch(b.fechaHora);
+      return t !== 0 ? t : a.tipo.localeCompare(b.tipo);
+    });
   }
 
   private aCicloBloque(

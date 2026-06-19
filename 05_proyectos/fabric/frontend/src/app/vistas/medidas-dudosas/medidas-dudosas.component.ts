@@ -17,9 +17,14 @@ import { formatFechaHora, formatNumero } from '../../core/format';
 import { materialPorId } from '../../core/materiales';
 import {
   BloqueDudoso,
+  DiagnosticoBloqueDudoso,
+  EventoTimelineBloqueDudoso,
   LecturaBloqueDudosa,
   LecturaTelar,
-  MedidaBloqueFuente
+  MedidaBloqueFuente,
+  MedidaConsolaDudosa,
+  OrigenDiagnostico,
+  TonoDiagnostico
 } from '../../core/models';
 import { KpiTileComponent } from '../../shared/kpi-tile.component';
 import { DataBadgeComponent } from '../../shared/data-badge.component';
@@ -256,6 +261,27 @@ type MotivoFlag =
                   <tr class="md-detalle-fila">
                     <td colspan="13">
                       <div class="md-detalle">
+                        @if (diagnostico(b); as d) {
+                          <div
+                            class="md-diagnostico"
+                            [class.md-tono-ok]="d.tono === 'ok'"
+                            [class.md-tono-aviso]="d.tono === 'aviso'"
+                            [class.md-tono-mal]="d.tono === 'mal'"
+                          >
+                            <div class="md-diagnostico-main">
+                              <span class="md-label">Diagnóstico probable</span>
+                              <strong>{{ d.etiqueta }}</strong>
+                              <span class="soft">{{ origenDiagnostico(d.origen) }}</span>
+                            </div>
+                            <p>{{ d.evidencia }}</p>
+                            <div class="md-revisar">
+                              <span class="soft">Revisar</span>
+                              @for (r of d.revisarEn; track r) {
+                                <code>{{ r }}</code>
+                              }
+                            </div>
+                          </div>
+                        }
                         <div class="md-paneles">
                           <div class="md-card">
                             <h3>Medidas del bloque por fuente</h3>
@@ -321,6 +347,32 @@ type MotivoFlag =
                                 </tr>
                               </tbody>
                             </table>
+                            <div class="md-medidas-consola">
+                              <h4>Medidas distintas vistas en el telar</h4>
+                              @for (m of medidasConsola(b); track m.clave) {
+                                <div
+                                  class="md-medida-consola"
+                                  [class.md-tono-aviso]="m.coincideConLoteAnterior || m.coincidencias.length > 0"
+                                >
+                                  <div>
+                                    <strong>{{ medidaConsolaTxt(m) }}</strong>
+                                    <span class="soft">{{ m.lecturas }} lecturas · {{ fecha(m.primeraLectura) }} → {{ fecha(m.ultimaLectura) }}</span>
+                                  </div>
+                                  @if (m.coincidencias.length > 0) {
+                                    <div class="md-coincidencias">
+                                      <span class="soft">También aparece en</span>
+                                      @for (c of m.coincidencias; track c.telarId + '-' + c.pmLote + '-' + c.inicioCorte) {
+                                        <span class="md-chip" [class.md-chip-principal]="c.esBloqueAnterior">
+                                          T{{ c.telarId }} · {{ c.pmLote }}{{ c.esBloqueAnterior ? ' · anterior' : '' }}
+                                        </span>
+                                      }
+                                    </div>
+                                  }
+                                </div>
+                              } @empty {
+                                <p class="md-nota">La consola no trae medidas de bloque en las lecturas de este lote.</p>
+                              }
+                            </div>
                             <p class="md-nota">
                               Merma de compra (proveedor→inventario):
                               <strong><fabric-metrica [valor]="b.inventario?.mermaPct ?? null" unidad="%" [decimales]="1" [tam]="13" /></strong>
@@ -360,9 +412,26 @@ type MotivoFlag =
 
                           <div class="md-card">
                             <h3>Coherencia física</h3>
+                            @if (coherenciaFisica(b); as cf) {
+                              <div
+                                class="md-coherencia-resumen"
+                                [class.md-tono-ok]="cf.tono === 'ok'"
+                                [class.md-tono-aviso]="cf.tono === 'aviso'"
+                                [class.md-tono-mal]="cf.tono === 'mal'"
+                              >
+                                <strong>{{ cf.etiqueta }}</strong>
+                                <span>{{ cf.detalle }}</span>
+                              </div>
+                            }
                             <div class="md-datos">
                               <div><span class="soft">Piedra cortada (m²×grosor)</span><fabric-metrica [valor]="b.piedraCortadaM3" unidad="m³" [decimales]="2" [tam]="14" /></div>
                               <div><span class="soft">m³ del bloque</span><fabric-metrica [valor]="b.volumenInventarioM3" unidad="m³" [decimales]="2" [tam]="14" /></div>
+                              <div>
+                                <span class="soft">Exceso piedra vs bloque</span>
+                                <span [class.md-danger]="(deltaPiedraBloque(b) ?? 0) > 0">
+                                  <fabric-metrica [valor]="deltaPiedraBloque(b)" unidad="m³" [decimales]="2" [tam]="14" />
+                                </span>
+                              </div>
                               <div>
                                 <span class="soft">Merma de aserrado</span>
                                 <span [class.md-warn]="(b.mermaAserradoPct ?? 0) < 0">
@@ -391,7 +460,30 @@ type MotivoFlag =
                         </div>
 
                         <div class="md-card">
-                          <h3>Lecturas del telar para este lote <span class="soft">({{ b.lecturas.length }})</span></h3>
+                          <h3>Línea temporal <span class="soft">({{ lineaTiempo(b).length }} eventos)</span></h3>
+                          <div class="md-timeline">
+                            @for (e of lineaTiempo(b); track timelineKey(e)) {
+                              <div
+                                class="md-evento"
+                                [class.md-evento-parte]="e.tipo === 'parte'"
+                                [class.md-tono-ok]="e.tono === 'ok'"
+                                [class.md-tono-aviso]="e.tono === 'aviso'"
+                                [class.md-tono-mal]="e.tono === 'mal'"
+                              >
+                                <span class="md-evento-punto"></span>
+                                <div>
+                                  <div class="md-evento-head">
+                                    <strong>{{ e.titulo }}</strong>
+                                    <span class="soft">{{ fecha(e.fechaHora) }}</span>
+                                  </div>
+                                  <p>{{ e.detalle }}</p>
+                                </div>
+                              </div>
+                            } @empty {
+                              <p class="md-nota">Sin lecturas ni partes para construir la línea temporal.</p>
+                            }
+                          </div>
+                          <h3 class="md-subtitulo-tabla">Lecturas del telar para este lote <span class="soft">({{ b.lecturas.length }})</span></h3>
                           <div class="md-lecturas-scroll">
                             <table class="tabla md-lecturas">
                               <thead>
@@ -584,6 +676,56 @@ type MotivoFlag =
          .md-lecturas) reaplican su propio nowrap por celda. */
       white-space: normal;
     }
+    .md-diagnostico,
+    .md-coherencia-resumen,
+    .md-medida-consola,
+    .md-evento {
+      border: 1px solid var(--line);
+      background: var(--surface-soft);
+    }
+    .md-diagnostico {
+      display: grid;
+      grid-template-columns: minmax(210px, 0.8fr) minmax(260px, 1.4fr) minmax(220px, 1fr);
+      gap: 10px 14px;
+      align-items: center;
+      border-radius: var(--radius-row);
+      padding: 12px 14px;
+    }
+    .md-diagnostico-main {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+    .md-label {
+      font-size: 11px;
+      font-weight: 750;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text-soft);
+    }
+    .md-diagnostico p {
+      color: var(--text);
+      font-size: 13px;
+    }
+    .md-revisar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .md-tono-ok {
+      border-color: color-mix(in srgb, var(--green) 42%, transparent);
+      background: color-mix(in srgb, var(--green) 10%, transparent);
+    }
+    .md-tono-aviso {
+      border-color: color-mix(in srgb, var(--amber) 46%, transparent);
+      background: color-mix(in srgb, var(--amber) 11%, transparent);
+    }
+    .md-tono-mal {
+      border-color: color-mix(in srgb, var(--red) 48%, transparent);
+      background: color-mix(in srgb, var(--red) 12%, transparent);
+    }
     .md-paneles {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -626,6 +768,46 @@ type MotivoFlag =
       color: var(--text-soft);
       font-weight: 400;
     }
+    .md-medidas-consola {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      margin-top: 10px;
+    }
+    .md-medidas-consola h4,
+    .md-subtitulo-tabla {
+      margin: 10px 0 2px;
+      font-size: 11.5px;
+      font-weight: 750;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text-soft);
+    }
+    .md-medida-consola {
+      border-radius: var(--radius-sm);
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .md-medida-consola > div:first-child {
+      display: flex;
+      gap: 8px;
+      justify-content: space-between;
+      align-items: baseline;
+      flex-wrap: wrap;
+    }
+    .md-coincidencias {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .md-chip-principal {
+      color: var(--red-text);
+      border-color: color-mix(in srgb, var(--red) 45%, transparent);
+      background: color-mix(in srgb, var(--red) 12%, transparent);
+    }
     .md-datos {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
@@ -654,6 +836,64 @@ type MotivoFlag =
     }
     .md-warn {
       color: var(--amber);
+    }
+    .md-danger {
+      color: var(--red);
+    }
+    .md-coherencia-resumen {
+      border-radius: var(--radius-sm);
+      padding: 8px 10px;
+      margin-bottom: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      font-size: 12.5px;
+    }
+    .md-timeline {
+      position: relative;
+      display: grid;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .md-evento {
+      position: relative;
+      display: grid;
+      grid-template-columns: 14px 1fr;
+      gap: 8px;
+      border-radius: var(--radius-sm);
+      padding: 7px 9px;
+    }
+    .md-evento-punto {
+      width: 8px;
+      height: 8px;
+      margin-top: 5px;
+      border-radius: 50%;
+      background: var(--text-soft);
+    }
+    .md-evento.md-tono-ok .md-evento-punto {
+      background: var(--green);
+    }
+    .md-evento.md-tono-aviso .md-evento-punto {
+      background: var(--amber);
+    }
+    .md-evento.md-tono-mal .md-evento-punto {
+      background: var(--red);
+    }
+    .md-evento-parte {
+      border-style: dashed;
+    }
+    .md-evento-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+      font-size: 12.5px;
+    }
+    .md-evento p {
+      margin-top: 1px;
+      color: var(--text-muted);
+      font-size: 12px;
     }
     .md-lecturas-scroll {
       max-height: 320px;
@@ -823,6 +1063,154 @@ export class MedidasDudosasComponent {
   /** Etiqueta corta del motivo para el chip (la frase completa va en su tooltip). */
   motivoCorto(motivo: string): string {
     return this.MOTIVO_CORTO[motivo] ?? motivo.split(' ').slice(0, 3).join(' ');
+  }
+
+  diagnostico(b: BloqueDudoso): DiagnosticoBloqueDudoso {
+    if (b.diagnostico) {
+      return b.diagnostico;
+    }
+    if (b.parteEnOtroTelar) {
+      return {
+        origen: 'lote-equivocado',
+        etiqueta: 'Número de lote equivocado o PM heredada',
+        tono: 'mal',
+        evidencia: 'El parte de aserrado consta en otro telar.',
+        revisarEn: ['telar/consola', 'produccion_mapeada', 'parte_trabajo_mapeada']
+      };
+    }
+    if (b.volumenIncompatibleParte || b.volumenImposible) {
+      return {
+        origen: 'inventario-parte',
+        etiqueta: 'Medida de inventario o parte incompatible',
+        tono: 'mal',
+        evidencia: 'Hay una contradicción física entre inventario y parte.',
+        revisarEn: ['lot_block_creation', 'stock_lot', 'parte_trabajo_mapeada']
+      };
+    }
+    if (b.pmDuplicado) {
+      return {
+        origen: 'interpretacion-bd',
+        etiqueta: 'Identidad PM duplicada',
+        tono: 'mal',
+        evidencia: 'El PM aparece duplicado en inventario.',
+        revisarEn: ['lot_block_creation', 'stock_lot', 'Odoo']
+      };
+    }
+    return {
+      origen: 'sin-determinar',
+      etiqueta: 'Sin determinar',
+      tono: 'aviso',
+      evidencia: 'La respuesta no trae diagnóstico enriquecido; revisar fuentes manualmente.',
+      revisarEn: ['telar/consola', 'produccion_mapeada', 'parte_trabajo_mapeada']
+    };
+  }
+
+  origenDiagnostico(origen: OrigenDiagnostico): string {
+    const etiquetas: Record<OrigenDiagnostico, string> = {
+      'operario-consola': 'Operario / consola no actualizada',
+      'plc-lecturas': 'PLC / captura de lecturas',
+      'interpretacion-bd': 'Interpretación de BD / identidad',
+      'lote-equivocado': 'Número de lote equivocado',
+      'inventario-parte': 'Inventario / parte',
+      'sin-determinar': 'Sin determinar'
+    };
+    return etiquetas[origen];
+  }
+
+  medidasConsola(b: BloqueDudoso): MedidaConsolaDudosa[] {
+    if (b.medidasConsola) {
+      return b.medidasConsola;
+    }
+    const porClave = new Map<string, MedidaConsolaDudosa>();
+    for (const l of b.lecturas) {
+      if (l.largoCm <= 0 && l.altoCm <= 0 && l.gruesoCm <= 0) {
+        continue;
+      }
+      const clave = `${l.largoCm}x${l.altoCm}x${l.gruesoCm}`;
+      const previo = porClave.get(clave);
+      if (previo) {
+        previo.ultimaLectura = l.lectura.recibidaEn;
+        previo.lecturas += 1;
+      } else {
+        porClave.set(clave, {
+          clave,
+          largoCm: l.largoCm,
+          altoCm: l.altoCm,
+          gruesoCm: l.gruesoCm,
+          medida: {
+            largoM: l.largoCm / 100,
+            altoM: l.altoCm / 100,
+            gruesoM: l.gruesoCm / 100,
+            volumenM3: (l.largoCm * l.altoCm * l.gruesoCm) / 1_000_000,
+            imposible: false
+          },
+          primeraLectura: l.lectura.recibidaEn,
+          ultimaLectura: l.lectura.recibidaEn,
+          lecturas: 1,
+          coincideConLoteAnterior: false,
+          coincidencias: []
+        });
+      }
+    }
+    return [...porClave.values()];
+  }
+
+  lineaTiempo(b: BloqueDudoso): EventoTimelineBloqueDudoso[] {
+    if (b.lineaTiempo) {
+      return b.lineaTiempo;
+    }
+    return b.lecturas.map((l) => ({
+      tipo: 'lectura',
+      fechaHora: l.lectura.recibidaEn,
+      titulo: `Lectura: ${this.incidencia(l.lectura)}`,
+      detalle: this.medidaConsola(l),
+      tono: l.lectura.sospechosa ? 'mal' : l.lectura.alertas.length ? 'aviso' : 'ok',
+      medidaCambio: false,
+      lecturaId: l.lectura.id,
+      parteId: null
+    }));
+  }
+
+  timelineKey(e: EventoTimelineBloqueDudoso): string {
+    return `${e.tipo}-${e.lecturaId ?? e.parteId ?? e.fechaHora}`;
+  }
+
+  medidaConsolaTxt(m: MedidaConsolaDudosa): string {
+    return `${formatNumero(m.largoCm)}×${formatNumero(m.altoCm)}×${formatNumero(m.gruesoCm)} cm`;
+  }
+
+  deltaPiedraBloque(b: BloqueDudoso): number | null {
+    if (b.piedraCortadaM3 === null || b.volumenInventarioM3 === null) {
+      return null;
+    }
+    return Math.round((b.piedraCortadaM3 - b.volumenInventarioM3) * 100) / 100;
+  }
+
+  coherenciaFisica(b: BloqueDudoso): {
+    tono: TonoDiagnostico;
+    etiqueta: string;
+    detalle: string;
+  } {
+    const delta = this.deltaPiedraBloque(b);
+    if (b.volumenImposible || (b.rendimientoSobreTechoPct ?? 0) > 100 || (delta ?? 0) > 0) {
+      return {
+        tono: 'mal',
+        etiqueta: 'Contradicción física demostrada',
+        detalle: 'El dato no debe usarse para rendimiento hasta corregir la fuente.'
+      };
+    }
+    if (b.piedraCortadaM3 === null || b.volumenInventarioM3 === null || b.techoRendimientoM2M3 === null) {
+      return {
+        tono: 'aviso',
+        etiqueta: 'Falta base para demostrar coherencia',
+        detalle: 'No hay suficientes datos para afirmar si el bloque y el parte encajan.'
+      };
+    }
+    return {
+      tono: 'ok',
+      etiqueta: 'Coherente físicamente',
+      detalle: 'La piedra cortada cabe dentro del m³ del bloque y no supera el techo del grosor.'
+    };
   }
 
   fecha(iso: string): string {

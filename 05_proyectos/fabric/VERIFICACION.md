@@ -172,9 +172,9 @@ inventa nada. Incertidumbres registradas en `00_gestion/TAREAS.md` (snapshot con
 
 ### Vista `/partes/tablas` — Inventario de tablas
 
-Las tablas que **realmente hay ahora** en almacén. Gemelo del inventario de bloques: UNE **dos
-eras** (verificado contra BD el 2026-06-18; corrige el "las tablas no tienen era alta" del primer
-montaje, 2026-06-18):
+Las tablas que **realmente hay ahora o han salido ya del telar sin reflejo completo en Odoo**.
+Gemelo del inventario de bloques: UNE **tres procedencias** (verificado contra BD el 2026-06-18;
+corrige el "las tablas no tienen era alta" del primer montaje, 2026-06-18):
 
 - **Era `stock`** — lote `stock_lot` `type_product_lot='tables'` on-hand (`stock_quant.quantity > 0`
   en ubicación interna). Es la existencia confirmada por Odoo: **7 lotes** (por sí sola, "poquísimas
@@ -182,6 +182,11 @@ montaje, 2026-06-18):
 - **Era `alta`** — paquete de tablas recibido en **`lot_tables_creation`** (el log VIVO de altas,
   gemelo de `lot_block_creation`) que **aún no consta en `stock_lot`** y no está entregado
   (`delivery_done`). Aporta **50** lotes. Se marcan "Recepción reciente".
+- **Procedencia `aserrado`** — partes reales de paquetes de telar
+  (`parte_trabajo_mapeada.operacion='4'`) con `n_tablas` y `metros_cuadrados_tablas` válidos que
+  **aún no están representados** por `stock_lot`, `lot_tables_creation` ni `lot_slabs_creation`.
+  Se marcan "Aserrado pendiente de Odoo": es producción real de tablas pendiente de alta/depuración,
+  no garantía de stock actual depurado.
 
 Un alta cuyo lote SÍ figura en `stock_lot` pero está **agotado** (0 on-hand) se considera ya salida
 del almacén y **no se muestra** (es el "consumo" nativo de la tabla: Odoo rastrea su depleción, a
@@ -190,16 +195,19 @@ queda **pendiente de confirmar** con Pulycort.
 
 | Valor | Cómo se obtiene | Estado | Qué falta |
 |---|---|---|---|
-| Procedencia | `fuente` = `stock` (on-hand de Odoo) o `alta` (recepción reciente, sin existencias aún en Odoo) | ✅ | Confirmar si las 58 altas con lote agotado son envíos (excluir, como ahora) o stock no sincronizado (incluir → ~113) |
+| Procedencia | `fuente` = `stock` (on-hand de Odoo), `alta` (recepción reciente) o `aserrado` (parte real de paquetes pendiente de Odoo) | ✅/⚠️ | `aserrado` suma producción real, pero no trae salida posterior de tablas; no prometer stock depurado |
 | Nº de lote / material | `name` y `product_id`/`product_id_tmpl` ("M2 TABLA <piedra>" → piedra) resueltos contra `product_template` | ✅ | Id sin nombre en Odoo → "Material N" |
 | Medidas (largo × alto × grueso) | `*_supplier`, metros (normaliza cm→m por umbral) | ⚠️ | largo/alto limpios; el **grueso** llega con unidades inconsistentes entre lotes (0,02 / 2 / 20) — semántica sin confirmar |
-| Paquetes / Tablas | `packages_tables`; `qty_creation` (stock) / `n_tables` (alta) | ⚠️ | Crudo; en el alta `n_tables` es recuento explícito |
-| **m²** | en altas = `n_tables` × largo × alto (recuento explícito; guarda de medida imposible → "—") | ✅/⛔ | ✅ en altas (verificado: 47215 = 71×1,65×0,68 = 79,66 m²); ⛔ "—" en stock hasta fijar el recuento on-hand |
-| Acabado / Ubicación | `finished`; `stock_location.complete_name` (solo stock) | ✅ | — |
+| Paquetes / Tablas | `packages_tables`; `qty_creation` (stock) / `n_tables` (alta) / `SUM(n_tablas)` (aserrado) | ⚠️/✅ | Crudo en stock/alta; real agregado en `aserrado`, sin distinguir espesores en esta iteración |
+| **m²** | en altas = `n_tables` × largo × alto; en aserrado = `SUM(metros_cuadrados_tablas)`; stock = "—" | ✅/⚠️ | ✅ en altas y aserrado; ⚠️ stock on-hand sigue sin m² hasta fijar el recuento |
+| Acabado / Ubicación | `finished`; `stock_location.complete_name` (solo stock); `aserrado` sin ubicación Odoo | ✅/⚠️ | `aserrado` se etiqueta como pendiente de Odoo |
 
-Comprobado contra el endpoint real y el navegador (2026-06-18): **57 tablas** (7 stock + 50 alta),
-materiales reales (TRAVERTINOS, MARFIL, MARRON, KOALA, MARQUINA, ARENISCA…). Pendientes en
-`00_gestion/TAREAS.md` (reconciliación de las 58 agotadas; m² de altas; losas `lot_slabs_creation`).
+Comprobado contra BD real (2026-06-18): además de **57 lotes** (7 stock + 50 alta), hay **1.125 PM
+de aserrado pendientes** tras deduplicar contra Odoo y excluir `n_bloque=0`, con **62.315 tablas**
+y **232.609,09 m²**.
+También hay brecha documentada: 35 PM con salida de telar sin parte de paquetes y 6 con paquetes sin
+m² válido. Pendientes en `00_gestion/TAREAS.md` (reconciliación de altas agotadas; salida posterior de
+tablas de la procedencia `aserrado`; losas `lot_slabs_creation`).
 
 ### Vista `/datos` — Salud del dato
 

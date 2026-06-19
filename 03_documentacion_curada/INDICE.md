@@ -16,6 +16,7 @@ La empresa trabaja piedra natural/mármol con procesos como bloque, tabla, losa,
 - `04_tarifas_operaciones_maquinas`: trabajos por grupos 81-84, tarifas y relación con máquinas.
 - `05_clientes_proveedores_pagos`: importación de partners a Odoo y formas/condiciones de pago.
 - `06_produccion_y_acceso_maquinas`: cuestionario funcional de producción y acceso remoto a máquinas.
+- `07_tarifas_por_material`: tarifas comerciales por material y año, separadas de las tarifas de operaciones/máquinas.
 
 Cuando hay archivos con `DEFINITIVO` o con fecha, se han mantenido junto a sus versiones previas para conservar trazabilidad.
 
@@ -65,6 +66,19 @@ Cuando hay archivos con `DEFINITIVO` o con fecha, se han mantenido junto a sus v
 | --- | --- |
 | [Cuestionario para Angel - INDASEL Pulycort.xlsx](<06_produccion_y_acceso_maquinas/Cuestionario para Angel - INDASEL Pulycort.xlsx>) | Cuestionario funcional para Ángel sobre partes de máquinas y datos de producción. Cubre preguntas clave, campos por máquina, materiales y operaciones/tarifa. Incluye respuestas sobre conceptos como `PM`/número de lote, telares, reforzadoras, pulidoras y disco puente. |
 | [INSTRUCCIONES ACCESO MAQUINAS-INDASEL.DOCX](<06_produccion_y_acceso_maquinas/INSTRUCCIONES ACCESO MAQUINAS-INDASEL.DOCX>) | Instrucciones de acceso remoto a máquinas mediante RealVNC Viewer. Incluye IPs de telares, reforzadora, pulidoras y disco puente, con indicaciones de conexión. |
+
+## 07_tarifas_por_material
+
+| Documento | Contenido |
+| --- | --- |
+| [INDICE.md](<07_tarifas_por_material/INDICE.md>) | Indice local de tarifas comerciales por material y año. Define el criterio de carpetas para incorporar nuevos materiales sin mezclarlos con tarifas de operaciones/máquinas. |
+| [00_TARIFA_MAESTRA_CONSOLIDADA_v5.xlsx](<07_tarifas_por_material/00_TARIFA_MAESTRA_CONSOLIDADA_v5.xlsx>) | **Libro maestro vigente (v5).** Igual que v4 + **nuevo material «Travertino Mexicano»** (incorporado manualmente, no viene de `.xls`): solo tabla, eje = acabado (Bruto base + apomazado/pulido o cepillado, en poro abierto / a su color / transparente), 2 cm tecleado y 3 cm = +40 % calculado; ex factory, embalado no incluido. Catálogo de 15 materiales. Mecanismo de materiales manuales en `MANUAL_TABLAS` (`90_tools/tarifas_construir_v5.py` / `tarifas_verificar_v5.py`). |
+| 00_TARIFA_MAESTRA_CONSOLIDADA_v4.xlsx | **v4 (histórico, 14 materiales).** Igual que v3 (base Bruto, acabados que suman por fórmula, sin hoja de modificadores, BD derivada) con dos retoques: hoja `Acabados y notas` en **rojo** y **catálogo de materiales reordenado** (1 fila por material con sus variantes listadas; sin columnas «Tipo de eje» ni «Depósito», cuyo aviso pasa a Notas). Incluye **esquemas geométricos limpios de los 3 zanquines** (monta-caballo, cartabón, compuesto) bajo su columna en `Peldaños` (generados con `90_tools/tarifas_dibujos.py` → `90_tools/assets/`). **563 precios** (auditoría 2026-06-19: se corrigió un bug de extracción que perdía los precios de tabla/losa/banda de Caliza «Alba» y «Light Emperador», y se quitó la losa envejecida/arenada inventada de Gris San Vicente; v1/v2/v3 conservan ese bug y quedan superadas). `90_tools/tarifas_construir_v4.py` / `tarifas_verificar_v4.py` / `tarifas_auditoria.py`. |
+| 00_TARIFA_MAESTRA_CONSOLIDADA_v3.xlsx | **v3 (histórico).** Acabado base normalizado a **Bruto** (fila base = pieza sin acabado, lo que se teclea); al desplegar, los acabados **suman** sobre el bruto por fórmula (Pulido/Apomazado +3, Envejecido +5, Arenado +10 €/m²; Travertino: poro abierto/resina/transparente son precios propios, arenado +13). Pietra Grey y Tundra Grey no tienen bruto → base Pulido. **Sin hoja de modificadores**: todo integrado en las tablas (deltas inline); la hoja `Acabados y notas` es solo explicativa. `< 20 ud`, `medida fija` y `arista matada` como columnas calculadas; cabezas de huella/tabica como producto. `BD_Precios` = vista derivada por referencias. Verificado además contra los `.xls` originales (los 541 precios de origen aparecen en v3). `90_tools/tarifas_construir_v3.py` / `tarifas_verificar_v3.py`. |
+| 00_TARIFA_MAESTRA_CONSOLIDADA_v2.xlsx | **v2 (intermedio).** Modificadores integrados y enlazados por fórmulas, pero con base Pulido/Apomazado y hoja `Reglas` con celdas con nombre. Superado por la v3. |
+| 00_TARIFA_MAESTRA_CONSOLIDADA.xlsx | **v1 (histórico).** Primera consolidación: hoja por familia, `Reglas y modificadores` aparte (no enlazada), `BD_Precios` con 541 precios y sin fórmulas entre hojas. |
+| [TARIFA AZUL BATEIG 2026.xls](<07_tarifas_por_material/azul_bateig/2026/TARIFA AZUL BATEIG 2026.xls>) | Tarifa 2026 del material Azul Bateig. Copia literal de la fuente recibida en `01_entrada/`. |
+| [TARIFA CREMA MARFIL 2026.xls](<07_tarifas_por_material/crema_marfil/2026/TARIFA CREMA MARFIL 2026.xls>) | Tarifa 2026 del material Crema Marfil. Copia literal de la fuente recibida en `01_entrada/`. |
 
 ## Observaciones útiles
 

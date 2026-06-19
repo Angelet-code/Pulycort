@@ -53,12 +53,33 @@ if (Test-Path $EnvFile) {
   $portLine = Get-Content $EnvFile | Where-Object { $_ -match '^\s*PORT\s*=' } | Select-Object -First 1
   if ($portLine -and ($portLine -match '=\s*"?(\d+)"?')) { $BackendPort = [int]$Matches[1] }
 }
+if ($env:FABRIC_FRONTEND_PORT -and $env:FABRIC_FRONTEND_PORT -match '^\d+$') {
+  $FrontendPort = [int]$env:FABRIC_FRONTEND_PORT
+}
 
 if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir | Out-Null }
 
+# Algunas shells inyectan Path y PATH a la vez. PowerShell 5 falla al crear
+# procesos hijos con ese entorno, asi que normalizamos antes de Start-Process.
+$FabricPath = $env:Path
+if ($FabricPath) {
+  $env:PATH = $null
+  $env:Path = $FabricPath
+}
+
 function Get-PortPid([int]$Port) {
-  $c = Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue | Select-Object -First 1
-  if ($c) { return [int]$c.OwningProcess }
+  try {
+    $c = Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($c) { return [int]$c.OwningProcess }
+  } catch {
+    # En algunas sesiones Get-NetTCPConnection no devuelve todos los sockets.
+  }
+  $lines = & netstat -ano -p tcp 2>$null | Select-String -Pattern "LISTENING"
+  foreach ($line in $lines) {
+    if ($line.Line -match "^\s*TCP\s+\S+:$Port\s+\S+\s+LISTENING\s+(\d+)\s*$") {
+      return [int]$Matches[1]
+    }
+  }
   return $null
 }
 
@@ -165,7 +186,7 @@ function Resolve-Target([string]$T) {
 }
 
 $BackendArgs  = @('run', 'start:dev')
-$FrontendArgs = @('start')
+$FrontendArgs = @('start', '--', '--port', "$FrontendPort", '--no-open')
 
 switch ($Command.ToLower()) {
   { $_ -in 'up', 'start' } {
